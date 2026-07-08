@@ -29,7 +29,7 @@
                 android:textAppearance="?attr/textAppearanceTitleLarge"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                tools:text="Campus Chill" />
+                tools:text="Random Station" />
 
             <com.matijakljajic.freeairradio.ui.util.MarqueeTextView
                 android:id="@+id/player_now_playing"
@@ -39,7 +39,7 @@
                 android:ellipsize="marquee"
                 android:text="@string/player_now_playing_placeholder"
                 android:marqueeRepeatLimit="marquee_forever"
-                tools:text="Now playing will appear here later." />
+                tools:text="{Artist - Track}" />
 
         </LinearLayout>
 

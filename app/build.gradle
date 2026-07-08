@@ -41,6 +41,8 @@ dependencies {
     implementation libs.material
     implementation libs.recyclerview
     testImplementation libs.junit
+    debugImplementation libs.fragment.testing
+    androidTestImplementation libs.fragment.testing
     androidTestImplementation libs.espresso.core
     androidTestImplementation libs.ext.junit
 }

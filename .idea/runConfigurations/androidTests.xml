@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Instrumented Tests" type="AndroidJUnit" factoryName="Android JUnit">
+    <module name="FreeAir_Radio.app" />
+    <option name="PACKAGE_NAME" value="com.matijakljajic.freeairradio" />
+    <option name="TEST_OBJECT" value="package" />
+    <option name="INSTRUMENTATION_RUNNER_CLASS" value="androidx.test.runner.AndroidJUnitRunner" />
+    <method v="2">
+      <option name="Android.Gradle.BeforeRunTask" enabled="true" />
+    </method>
+  </configuration>
+</component>
