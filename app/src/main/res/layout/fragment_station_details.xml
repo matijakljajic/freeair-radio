@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/station_details_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="8dp"
+        android:breakStrategy="balanced"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:hyphenationFrequency="normal"
+        android:maxLines="3"
+        android:textAlignment="center"
+        android:textAppearance="?attr/textAppearanceHeadlineSmall"
+        android:textStyle="bold" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:strokeColor="?attr/colorOutline"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.matijakljajic.freeairradio.ui.stations.StationDetailRowView
+                android:id="@+id/row_country"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+            <com.matijakljajic.freeairradio.ui.stations.StationDetailRowView
+                android:id="@+id/row_language"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+            <com.matijakljajic.freeairradio.ui.stations.StationDetailRowView
+                android:id="@+id/row_codec"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+            <com.matijakljajic.freeairradio.ui.stations.StationDetailRowView
+                android:id="@+id/row_bitrate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+            <com.matijakljajic.freeairradio.ui.stations.StationDetailRowView
+                android:id="@+id/row_tags"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+            <com.matijakljajic.freeairradio.ui.stations.StationDetailRowView
+                android:id="@+id/row_stream_url"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/station_details_ok_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:insetBottom="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        android:insetTop="0dp"
+        android:text="@string/station_details_close"
+        android:textColor="?attr/colorOnPrimary"
+        app:backgroundTint="?attr/colorPrimary"
+        app:cornerRadius="999dp"
+        app:rippleColor="?attr/colorOnPrimary" />
+
+</LinearLayout>

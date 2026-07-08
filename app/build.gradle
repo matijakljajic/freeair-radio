@@ -37,9 +37,12 @@ dependencies {
     implementation libs.activity.ktx
     implementation libs.appcompat
     implementation libs.constraintlayout
+    implementation libs.fragment
     implementation libs.material
     implementation libs.recyclerview
     testImplementation libs.junit
+    debugImplementation libs.fragment.testing
+    androidTestImplementation libs.fragment.testing
     androidTestImplementation libs.espresso.core
     androidTestImplementation libs.ext.junit
 }

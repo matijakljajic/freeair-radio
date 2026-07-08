@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="20dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <com.matijakljajic.freeairradio.ui.util.MarqueeTextView
+                android:id="@+id/player_station_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="marquee"
+                android:text="@string/player_no_station_selected"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:textAppearance="?attr/textAppearanceTitleLarge"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                tools:text="Random Station" />
+
+            <com.matijakljajic.freeairradio.ui.util.MarqueeTextView
+                android:id="@+id/player_now_playing"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:ellipsize="marquee"
+                android:text="@string/player_now_playing_placeholder"
+                android:marqueeRepeatLimit="marquee_forever"
+                tools:text="{Artist - Track}" />
+
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/player_play_stop_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_gravity="center_vertical"
+            android:enabled="false"
+            android:text="@string/player_play_stop_placeholder" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>
