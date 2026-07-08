@@ -51,13 +51,13 @@ public final class StationSeedData {
                 "Serbia",
                 "serbian",
                 "",
-                "UNKNOWN",
+                Station.UNKNOWN,
                 128,
                 StationOrigin.RADIO_BROWSER));
         demoStations.add(new Station(
                 "9606ceae-0601-11e8-ae97-52543be04c81",
                 "Radio Caroline",
-                "http://78.129.202.200:8040/;",
+                "http://78.129.202.200:8040/",
                 "The United Kingdom Of Great Britain And Northern Ireland",
                 "english",
                 "country,pop,rock",

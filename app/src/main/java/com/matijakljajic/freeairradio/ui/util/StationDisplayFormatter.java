@@ -23,9 +23,14 @@ public final class StationDisplayFormatter {
     }
 
     @NonNull
+    public static String formatTags(@NonNull String tags) {
+        return formatTagsForDisplay(tags);
+    }
+
+    @NonNull
     private static String formatTagsForDisplay(@NonNull String tags) {
         if (isUnknown(tags)) {
-            return "UNKNOWN";
+            return Station.UNKNOWN;
         }
 
         String[] rawTags = tags.split(",");
@@ -38,7 +43,7 @@ public final class StationDisplayFormatter {
         }
 
         if (cleanedTags.isEmpty()) {
-            return "UNKNOWN";
+            return Station.UNKNOWN;
         }
 
         StringBuilder builder = new StringBuilder();
@@ -61,6 +66,6 @@ public final class StationDisplayFormatter {
     }
 
     private static boolean isUnknown(@NonNull String value) {
-        return "UNKNOWN".equals(value);
+        return Station.UNKNOWN.equals(value);
     }
 }

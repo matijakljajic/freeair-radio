@@ -3,7 +3,6 @@ package com.matijakljajic.freeairradio.ui.stations;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -11,24 +10,25 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.card.MaterialCardView;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
-import com.matijakljajic.freeairradio.ui.util.MarqueeTextView;
+import android.widget.TextView;
 import com.matijakljajic.freeairradio.ui.util.StationDisplayFormatter;
 
 import java.util.List;
 
 public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationViewHolder> {
 
-    public interface OnStationClickListener {
+    public interface OnStationInteractionListener {
         void onStationClick(Station station);
+
+        void onStationLongClick(Station station);
     }
 
     private final List<Station> stations;
-    private final OnStationClickListener onStationClickListener;
-    private int selectedPosition = RecyclerView.NO_POSITION;
+    private final OnStationInteractionListener onStationInteractionListener;
 
-    public StationAdapter(List<Station> stations, OnStationClickListener onStationClickListener) {
+    public StationAdapter(List<Station> stations, OnStationInteractionListener onStationInteractionListener) {
         this.stations = stations;
-        this.onStationClickListener = onStationClickListener;
+        this.onStationInteractionListener = onStationInteractionListener;
     }
 
     @NonNull
@@ -42,15 +42,21 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
     @Override
     public void onBindViewHolder(@NonNull StationViewHolder holder, int position) {
         Station station = stations.get(position);
-        boolean isSelected = position == selectedPosition;
-        holder.bind(station, isSelected);
+        holder.bind(station);
         holder.cardView.setOnClickListener(v -> {
             int clickedPosition = holder.getBindingAdapterPosition();
             if (clickedPosition == RecyclerView.NO_POSITION) {
                 return;
             }
-            selectStation(clickedPosition);
-            onStationClickListener.onStationClick(station);
+            onStationInteractionListener.onStationClick(station);
+        });
+        holder.cardView.setOnLongClickListener(v -> {
+            int clickedPosition = holder.getBindingAdapterPosition();
+            if (clickedPosition == RecyclerView.NO_POSITION) {
+                return true;
+            }
+            onStationInteractionListener.onStationLongClick(station);
+            return true;
         });
     }
 
@@ -59,24 +65,10 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
         return stations.size();
     }
 
-    private void selectStation(int position) {
-        if (position == selectedPosition) {
-            return;
-        }
-
-        int previousSelectedPosition = selectedPosition;
-        selectedPosition = position;
-        if (previousSelectedPosition != RecyclerView.NO_POSITION) {
-            notifyItemChanged(previousSelectedPosition);
-        }
-        notifyItemChanged(selectedPosition);
-    }
-
     public static class StationViewHolder extends RecyclerView.ViewHolder {
-
         private final MaterialCardView cardView;
         private final TextView nameText;
-        private final MarqueeTextView detailsText;
+        private final TextView detailsText;
 
         StationViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -85,10 +77,9 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
             detailsText = itemView.findViewById(R.id.station_item_details);
         }
 
-        void bind(@NonNull Station station, boolean isSelected) {
+        void bind(@NonNull Station station) {
             nameText.setText(station.getName());
             detailsText.setText(StationDisplayFormatter.formatStationDetails(station));
-            detailsText.setSelected(isSelected);
         }
     }
 }

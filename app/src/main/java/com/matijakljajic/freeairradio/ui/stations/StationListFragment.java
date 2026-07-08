@@ -22,7 +22,8 @@ import com.matijakljajic.freeairradio.data.seed.StationSeedData;
 
 import java.util.List;
 
-public class StationListFragment extends Fragment implements StationAdapter.OnStationClickListener {
+public class StationListFragment extends Fragment implements
+        StationAdapter.OnStationInteractionListener {
 
     private static final int LIST_TOP_PADDING_DP = 16;
     private static final int LIST_BOTTOM_PADDING_DP = 16;
@@ -89,6 +90,12 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         if (listener != null) {
             listener.onStationSelected(station);
         }
+    }
+
+    @Override
+    public void onStationLongClick(Station station) {
+        StationDetailsFragment.newInstance(station)
+                .show(getChildFragmentManager(), "station_details");
     }
 
     @Override

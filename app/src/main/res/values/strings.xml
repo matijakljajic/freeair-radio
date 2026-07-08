@@ -3,4 +3,12 @@
     <string name="player_no_station_selected">No station selected</string>
     <string name="player_now_playing_placeholder">{Artist - Track}</string>
     <string name="player_play_stop_placeholder">Play / Stop</string>
+    <string name="station_details_country">Country</string>
+    <string name="station_details_language">Language</string>
+    <string name="station_details_tags">Tags</string>
+    <string name="station_details_codec">Codec</string>
+    <string name="station_details_bitrate">Bitrate</string>
+    <string name="station_details_bitrate_value">%1$d kbps</string>
+    <string name="station_details_stream_url">Stream URL</string>
+    <string name="station_details_close">Close</string>
 </resources>

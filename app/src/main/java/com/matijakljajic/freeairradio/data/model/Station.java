@@ -9,6 +9,8 @@ import java.util.Objects;
 // TODO: replace Serializable with Parcelable and @Parcelize as that's more ideal
 public class Station implements Serializable {
 
+    public static final String UNKNOWN = "UNKNOWN";
+
     private final String id;
     private final String name;
     private final String streamUrl;
@@ -138,16 +140,16 @@ public class Station implements Serializable {
 
     private String normalizeUnknown(String value) {
         if (value == null) {
-            return "UNKNOWN";
+            return UNKNOWN;
         }
 
         String trimmedValue = value.trim();
         if (trimmedValue.isEmpty()) {
-            return "UNKNOWN";
+            return UNKNOWN;
         }
 
         if (trimmedValue.toLowerCase(Locale.ROOT).contains("unknown")) {
-            return "UNKNOWN";
+            return UNKNOWN;
         }
 
         return trimmedValue;

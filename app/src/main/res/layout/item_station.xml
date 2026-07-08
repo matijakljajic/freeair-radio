@@ -22,22 +22,19 @@
             android:id="@+id/station_item_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:textAppearance="?attr/textAppearanceTitleMedium"
             android:textStyle="bold"
             tools:text="1-NRK Jazz" />
 
-        <com.matijakljajic.freeairradio.ui.util.MarqueeTextView
+        <TextView
             android:id="@+id/station_item_details"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:focusable="true"
-            android:focusableInTouchMode="true"
-            android:freezesText="true"
-            android:ellipsize="marquee"
-            android:marqueeRepeatLimit="marquee_forever"
+            android:ellipsize="end"
             android:maxLines="1"
-            android:scrollHorizontally="true"
             android:textAppearance="?attr/textAppearanceBodySmall"
             tools:text="Norway • jazz, smooth jazz" />
 
