@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">FreeAir Radio</string>
+    <string name="player_no_station_selected">No station selected</string>
+    <string name="player_now_playing_placeholder">{Artist - Track}</string>
+    <string name="player_play_stop_placeholder">Play / Stop</string>
 </resources>
