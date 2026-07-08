@@ -12,8 +12,8 @@ import com.google.android.material.card.MaterialCardView;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.ui.util.MarqueeTextView;
+import com.matijakljajic.freeairradio.ui.util.StationDisplayFormatter;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationViewHolder> {
@@ -87,60 +87,8 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
 
         void bind(@NonNull Station station, boolean isSelected) {
             nameText.setText(station.getName());
-            detailsText.setText(formatCountryAndTags(station));
+            detailsText.setText(StationDisplayFormatter.formatStationDetails(station));
             detailsText.setSelected(isSelected);
-        }
-
-        @NonNull
-        private String formatCountryAndTags(@NonNull Station station) {
-            String countryDisplay = formatCountryForDisplay(station.getCountry());
-            String tags = formatTagsForDisplay(station.getTags());
-            if (isUnknown(tags)) {
-                return countryDisplay;
-            }
-            return countryDisplay + " \u2022 " + tags;
-        }
-
-        @NonNull
-        private String formatTagsForDisplay(@NonNull String tags) {
-            if (isUnknown(tags)) {
-                return "UNKNOWN";
-            }
-
-            String[] rawTags = tags.split(",");
-            List<String> cleanedTags = new ArrayList<>(rawTags.length);
-            for (String rawTag : rawTags) {
-                String cleanedTag = rawTag.trim();
-                if (!cleanedTag.isEmpty()) {
-                    cleanedTags.add(cleanedTag);
-                }
-            }
-
-            if (cleanedTags.isEmpty()) {
-                return "UNKNOWN";
-            }
-
-            StringBuilder builder = new StringBuilder();
-            for (int i = 0; i < cleanedTags.size(); i++) {
-                if (i > 0) {
-                    builder.append(", ");
-                }
-                builder.append(cleanedTags.get(i));
-            }
-            return builder.toString();
-        }
-
-        @NonNull
-        private String formatCountryForDisplay(@NonNull String country) {
-            // TODO: replace country text with a flag icon, and use a black flag for UNKNOWN.
-            if (isUnknown(country)) {
-                return "Unknown";
-            }
-            return country;
-        }
-
-        private boolean isUnknown(@NonNull String value) {
-            return "UNKNOWN".equals(value);
         }
     }
 }
