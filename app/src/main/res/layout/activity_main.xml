@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
@@ -24,12 +25,68 @@
         android:layout_marginEnd="16dp"
         android:layout_marginTop="16dp">
 
-        <androidx.fragment.app.FragmentContainerView
-            android:id="@+id/player_fragment_container"
-            android:name="com.matijakljajic.freeairradio.ui.player.PlayerFragment"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            tools:layout="@layout/fragment_player" />
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical">
+
+            <androidx.fragment.app.FragmentContainerView
+                android:id="@+id/player_fragment_container"
+                android:name="com.matijakljajic.freeairradio.ui.player.PlayerFragment"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                tools:layout="@layout/fragment_player" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="?attr/colorSurface"
+                app:contentPadding="0dp">
+
+                <com.google.android.material.button.MaterialButtonToggleGroup
+                    android:id="@+id/main_nav_toggle_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:padding="0dp"
+                    app:checkedButton="@id/nav_home_button"
+                    app:selectionRequired="true"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/nav_home_button"
+                        style="@style/Widget.FreeAirRadio.NavPillButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/nav_home" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/nav_search_button"
+                        style="@style/Widget.FreeAirRadio.NavPillButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/nav_search" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/nav_settings_button"
+                        style="@style/Widget.FreeAirRadio.NavPillButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/nav_settings" />
+
+                </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
 
     </com.matijakljajic.freeairradio.ui.PlayerShellContainer>
 

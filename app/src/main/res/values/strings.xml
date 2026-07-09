@@ -3,6 +3,9 @@
     <string name="player_no_station_selected">No station selected</string>
     <string name="player_now_playing_placeholder">{Artist - Track}</string>
     <string name="player_play_stop_placeholder">Play / Stop</string>
+    <string name="nav_home">Homepage</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_settings">Settings</string>
     <string name="station_details_country">Country</string>
     <string name="station_details_language">Language</string>
     <string name="station_details_tags">Tags</string>
