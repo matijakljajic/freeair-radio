@@ -3,20 +3,20 @@ package com.matijakljajic.freeairradio.ui.stations;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.card.MaterialCardView;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
-import android.widget.TextView;
 import com.matijakljajic.freeairradio.ui.util.StationDisplayFormatter;
 
-import java.util.ArrayList;
-import java.util.List;
-
-public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationViewHolder> {
+public class StationAdapter extends ListAdapter<Station, StationAdapter.StationViewHolder> {
 
     public interface OnStationInteractionListener {
         void onStationClick(Station station);
@@ -24,67 +24,79 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
         void onStationLongClick(Station station);
     }
 
-    private final List<Station> stations;
     private final OnStationInteractionListener onStationInteractionListener;
 
-    public StationAdapter(List<Station> stations, OnStationInteractionListener onStationInteractionListener) {
-        this.stations = stations;
+    public StationAdapter(OnStationInteractionListener onStationInteractionListener) {
+        super(DIFF_CALLBACK);
         this.onStationInteractionListener = onStationInteractionListener;
     }
+
+    private static final DiffUtil.ItemCallback<Station> DIFF_CALLBACK = new DiffUtil.ItemCallback<>() {
+        @Override
+        public boolean areItemsTheSame(@NonNull Station oldItem, @NonNull Station newItem) {
+            return oldItem.getId().equals(newItem.getId());
+        }
+
+        @Override
+        public boolean areContentsTheSame(@NonNull Station oldItem, @NonNull Station newItem) {
+            return oldItem.getId().equals(newItem.getId())
+                    && oldItem.getName().equals(newItem.getName())
+                    && oldItem.getStreamUrl().equals(newItem.getStreamUrl())
+                    && oldItem.getCountry().equals(newItem.getCountry())
+                    && oldItem.getLanguage().equals(newItem.getLanguage())
+                    && oldItem.getTags().equals(newItem.getTags())
+                    && oldItem.getCodec().equals(newItem.getCodec())
+                    && oldItem.getBitrate() == newItem.getBitrate()
+                    && oldItem.getOrigin().equals(newItem.getOrigin());
+        }
+    };
 
     @NonNull
     @Override
     public StationViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_station, parent, false);
-        return new StationViewHolder(view);
+        return new StationViewHolder(view, onStationInteractionListener);
     }
 
     @Override
     public void onBindViewHolder(@NonNull StationViewHolder holder, int position) {
-        Station station = stations.get(position);
-        holder.bind(station);
-        holder.cardView.setOnClickListener(v -> {
-            int clickedPosition = holder.getBindingAdapterPosition();
-            if (clickedPosition == RecyclerView.NO_POSITION) {
-                return;
-            }
-            onStationInteractionListener.onStationClick(station);
-        });
-        holder.cardView.setOnLongClickListener(v -> {
-            int clickedPosition = holder.getBindingAdapterPosition();
-            if (clickedPosition == RecyclerView.NO_POSITION) {
-                return true;
-            }
-            onStationInteractionListener.onStationLongClick(station);
-            return true;
-        });
+        holder.bind(getItem(position));
     }
 
     @Override
-    public int getItemCount() {
-        return stations.size();
-    }
-
-    public void submitStations(@NonNull List<Station> updatedStations) {
-        stations.clear();
-        stations.addAll(new ArrayList<>(updatedStations));
-        notifyDataSetChanged();
+    public void onViewRecycled(@NonNull StationViewHolder holder) {
+        holder.boundStation = null;
+        super.onViewRecycled(holder);
     }
 
     public static class StationViewHolder extends RecyclerView.ViewHolder {
         private final MaterialCardView cardView;
         private final TextView nameText;
         private final TextView detailsText;
+        @Nullable
+        private Station boundStation;
 
-        StationViewHolder(@NonNull View itemView) {
+        StationViewHolder(@NonNull View itemView, @NonNull OnStationInteractionListener listener) {
             super(itemView);
             cardView = itemView.findViewById(R.id.station_item_card);
             nameText = itemView.findViewById(R.id.station_item_name);
             detailsText = itemView.findViewById(R.id.station_item_details);
+            cardView.setOnClickListener(v -> {
+                if (boundStation != null) {
+                    listener.onStationClick(boundStation);
+                }
+            });
+            cardView.setOnLongClickListener(v -> {
+                if (boundStation != null) {
+                    listener.onStationLongClick(boundStation);
+                }
+                return true;
+            });
         }
 
         void bind(@NonNull Station station) {
+            boundStation = station;
             nameText.setText(station.getName());
             detailsText.setText(StationDisplayFormatter.formatStationDetails(station));
         }

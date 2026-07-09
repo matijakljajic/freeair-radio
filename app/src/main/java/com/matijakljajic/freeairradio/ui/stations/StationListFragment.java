@@ -72,7 +72,9 @@ public class StationListFragment extends Fragment implements
         super.onViewCreated(view, savedInstanceState);
         recyclerView = view.findViewById(R.id.station_list_recycler_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        recyclerView.setAdapter(new StationAdapter(stations, this));
+        StationAdapter stationAdapter = new StationAdapter(this);
+        recyclerView.setAdapter(stationAdapter);
+        stationAdapter.submitList(stations);
         if (recyclerView.getItemAnimator() instanceof SimpleItemAnimator) {
             ((SimpleItemAnimator) recyclerView.getItemAnimator()).setSupportsChangeAnimations(false);
         }
