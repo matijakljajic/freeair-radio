@@ -29,7 +29,8 @@
                 android:textAppearance="?attr/textAppearanceTitleLarge"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                tools:text="Random Station" />
+                tools:text="Random Station"
+                tools:ignore="VisualLintSystemUi" />
 
             <com.matijakljajic.freeairradio.ui.util.MarqueeTextView
                 android:id="@+id/player_now_playing"
@@ -50,7 +51,8 @@
             android:layout_marginStart="16dp"
             android:layout_gravity="center_vertical"
             android:enabled="false"
-            android:text="@string/player_play_stop_placeholder" />
+            android:text="@string/player_play_stop_placeholder"
+            tools:ignore="VisualLintSystemUi" />
 
     </LinearLayout>
 

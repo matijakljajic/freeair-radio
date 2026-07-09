@@ -3,33 +3,33 @@ plugins {
 }
 
 android {
-    namespace 'com.matijakljajic.freeairradio'
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
+    namespace = 'com.matijakljajic.freeairradio'
+    compileSdk = 36
+
+    buildFeatures {
+        buildConfig = true
     }
 
     defaultConfig {
-        applicationId "com.matijakljajic.freeairradio"
-        minSdk 26
-        targetSdk 36
-        versionCode 1
-        versionName "1.0"
+        applicationId = "com.matijakljajic.freeairradio"
+        minSdk = 26
+        targetSdk = 36
+        versionCode = 1
+        versionName = "1.0"
 
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
             optimization {
-                enable false
+                enable = false
             }
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 }
 
@@ -40,6 +40,8 @@ dependencies {
     implementation libs.fragment
     implementation libs.material
     implementation libs.recyclerview
+    implementation libs.retrofit
+    implementation libs.retrofit.converter.gson
     testImplementation libs.junit
     debugImplementation libs.fragment.testing
     androidTestImplementation libs.fragment.testing

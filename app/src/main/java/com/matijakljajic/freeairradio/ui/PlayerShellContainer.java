@@ -11,9 +11,11 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.matijakljajic.freeairradio.R;
+import com.matijakljajic.freeairradio.ui.util.UiDimensions;
+
 public class PlayerShellContainer extends FrameLayout {
 
-    private static final int PLAYER_BOTTOM_SAFE_SPACE_DP = 16;
     private int lastAppliedBottomMarginPx = Integer.MIN_VALUE;
 
     public PlayerShellContainer(@NonNull Context context) {
@@ -48,7 +50,7 @@ public class PlayerShellContainer extends FrameLayout {
     }
 
     private void applyBottomMargin(int systemBarBottomInset) {
-        int desiredBottomMarginPx = dpToPx(PLAYER_BOTTOM_SAFE_SPACE_DP) + systemBarBottomInset;
+        int desiredBottomMarginPx = UiDimensions.px(getContext(), R.dimen.player_bottom_safe_space) + systemBarBottomInset;
         if (desiredBottomMarginPx == lastAppliedBottomMarginPx) {
             return;
         }
@@ -62,9 +64,5 @@ public class PlayerShellContainer extends FrameLayout {
         marginLayoutParams.bottomMargin = desiredBottomMarginPx;
         lastAppliedBottomMarginPx = desiredBottomMarginPx;
         setLayoutParams(marginLayoutParams);
-    }
-
-    private int dpToPx(int dp) {
-        return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 }

@@ -1,24 +1,23 @@
 package com.matijakljajic.freeairradio.ui;
 
 import android.os.Bundle;
-
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.os.BundleCompat;
+import androidx.core.view.WindowCompat;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentTransaction;
 
+import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.ui.player.PlayerFragment;
+import com.matijakljajic.freeairradio.ui.settings.SettingsFragment;
 import com.matijakljajic.freeairradio.ui.stations.StationListFragment;
 import com.matijakljajic.freeairradio.ui.stations.StationSearchFragment;
-import com.matijakljajic.freeairradio.ui.settings.SettingsFragment;
 
-import com.google.android.material.button.MaterialButtonToggleGroup;
-
-public class MainActivity extends AppCompatActivity implements StationListFragment.OnStationSelectedListener {
+public class MainActivity extends AppCompatActivity implements StationListFragment.OnStationSelectedListener, StationSearchFragment.ShellChromeHost {
 
     private static final String STATE_SELECTED_STATION = "state_selected_station";
     private static final String STATE_CURRENT_TAB = "state_current_tab";
@@ -29,6 +28,8 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
     private Tab currentTab = Tab.HOME;
     @Nullable
     private MaterialButtonToggleGroup navToggleGroup;
+    @Nullable
+    private ShellChromeController shellChromeController;
     private boolean suppressNavCallbacks;
 
     @Override
@@ -36,14 +37,23 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
+                .setAppearanceLightStatusBars(false);
 
         if (savedInstanceState != null) {
-            selectedStation = (Station) savedInstanceState.getSerializable(STATE_SELECTED_STATION);
+            selectedStation = BundleCompat.getSerializable(savedInstanceState, STATE_SELECTED_STATION, Station.class);
             String savedTabName = savedInstanceState.getString(STATE_CURRENT_TAB, Tab.HOME.name());
             currentTab = Tab.valueOf(savedTabName);
         }
 
         navToggleGroup = findViewById(R.id.main_nav_toggle_group);
+        shellChromeController = new ShellChromeController(
+                findViewById(R.id.main),
+                findViewById(R.id.status_bar_filter),
+                findViewById(R.id.bottom_content_filter),
+                findViewById(R.id.player_shell_container),
+                findViewById(R.id.search_shell_overlay_container)
+        );
         if (navToggleGroup != null) {
             navToggleGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
                 if (!isChecked || suppressNavCallbacks) {
@@ -54,6 +64,9 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
                     selectTab(tab);
                 }
             });
+        }
+        if (shellChromeController != null) {
+            shellChromeController.attach();
         }
         selectTab(currentTab, true);
         syncPlayerFragment();
@@ -79,6 +92,22 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        if (shellChromeController != null) {
+            shellChromeController.detach();
+        }
+        super.onDestroy();
+    }
+
+    @NonNull
+    public ShellChromeController getShellChromeController() {
+        if (shellChromeController == null) {
+            throw new IllegalStateException("ShellChromeController is not initialized");
+        }
+        return shellChromeController;
+    }
+
     private void selectTab(@NonNull Tab tab) {
         selectTab(tab, false);
     }
@@ -91,7 +120,12 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
         currentTab = tab;
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.station_list_fragment_container, tab.createFragment())
-                .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_CLOSE)
+                .setTransition(ShellChromeController.DEFAULT_SHELL_TRANSITION_TYPE)
+                .runOnCommit(() -> {
+                    if (shellChromeController != null) {
+                        shellChromeController.setFloaterShellVisible(tab == Tab.SEARCH, ShellChromeController.DEFAULT_SHELL_TRANSITION_TYPE, 0L);
+                    }
+                })
                 .commit();
         syncNavSelection();
     }
@@ -116,7 +150,7 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
             @NonNull
             @Override
             Fragment createFragment() {
-                return new StationListFragment();
+                return StationListFragment.newHomeInstance();
             }
         },
         SEARCH(R.id.nav_search_button) {

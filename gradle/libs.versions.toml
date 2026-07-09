@@ -10,6 +10,7 @@ constraintlayout = "2.2.1"
 recyclerview = "1.4.0"
 fragment = "1.8.9"
 fragmentTesting = "1.8.9"
+retrofit = "3.0.0"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -22,6 +23,8 @@ constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayo
 recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
 fragment = { group = "androidx.fragment", name = "fragment", version.ref = "fragment" }
 fragment-testing = { group = "androidx.fragment", name = "fragment-testing", version.ref = "fragmentTesting" }
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-converter-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

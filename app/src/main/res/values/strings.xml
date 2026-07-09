@@ -6,6 +6,12 @@
     <string name="nav_home">Homepage</string>
     <string name="nav_search">Search</string>
     <string name="nav_settings">Settings</string>
+    <string name="station_search_hint">Search stations</string>
+    <string name="station_search_button">Search</string>
+    <string name="station_search_idle">Type a query to load stations.</string>
+    <string name="station_list_empty">No stations found.</string>
+    <string name="station_list_error">Could not load stations.</string>
+    <string name="station_list_retry">Retry</string>
     <string name="station_details_country">Country</string>
     <string name="station_details_language">Language</string>
     <string name="station_details_tags">Tags</string>
@@ -13,5 +19,6 @@
     <string name="station_details_bitrate">Bitrate</string>
     <string name="station_details_bitrate_value">%1$d kbps</string>
     <string name="station_details_stream_url">Stream URL</string>
+    <string name="station_details_homepage">Homepage</string>
     <string name="station_details_close">Close</string>
 </resources>

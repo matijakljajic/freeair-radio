@@ -19,7 +19,7 @@ public final class StationDisplayFormatter {
         if (isUnknown(tags)) {
             return countryDisplay;
         }
-        return countryDisplay + " \u2022 " + tags;
+        return countryDisplay + " • " + tags;
     }
 
     @NonNull
@@ -46,21 +46,14 @@ public final class StationDisplayFormatter {
             return Station.UNKNOWN;
         }
 
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < cleanedTags.size(); i++) {
-            if (i > 0) {
-                builder.append(", ");
-            }
-            builder.append(cleanedTags.get(i));
-        }
-        return builder.toString();
+        return String.join(", ", cleanedTags);
     }
 
     @NonNull
     private static String formatCountryForDisplay(@NonNull String country) {
         // TODO: replace country text with a flag icon, and use a black flag for UNKNOWN.
         if (isUnknown(country)) {
-            return "Unknown";
+            return Station.UNKNOWN;
         }
         return country;
     }

@@ -23,4 +23,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "FreeAir Radio"
-include ':app'
+include(":app")

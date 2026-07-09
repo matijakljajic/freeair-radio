@@ -13,8 +13,10 @@ import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
 import com.google.android.material.color.MaterialColors;
+import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.ui.util.MarqueeTextView;
+import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
 public class StationDetailRowView extends LinearLayout {
 
@@ -50,7 +52,7 @@ public class StationDetailRowView extends LinearLayout {
         contentContainer.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
         addView(contentContainer);
 
-        dividerView.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(1)));
+        dividerView.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, UiDimensions.px(getContext(), R.dimen.detail_row_divider_thickness)));
         dividerView.setBackgroundColor(MaterialColors.getColor(this, android.R.attr.textColorSecondary));
         addView(dividerView);
 
@@ -71,10 +73,14 @@ public class StationDetailRowView extends LinearLayout {
         contentContainer.removeAllViews();
         contentContainer.setOrientation(HORIZONTAL);
         contentContainer.setGravity(Gravity.CENTER_VERTICAL);
-        contentContainer.setPadding(dpToPx(20), dpToPx(12), dpToPx(20), dpToPx(12));
+        contentContainer.setPadding(
+                UiDimensions.px(getContext(), R.dimen.detail_row_horizontal_padding),
+                UiDimensions.px(getContext(), R.dimen.detail_row_vertical_padding),
+                UiDimensions.px(getContext(), R.dimen.detail_row_horizontal_padding),
+                UiDimensions.px(getContext(), R.dimen.detail_row_vertical_padding));
 
         LayoutParams labelParams = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-        labelParams.rightMargin = dpToPx(12);
+        labelParams.rightMargin = UiDimensions.px(getContext(), R.dimen.detail_row_label_value_spacing);
         contentContainer.addView(labelView, labelParams);
         contentContainer.addView(valueView, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
     }
@@ -82,11 +88,15 @@ public class StationDetailRowView extends LinearLayout {
     public void useTallStyle() {
         contentContainer.removeAllViews();
         contentContainer.setOrientation(VERTICAL);
-        contentContainer.setPadding(dpToPx(20), dpToPx(12), dpToPx(20), dpToPx(10));
+        contentContainer.setPadding(
+                UiDimensions.px(getContext(), R.dimen.detail_row_horizontal_padding),
+                UiDimensions.px(getContext(), R.dimen.detail_row_vertical_padding),
+                UiDimensions.px(getContext(), R.dimen.detail_row_horizontal_padding),
+                UiDimensions.px(getContext(), R.dimen.detail_row_vertical_padding_tall_bottom));
 
         LayoutParams labelParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
         LayoutParams valueParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        valueParams.topMargin = dpToPx(4);
+        valueParams.topMargin = UiDimensions.px(getContext(), R.dimen.detail_row_tall_value_spacing);
         contentContainer.addView(labelView, labelParams);
         contentContainer.addView(valueView, valueParams);
     }
@@ -116,6 +126,7 @@ public class StationDetailRowView extends LinearLayout {
             return false;
         }
 
+        resetBoundState();
         setVisibility(VISIBLE);
         labelView.setText(labelResId);
         setLinkValueDisplay();
@@ -133,6 +144,10 @@ public class StationDetailRowView extends LinearLayout {
     public void restartMarquee() {
         valueView.setSelected(false);
         valueView.setSelected(true);
+    }
+
+    public void hide() {
+        setVisibility(GONE);
     }
 
     public void setMarqueeRestartOnLongClickListener() {
@@ -159,13 +174,18 @@ public class StationDetailRowView extends LinearLayout {
     }
 
     private boolean bindStaticValue(@StringRes int labelResId, @NonNull String value) {
+        resetBoundState();
         setVisibility(VISIBLE);
         labelView.setText(labelResId);
         setStaticValueDisplay();
         valueView.setText(value);
         valueView.setContentDescription(value);
-        clearValueClickState();
         return true;
+    }
+
+    private void resetBoundState() {
+        clearValueClickState();
+        valueView.setSelected(false);
     }
 
     private void setStaticValueDisplay() {
@@ -207,7 +227,4 @@ public class StationDetailRowView extends LinearLayout {
         return value == null || value.isEmpty() || Station.UNKNOWN.equals(value);
     }
 
-    private int dpToPx(int dp) {
-        return Math.round(dp * getResources().getDisplayMetrics().density);
-    }
 }
