@@ -41,7 +41,8 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
 
     @Nullable
     private OnStationSelectedListener listener;
-    private final StationRepository stationRepository = new RadioBrowserRepository();
+    @Nullable
+    private StationRepository stationRepository;
     @Nullable
     private View rootView;
     @Nullable
@@ -233,7 +234,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         requestSequence++;
         int requestId = requestSequence;
         renderState(ListUiState.LOADING, 0);
-        stationRepository.loadTopStations(new StationRepository.LoadCallback() {
+        getStationRepository().loadTopStations(new StationRepository.LoadCallback() {
             @Override
             public void onStationsLoaded(@NonNull List<Station> loadedStations) {
                 if (isStaleRequest(requestId)) {
@@ -256,7 +257,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         requestSequence++;
         int requestId = requestSequence;
         renderState(ListUiState.LOADING, 0);
-        stationRepository.searchStationsByName(query, new StationRepository.LoadCallback() {
+        getStationRepository().searchStationsByName(query, new StationRepository.LoadCallback() {
             @Override
             public void onStationsLoaded(@NonNull List<Station> loadedStations) {
                 if (isStaleRequest(requestId)) {
@@ -291,7 +292,21 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
     }
 
     private void showIdle() {
+        requestSequence++;
         renderState(ListUiState.IDLE, R.string.station_search_idle);
+    }
+
+    @NonNull
+    protected StationRepository createStationRepository() {
+        return new RadioBrowserRepository();
+    }
+
+    @NonNull
+    private StationRepository getStationRepository() {
+        if (stationRepository == null) {
+            stationRepository = createStationRepository();
+        }
+        return stationRepository;
     }
 
     private void renderState(@NonNull ListUiState state, @StringRes int messageResId) {

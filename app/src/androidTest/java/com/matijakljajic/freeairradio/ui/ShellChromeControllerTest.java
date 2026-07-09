@@ -15,6 +15,7 @@ import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.Visibility.GONE;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -46,9 +47,7 @@ public class ShellChromeControllerTest {
             Espresso.onView(withId(R.id.nav_home_button)).perform(androidx.test.espresso.action.ViewActions.click());
             Espresso.onView(withId(R.id.station_search_shell)).check(matches(androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility(GONE)));
 
-            scenario.onActivity(activity -> {
-                assertChromeState(activity, View.GONE);
-            });
+            scenario.onActivity(activity -> assertChromeState(activity, View.GONE));
         }
     }
 
@@ -61,8 +60,8 @@ public class ShellChromeControllerTest {
         assertNotNull(statusBarFilter);
         assertNotNull(bottomFilter);
 
-        assertTrue(searchShell.getVisibility() == expectedSearchVisibility);
-        assertTrue(bottomFilter.getVisibility() == View.VISIBLE);
+        assertEquals(searchShell.getVisibility(), expectedSearchVisibility);
+        assertEquals(View.VISIBLE, bottomFilter.getVisibility());
         assertTrue(bottomFilter.getHeight() > 0);
         assertTrue(statusBarFilter.getHeight() >= 0);
         return statusBarFilter.getHeight();

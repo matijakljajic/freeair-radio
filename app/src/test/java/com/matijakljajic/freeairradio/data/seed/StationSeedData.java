@@ -5,6 +5,7 @@ import com.matijakljajic.freeairradio.data.model.StationOrigin;
 
 import java.util.List;
 
+@SuppressWarnings("GrazieInspectionRunner")
 public final class StationSeedData {
 
     private StationSeedData() {

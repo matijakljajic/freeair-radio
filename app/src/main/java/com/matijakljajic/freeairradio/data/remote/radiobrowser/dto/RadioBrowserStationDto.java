@@ -6,6 +6,7 @@ import com.google.gson.annotations.SerializedName;
 
 public class RadioBrowserStationDto {
 
+    @SuppressWarnings("GrazieInspectionRunner")
     @SerializedName("stationuuid")
     private String stationUuid;
 
@@ -27,6 +28,7 @@ public class RadioBrowserStationDto {
     @SerializedName("country")
     private String country;
 
+    @SuppressWarnings("GrazieInspectionRunner")
     @SerializedName("countrycode")
     private String countryCode;
 
