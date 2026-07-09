@@ -72,26 +72,35 @@ public class StationDetailsFragment extends DialogFragment {
 
     private void bindContent(@NonNull View contentView, @NonNull Station station) {
         ((TextView) contentView.findViewById(R.id.station_details_name)).setText(station.getName());
-        bindCompactRow(contentView, R.id.row_country, R.string.station_details_country, station.getCountry());
-        bindCompactRow(contentView, R.id.row_language, R.string.station_details_language, station.getLanguage());
-        bindCompactRow(contentView, R.id.row_codec, R.string.station_details_codec, station.getCodec());
+        bindCompactTextRow(contentView, R.id.row_country, R.string.station_details_country, station.getCountry());
+        bindCompactTextRow(contentView, R.id.row_language, R.string.station_details_language, station.getLanguage());
+        bindCompactTextRow(contentView, R.id.row_codec, R.string.station_details_codec, station.getCodec());
         bindBitrateRow(contentView, station);
-        bindTallRow(contentView, R.id.row_tags, R.string.station_details_tags,
+        bindTallTextRow(contentView, R.id.row_tags, R.string.station_details_tags,
                 StationDisplayFormatter.formatTags(station));
-        bindStreamUrlRow(contentView, station.getStreamUrl());
+        bindLinkRow(contentView, R.id.row_homepage, R.string.station_details_homepage, station.getHomepage());
+        bindLinkRow(contentView, R.id.row_stream_url, R.string.station_details_stream_url, station.getStreamUrl());
     }
 
-    private void bindCompactRow(@NonNull View contentView, int rowId, int labelStringId, @NonNull String value) {
+    private void bindCompactTextRow(@NonNull View contentView, int rowId, int labelStringId, @NonNull String value) {
+        bindTextRow(contentView, rowId, labelStringId, value, true);
+    }
+
+    private void bindTallTextRow(@NonNull View contentView, int rowId, int labelStringId, @NonNull String value) {
+        bindTextRow(contentView, rowId, labelStringId, value, false);
+    }
+
+    private void bindTextRow(@NonNull View contentView,
+                             int rowId,
+                             int labelStringId,
+                             @NonNull String value,
+                             boolean compact) {
         StationDetailRowView row = contentView.findViewById(rowId);
-        row.useCompactStyle();
-        if (row.bindText(labelStringId, value)) {
-            row.setMarqueeRestartOnLongClickListener();
+        if (compact) {
+            row.useCompactStyle();
+        } else {
+            row.useTallStyle();
         }
-    }
-
-    private void bindTallRow(@NonNull View contentView, int rowId, int labelStringId, @NonNull String value) {
-        StationDetailRowView row = contentView.findViewById(rowId);
-        row.useTallStyle();
         if (row.bindText(labelStringId, value)) {
             row.setMarqueeRestartOnLongClickListener();
         }
@@ -105,11 +114,16 @@ public class StationDetailsFragment extends DialogFragment {
         }
     }
 
-    private void bindStreamUrlRow(@NonNull View contentView, @NonNull String streamUrl) {
-        StationDetailRowView row = contentView.findViewById(R.id.row_stream_url);
+    private void bindLinkRow(@NonNull View contentView, int rowId, int labelStringId, @Nullable String value) {
+        if (value == null) {
+            StationDetailRowView row = contentView.findViewById(rowId);
+            row.hide();
+            return;
+        }
+
+        StationDetailRowView row = contentView.findViewById(rowId);
         row.useTallStyle();
-        if (row.bindLink(R.string.station_details_stream_url, streamUrl,
-                v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(streamUrl))))) {
+        if (row.bindLink(labelStringId, value, v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(value))))) {
             row.setMarqueeRestartOnLongClickListener();
         }
     }

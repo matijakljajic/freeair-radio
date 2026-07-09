@@ -116,6 +116,7 @@ public class StationDetailRowView extends LinearLayout {
             return false;
         }
 
+        resetBoundState();
         setVisibility(VISIBLE);
         labelView.setText(labelResId);
         setLinkValueDisplay();
@@ -133,6 +134,10 @@ public class StationDetailRowView extends LinearLayout {
     public void restartMarquee() {
         valueView.setSelected(false);
         valueView.setSelected(true);
+    }
+
+    public void hide() {
+        setVisibility(GONE);
     }
 
     public void setMarqueeRestartOnLongClickListener() {
@@ -159,13 +164,18 @@ public class StationDetailRowView extends LinearLayout {
     }
 
     private boolean bindStaticValue(@StringRes int labelResId, @NonNull String value) {
+        resetBoundState();
         setVisibility(VISIBLE);
         labelView.setText(labelResId);
         setStaticValueDisplay();
         valueView.setText(value);
         valueView.setContentDescription(value);
-        clearValueClickState();
         return true;
+    }
+
+    private void resetBoundState() {
+        clearValueClickState();
+        valueView.setSelected(false);
     }
 
     private void setStaticValueDisplay() {

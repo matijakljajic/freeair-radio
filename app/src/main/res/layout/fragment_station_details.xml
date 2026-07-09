@@ -58,6 +58,10 @@
                 android:id="@+id/row_stream_url"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
+            <com.matijakljajic.freeairradio.ui.stations.StationDetailRowView
+                android:id="@+id/row_homepage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
         </LinearLayout>
 
