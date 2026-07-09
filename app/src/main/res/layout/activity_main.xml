@@ -16,6 +16,24 @@
         android:layout_height="match_parent"
         tools:layout="@layout/fragment_station_list" />
 
+    <View
+        android:id="@+id/bottom_content_filter"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bottom_content_filter"
+        android:clickable="false"
+        android:importantForAccessibility="no" />
+
+    <View
+        android:id="@+id/status_bar_filter"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_gravity="top"
+        android:background="@drawable/top_content_filter"
+        android:clickable="false"
+        android:importantForAccessibility="no" />
+
     <com.matijakljajic.freeairradio.ui.PlayerShellContainer
         android:id="@+id/player_shell_container"
         android:layout_width="match_parent"
