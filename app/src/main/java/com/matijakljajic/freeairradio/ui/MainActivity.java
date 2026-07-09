@@ -8,6 +8,7 @@ import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.os.BundleCompat;
 import androidx.core.view.WindowCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
@@ -44,7 +45,7 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
                 .setAppearanceLightStatusBars(false);
 
         if (savedInstanceState != null) {
-            selectedStation = (Station) savedInstanceState.getSerializable(STATE_SELECTED_STATION);
+            selectedStation = BundleCompat.getSerializable(savedInstanceState, STATE_SELECTED_STATION, Station.class);
             String savedTabName = savedInstanceState.getString(STATE_CURRENT_TAB, Tab.HOME.name());
             currentTab = Tab.valueOf(savedTabName);
         }
@@ -100,6 +101,18 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
             shellFilterController.detach();
         }
         super.onDestroy();
+    }
+
+    public void setTopContentFilterHeightPx(int heightPx) {
+        if (shellFilterController != null) {
+            shellFilterController.setTopContentFilterHeightPx(heightPx);
+        }
+    }
+
+    public void resetTopContentFilterHeight() {
+        if (shellFilterController != null) {
+            shellFilterController.resetTopContentFilterHeight();
+        }
     }
 
     private void selectTab(@NonNull Tab tab) {
@@ -191,6 +204,8 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
         private final View playerShellContainerView;
         @Nullable
         private final View.OnLayoutChangeListener playerShellLayoutChangeListener;
+        private int statusBarInsetPx;
+        private int topContentFilterHeightPx;
 
         private ShellFilterController(@NonNull View rootView,
                                        @Nullable View statusBarFilterView,
@@ -210,11 +225,13 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
             if (statusBarFilterView != null) {
                 androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootView, (view, insets) -> {
                     androidx.core.graphics.Insets statusBarInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars());
-                    updateStatusBarFilter(statusBarInsets.top);
+                    statusBarInsetPx = statusBarInsets.top;
+                    updateTopContentFilter();
                     return insets;
                 });
             }
             androidx.core.view.ViewCompat.requestApplyInsets(rootView);
+            updateTopContentFilter();
             updateBottomContentFilter();
         }
 
@@ -224,17 +241,35 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
             }
         }
 
-        private void updateStatusBarFilter(int heightPx) {
+        private void setTopContentFilterHeightPx(int heightPx) {
+            int sanitizedHeightPx = Math.max(0, heightPx);
+            if (topContentFilterHeightPx == sanitizedHeightPx) {
+                return;
+            }
+            topContentFilterHeightPx = sanitizedHeightPx;
+            updateTopContentFilter();
+        }
+
+        private void resetTopContentFilterHeight() {
+            if (topContentFilterHeightPx == 0) {
+                return;
+            }
+            topContentFilterHeightPx = 0;
+            updateTopContentFilter();
+        }
+
+        private void updateTopContentFilter() {
             if (statusBarFilterView == null) {
                 return;
             }
 
+            int desiredHeight = Math.max(statusBarInsetPx, topContentFilterHeightPx);
             ViewGroup.LayoutParams layoutParams = statusBarFilterView.getLayoutParams();
-            if (layoutParams != null && layoutParams.height != heightPx) {
-                layoutParams.height = heightPx;
+            if (layoutParams != null && layoutParams.height != desiredHeight) {
+                layoutParams.height = desiredHeight;
                 statusBarFilterView.setLayoutParams(layoutParams);
             }
-            statusBarFilterView.setVisibility(heightPx > 0 ? View.VISIBLE : View.GONE);
+            statusBarFilterView.setVisibility(desiredHeight > 0 ? View.VISIBLE : View.GONE);
         }
 
         private void updateBottomContentFilter() {

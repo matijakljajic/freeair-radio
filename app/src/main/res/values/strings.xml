@@ -9,7 +9,6 @@
     <string name="station_search_hint">Search stations</string>
     <string name="station_search_button">Search</string>
     <string name="station_search_idle">Type a query to load stations.</string>
-    <string name="station_list_loading">Loading stations...</string>
     <string name="station_list_empty">No stations found.</string>
     <string name="station_list_error">Could not load stations.</string>
     <string name="station_list_retry">Retry</string>

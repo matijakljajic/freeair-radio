@@ -12,6 +12,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.os.BundleCompat;
 import androidx.fragment.app.DialogFragment;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -63,7 +64,7 @@ public class StationDetailsFragment extends DialogFragment {
     @NonNull
     private Station requireStation() {
         Bundle args = requireArguments();
-        Station station = (Station) args.getSerializable(ARG_STATION);
+        Station station = BundleCompat.getSerializable(args, ARG_STATION, Station.class);
         if (station == null) {
             throw new IllegalStateException("Station details requires a station");
         }

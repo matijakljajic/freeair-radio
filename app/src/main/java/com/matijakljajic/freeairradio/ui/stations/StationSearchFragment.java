@@ -4,7 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 
 import androidx.annotation.NonNull;
@@ -16,17 +16,29 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.matijakljajic.freeairradio.R;
+import com.matijakljajic.freeairradio.ui.MainActivity;
+import com.google.android.material.card.MaterialCardView;
 
 public class StationSearchFragment extends Fragment {
 
     private static final String STATE_QUERY = "state_query";
+    private static final int SEARCH_TOP_GAP_DP = 10;
+    private static final int SEARCH_LIST_GAP_DP = 12;
+    private static final int SEARCH_LIST_BOTTOM_GAP_DP = 24;
 
     @Nullable
     private View rootView;
     @Nullable
+    private View searchShellOverlayContainer;
+    @Nullable
+    private MaterialCardView searchShellView;
+    @Nullable
     private EditText searchInput;
+    @Nullable
+    private StationListFragment stationListFragment;
     @NonNull
     private String currentQuery = "";
+    private final View.OnLayoutChangeListener searchShellLayoutChangeListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateSearchListPadding();
 
     @Nullable
     @Override
@@ -47,8 +59,8 @@ public class StationSearchFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         rootView = view.findViewById(R.id.station_search_root);
-        searchInput = view.findViewById(R.id.station_search_input);
-        Button searchButton = view.findViewById(R.id.station_search_button);
+        searchShellOverlayContainer = requireActivity().findViewById(R.id.search_shell_overlay_container);
+        attachSearchShell();
 
         if (searchInput != null) {
             searchInput.setText(currentQuery);
@@ -62,21 +74,17 @@ public class StationSearchFragment extends Fragment {
             });
         }
 
-        searchButton.setOnClickListener(v -> submitSearch());
-
         ensureStationListFragment();
 
-        ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            rootView.setPadding(
-                    rootView.getPaddingLeft(),
-                    systemBars.top,
-                    rootView.getPaddingRight(),
-                    rootView.getPaddingBottom()
-            );
-            return insets;
-        });
-        ViewCompat.requestApplyInsets(rootView);
+        if (rootView != null && searchShellView != null) {
+            ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
+                Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+                applySearchShellTopMargin(systemBars.top);
+                updateSearchListPadding();
+                return insets;
+            });
+            ViewCompat.requestApplyInsets(rootView);
+        }
     }
 
     @Override
@@ -87,8 +95,18 @@ public class StationSearchFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
+        if (searchShellView != null) {
+            searchShellView.removeOnLayoutChangeListener(searchShellLayoutChangeListener);
+            if (searchShellOverlayContainer instanceof ViewGroup) {
+                ((ViewGroup) searchShellOverlayContainer).removeView(searchShellView);
+            }
+        }
+        resetTopContentFilterHeight();
         rootView = null;
+        searchShellOverlayContainer = null;
+        searchShellView = null;
         searchInput = null;
+        stationListFragment = null;
         super.onDestroyView();
     }
 
@@ -102,16 +120,61 @@ public class StationSearchFragment extends Fragment {
                     .commitNow();
         }
 
-        if (!currentQuery.isEmpty() && fragment instanceof StationListFragment) {
-            ((StationListFragment) fragment).submitQuery(currentQuery);
+        if (fragment instanceof StationListFragment) {
+            stationListFragment = (StationListFragment) fragment;
+            updateSearchListPadding();
+            if (!currentQuery.isEmpty()) {
+                stationListFragment.submitQuery(currentQuery);
+            }
         }
     }
 
     private void submitSearch() {
         currentQuery = getSearchQuery();
-        Fragment fragment = getChildFragmentManager().findFragmentById(R.id.station_search_list_container);
-        if (fragment instanceof StationListFragment) {
-            ((StationListFragment) fragment).submitQuery(currentQuery);
+        if (stationListFragment != null) {
+            stationListFragment.submitQuery(currentQuery);
+        }
+        closeKeyboard();
+    }
+
+    private void closeKeyboard() {
+        if (searchInput == null) {
+            return;
+        }
+
+        searchInput.clearFocus();
+        InputMethodManager inputMethodManager = (InputMethodManager) requireContext()
+                .getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+        if (inputMethodManager != null) {
+            inputMethodManager.hideSoftInputFromWindow(searchInput.getWindowToken(), 0);
+        }
+    }
+
+    private void updateSearchListPadding() {
+        if (searchShellView == null || stationListFragment == null) {
+            return;
+        }
+        int desiredTopPaddingPx = searchShellView.getBottom() + dpToPx(SEARCH_LIST_GAP_DP);
+        stationListFragment.setSearchTopPaddingPx(desiredTopPaddingPx);
+        stationListFragment.setBottomRecyclerGapPx(dpToPx(SEARCH_LIST_BOTTOM_GAP_DP));
+        setTopContentFilterHeightPx(desiredTopPaddingPx);
+    }
+
+    private void applySearchShellTopMargin(int statusBarInsetPx) {
+        if (searchShellView == null) {
+            return;
+        }
+
+        ViewGroup.LayoutParams layoutParams = searchShellView.getLayoutParams();
+        if (!(layoutParams instanceof ViewGroup.MarginLayoutParams)) {
+            return;
+        }
+
+        ViewGroup.MarginLayoutParams marginLayoutParams = (ViewGroup.MarginLayoutParams) layoutParams;
+        int desiredTopMarginPx = statusBarInsetPx + dpToPx(SEARCH_TOP_GAP_DP);
+        if (marginLayoutParams.topMargin != desiredTopMarginPx) {
+            marginLayoutParams.topMargin = desiredTopMarginPx;
+            searchShellView.setLayoutParams(marginLayoutParams);
         }
     }
 
@@ -121,5 +184,42 @@ public class StationSearchFragment extends Fragment {
             return "";
         }
         return searchInput.getText().toString().trim();
+    }
+
+    private int dpToPx(int dp) {
+        return Math.round(dp * requireContext().getResources().getDisplayMetrics().density);
+    }
+
+    private void setTopContentFilterHeightPx(int heightPx) {
+        if (getActivity() instanceof MainActivity) {
+            ((MainActivity) getActivity()).setTopContentFilterHeightPx(heightPx);
+        }
+    }
+
+    private void resetTopContentFilterHeight() {
+        if (getActivity() instanceof MainActivity) {
+            ((MainActivity) getActivity()).resetTopContentFilterHeight();
+        }
+    }
+
+    private void attachSearchShell() {
+        if (!(searchShellOverlayContainer instanceof ViewGroup)) {
+            return;
+        }
+
+        ViewGroup overlayContainer = (ViewGroup) searchShellOverlayContainer;
+        View shellView = LayoutInflater.from(requireContext())
+                .inflate(R.layout.view_station_search_shell, overlayContainer, false);
+        overlayContainer.addView(shellView);
+        searchShellView = (MaterialCardView) shellView;
+        searchInput = searchShellView.findViewById(R.id.station_search_input);
+        View searchButton = searchShellView.findViewById(R.id.station_search_button);
+
+        if (searchShellView != null) {
+            searchShellView.addOnLayoutChangeListener(searchShellLayoutChangeListener);
+        }
+        if (searchButton != null) {
+            searchButton.setOnClickListener(v -> submitSearch());
+        }
     }
 }

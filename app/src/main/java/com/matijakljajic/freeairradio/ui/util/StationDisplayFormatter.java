@@ -19,7 +19,7 @@ public final class StationDisplayFormatter {
         if (isUnknown(tags)) {
             return countryDisplay;
         }
-        return countryDisplay + " \u2022 " + tags;
+        return countryDisplay + " • " + tags;
     }
 
     @NonNull

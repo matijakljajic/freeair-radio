@@ -62,6 +62,8 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
     private String currentQuery = "";
     private boolean applyTopInset = false;
     private boolean loadOnStart = true;
+    private int searchTopPaddingPx;
+    private int bottomRecyclerGapPx;
     private int topSystemInset;
     private int requestSequence;
     private final View.OnLayoutChangeListener playerShellLayoutChangeListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateRecyclerPadding();
@@ -92,6 +94,25 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         } else {
             throw new IllegalStateException("Host activity must implement OnStationSelectedListener");
         }
+    }
+
+    public void setSearchTopPaddingPx(int searchTopPaddingPx) {
+        int sanitizedPaddingPx = Math.max(0, searchTopPaddingPx);
+        if (this.searchTopPaddingPx == sanitizedPaddingPx) {
+            return;
+        }
+        this.searchTopPaddingPx = sanitizedPaddingPx;
+        updateRootPadding(recyclerView != null && recyclerView.getVisibility() != View.VISIBLE);
+        updateRecyclerPadding();
+    }
+
+    public void setBottomRecyclerGapPx(int bottomRecyclerGapPx) {
+        int sanitizedGapPx = Math.max(0, bottomRecyclerGapPx);
+        if (this.bottomRecyclerGapPx == sanitizedGapPx) {
+            return;
+        }
+        this.bottomRecyclerGapPx = sanitizedGapPx;
+        updateRecyclerPadding();
     }
 
     @Override
@@ -127,6 +148,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         Button retryButton = view.findViewById(R.id.station_list_retry_button);
         retryButton.setOnClickListener(v -> loadCurrentQuery());
 
+        assert recyclerView != null;
         stationAdapter = new StationAdapter(this);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         recyclerView.setAdapter(stationAdapter);
@@ -135,6 +157,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         }
         recyclerView.setClipToPadding(false);
 
+        assert rootView != null;
         ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             topSystemInset = applyTopInset ? systemBars.top : 0;
@@ -217,7 +240,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         stationRepository.loadTopStations(new StationRepository.LoadCallback() {
             @Override
             public void onStationsLoaded(@NonNull List<Station> loadedStations) {
-                if (!isRequestCurrent(requestId)) {
+                if (isStaleRequest(requestId)) {
                     return;
                 }
                 showStations(loadedStations);
@@ -225,7 +248,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
 
             @Override
             public void onError(@NonNull Throwable throwable) {
-                if (!isRequestCurrent(requestId)) {
+                if (isStaleRequest(requestId)) {
                     return;
                 }
                 showError();
@@ -240,7 +263,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         stationRepository.searchStationsByName(query, new StationRepository.LoadCallback() {
             @Override
             public void onStationsLoaded(@NonNull List<Station> loadedStations) {
-                if (!isRequestCurrent(requestId)) {
+                if (isStaleRequest(requestId)) {
                     return;
                 }
                 showStations(loadedStations);
@@ -248,7 +271,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
 
             @Override
             public void onError(@NonNull Throwable throwable) {
-                if (!isRequestCurrent(requestId)) {
+                if (isStaleRequest(requestId)) {
                     return;
                 }
                 showError();
@@ -256,8 +279,8 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         });
     }
 
-    private boolean isRequestCurrent(int requestId) {
-        return requestId == requestSequence && isAdded();
+    private boolean isStaleRequest(int requestId) {
+        return requestId != requestSequence || !isAdded();
     }
 
     private void showLoading() {
@@ -330,7 +353,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
 
         rootView.setPadding(
                 rootView.getPaddingLeft(),
-                applyTopInset ? topSystemInset + dpToPx(TOP_CONTENT_GAP_DP) : 0,
+                applyTopInset ? getTopContentPaddingPx() : 0,
                 rootView.getPaddingRight(),
                 rootView.getPaddingBottom()
         );
@@ -343,14 +366,28 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
 
         recyclerView.setPadding(
                 recyclerView.getPaddingLeft(),
-                topSystemInset + dpToPx(TOP_CONTENT_GAP_DP),
+                getTopContentPaddingPx(),
                 recyclerView.getPaddingRight(),
                 getBottomRecyclerPaddingPx()
         );
     }
 
+    private int getTopContentPaddingPx() {
+        if (applyTopInset) {
+            return topSystemInset + dpToPx(TOP_CONTENT_GAP_DP);
+        }
+        return searchTopPaddingPx;
+    }
+
     private int getBottomRecyclerPaddingPx() {
-        return getPlayerShellHeight() + dpToPx(LIST_BOTTOM_PADDING_DP);
+        return getPlayerShellHeight() + getBottomRecyclerGapPx();
+    }
+
+    private int getBottomRecyclerGapPx() {
+        if (bottomRecyclerGapPx > 0) {
+            return bottomRecyclerGapPx;
+        }
+        return dpToPx(LIST_BOTTOM_PADDING_DP);
     }
 
     private int getPlayerShellHeight() {
