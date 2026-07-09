@@ -77,7 +77,7 @@ public class StationDetailsFragment extends DialogFragment {
         bindCompactRow(contentView, R.id.row_codec, R.string.station_details_codec, station.getCodec());
         bindBitrateRow(contentView, station);
         bindTallRow(contentView, R.id.row_tags, R.string.station_details_tags,
-                StationDisplayFormatter.formatTags(station.getTags()));
+                StationDisplayFormatter.formatTags(station));
         bindStreamUrlRow(contentView, station.getStreamUrl());
     }
 

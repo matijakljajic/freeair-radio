@@ -123,6 +123,31 @@ public class Station implements Serializable {
         return origin;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Station)) {
+            return false;
+        }
+        Station station = (Station) o;
+        return bitrate == station.bitrate
+                && id.equals(station.id)
+                && name.equals(station.name)
+                && streamUrl.equals(station.streamUrl)
+                && country.equals(station.country)
+                && language.equals(station.language)
+                && tags.equals(station.tags)
+                && codec.equals(station.codec)
+                && origin == station.origin;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, streamUrl, country, language, tags, codec, bitrate, origin);
+    }
+
     @NonNull
     @Override
     public String toString() {

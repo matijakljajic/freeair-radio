@@ -11,14 +11,32 @@ public class StationDisplayFormatterTest {
 
     @Test
     public void formatTags_trimsAndJoinsValues() {
-        assertEquals("jazz, smooth jazz, pop", StationDisplayFormatter.formatTags(" jazz, smooth jazz , pop "));
+        Station station = new Station(
+                "id-0",
+                "Test Station",
+                "https://example.com/stream",
+                "Norway",
+                "norwegian",
+                " jazz, smooth jazz , pop ",
+                StationOrigin.RADIO_BROWSER
+        );
+
+        assertEquals("jazz, smooth jazz, pop", StationDisplayFormatter.formatTags(station));
     }
 
     @Test
-    public void formatTags_returnsUnknownForEmptyOrUnknownInput() {
-        assertEquals(Station.UNKNOWN, StationDisplayFormatter.formatTags(""));
-        assertEquals(Station.UNKNOWN, StationDisplayFormatter.formatTags("unknown"));
-        assertEquals(Station.UNKNOWN, StationDisplayFormatter.formatTags("   unknown   "));
+    public void formatTags_returnsUnknownForUnknownStationTags() {
+        Station station = new Station(
+                "id-1",
+                "Test Station",
+                "https://example.com/stream",
+                "Norway",
+                "norwegian",
+                "unknown",
+                StationOrigin.RADIO_BROWSER
+        );
+
+        assertEquals(Station.UNKNOWN, StationDisplayFormatter.formatTags(station));
     }
 
     @Test
