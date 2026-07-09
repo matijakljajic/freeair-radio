@@ -79,7 +79,7 @@ public class StationSearchFragment extends Fragment {
     @Override
     public void onDestroyView() {
         if (shellChromeController != null) {
-            shellChromeController.setSearchStationListFragment(null);
+            shellChromeController.setFloaterStationListFragment(null);
         }
         if (searchInput != null) {
             searchInput.setOnEditorActionListener(null);
@@ -113,7 +113,7 @@ public class StationSearchFragment extends Fragment {
         if (fragment instanceof StationListFragment) {
             stationListFragment = (StationListFragment) fragment;
             if (shellChromeController != null) {
-                shellChromeController.setSearchStationListFragment(stationListFragment);
+                shellChromeController.setFloaterStationListFragment(stationListFragment);
             }
             if (!currentQuery.isEmpty()) {
                 stationListFragment.submitQuery(currentQuery);

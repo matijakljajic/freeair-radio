@@ -119,12 +119,14 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
             return;
         }
         currentTab = tab;
-        if (shellChromeController != null) {
-            shellChromeController.setActiveSearchTab(tab == Tab.SEARCH);
-        }
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.station_list_fragment_container, tab.createFragment())
-                .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_CLOSE)
+                .setTransition(ShellChromeController.DEFAULT_SHELL_TRANSITION_TYPE)
+                .runOnCommit(() -> {
+                    if (shellChromeController != null) {
+                        shellChromeController.setFloaterShellVisible(tab == Tab.SEARCH, ShellChromeController.DEFAULT_SHELL_TRANSITION_TYPE, 0L);
+                    }
+                })
                 .commit();
         syncNavSelection();
     }
