@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="top_content_gap">10dp</dimen>
+    <dimen name="list_bottom_padding">16dp</dimen>
+    <dimen name="search_top_gap">10dp</dimen>
+    <dimen name="search_list_gap">12dp</dimen>
+    <dimen name="search_list_bottom_gap">24dp</dimen>
+    <dimen name="bottom_content_gap">10dp</dimen>
+    <dimen name="player_bottom_safe_space">16dp</dimen>
+    <dimen name="detail_row_divider_thickness">1dp</dimen>
+    <dimen name="detail_row_horizontal_padding">20dp</dimen>
+    <dimen name="detail_row_vertical_padding">12dp</dimen>
+    <dimen name="detail_row_vertical_padding_tall_bottom">10dp</dimen>
+    <dimen name="detail_row_label_value_spacing">12dp</dimen>
+    <dimen name="detail_row_tall_value_spacing">4dp</dimen>
+</resources>

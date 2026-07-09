@@ -11,6 +11,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -23,6 +24,7 @@ import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.RadioBrowserRepository;
 import com.matijakljajic.freeairradio.data.repository.StationRepository;
+import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,11 +32,8 @@ import java.util.List;
 
 public class StationListFragment extends Fragment implements StationAdapter.OnStationInteractionListener {
 
-    private static final String ARG_APPLY_TOP_INSET = "arg_apply_top_inset";
-    private static final String ARG_LOAD_ON_START = "arg_load_on_start";
+    private static final String ARG_MODE = "arg_mode";
     private static final String STATE_QUERY = "state_query";
-    private static final int LIST_BOTTOM_PADDING_DP = 16;
-    private static final int TOP_CONTENT_GAP_DP = 10;
 
     public interface OnStationSelectedListener {
         void onStationSelected(Station station);
@@ -60,8 +59,8 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
     @Nullable
     private StationAdapter stationAdapter;
     private String currentQuery = "";
-    private boolean applyTopInset = false;
-    private boolean loadOnStart = true;
+    @NonNull
+    private Mode mode = Mode.HOME;
     private int searchTopPaddingPx;
     private int bottomRecyclerGapPx;
     private int topSystemInset;
@@ -71,8 +70,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
     public static StationListFragment newHomeInstance() {
         StationListFragment fragment = new StationListFragment();
         Bundle args = new Bundle();
-        args.putBoolean(ARG_APPLY_TOP_INSET, true);
-        args.putBoolean(ARG_LOAD_ON_START, true);
+        args.putString(ARG_MODE, Mode.HOME.name());
         fragment.setArguments(args);
         return fragment;
     }
@@ -80,8 +78,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
     public static StationListFragment newSearchInstance() {
         StationListFragment fragment = new StationListFragment();
         Bundle args = new Bundle();
-        args.putBoolean(ARG_APPLY_TOP_INSET, false);
-        args.putBoolean(ARG_LOAD_ON_START, false);
+        args.putString(ARG_MODE, Mode.SEARCH.name());
         fragment.setArguments(args);
         return fragment;
     }
@@ -120,8 +117,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         super.onCreate(savedInstanceState);
         Bundle args = getArguments();
         if (args != null) {
-            applyTopInset = args.getBoolean(ARG_APPLY_TOP_INSET, false);
-            loadOnStart = args.getBoolean(ARG_LOAD_ON_START, true);
+            mode = Mode.fromName(args.getString(ARG_MODE, Mode.HOME.name()));
         }
         if (savedInstanceState != null) {
             currentQuery = savedInstanceState.getString(STATE_QUERY, "");
@@ -160,7 +156,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         assert rootView != null;
         ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            topSystemInset = applyTopInset ? systemBars.top : 0;
+            topSystemInset = mode.shouldApplyTopInset() ? systemBars.top : 0;
             updateRootPadding(recyclerView != null && recyclerView.getVisibility() != View.VISIBLE);
             updateRecyclerPadding();
             return insets;
@@ -172,7 +168,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
             playerShellView.addOnLayoutChangeListener(playerShellLayoutChangeListener);
         }
 
-        if (loadOnStart) {
+        if (mode.shouldLoadOnStart()) {
             view.post(this::loadCurrentQuery);
         } else {
             showIdle();
@@ -188,7 +184,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
     public void submitQuery(@Nullable String query) {
         currentQuery = normalizeQuery(query);
         if (isAdded()) {
-            if (currentQuery.isEmpty() && !loadOnStart) {
+            if (currentQuery.isEmpty() && !mode.shouldLoadOnStart()) {
                 showIdle();
                 return;
             }
@@ -236,7 +232,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
     private void loadTopStations() {
         requestSequence++;
         int requestId = requestSequence;
-        showLoading();
+        renderState(ListUiState.LOADING, 0);
         stationRepository.loadTopStations(new StationRepository.LoadCallback() {
             @Override
             public void onStationsLoaded(@NonNull List<Station> loadedStations) {
@@ -251,7 +247,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
                 if (isStaleRequest(requestId)) {
                     return;
                 }
-                showError();
+                renderState(ListUiState.ERROR, R.string.station_list_error);
             }
         });
     }
@@ -259,7 +255,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
     private void loadStationsByQuery(@NonNull String query) {
         requestSequence++;
         int requestId = requestSequence;
-        showLoading();
+        renderState(ListUiState.LOADING, 0);
         stationRepository.searchStationsByName(query, new StationRepository.LoadCallback() {
             @Override
             public void onStationsLoaded(@NonNull List<Station> loadedStations) {
@@ -274,7 +270,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
                 if (isStaleRequest(requestId)) {
                     return;
                 }
-                showError();
+                renderState(ListUiState.ERROR, R.string.station_list_error);
             }
         });
     }
@@ -283,66 +279,46 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         return requestId != requestSequence || !isAdded();
     }
 
-    private void showLoading() {
-        setVisibleContent(View.VISIBLE, View.GONE, View.GONE, View.GONE);
-    }
-
     private void showStations(@NonNull List<Station> loadedStations) {
         if (stationAdapter != null) {
             stationAdapter.submitList(new ArrayList<>(loadedStations));
         }
         if (loadedStations.isEmpty()) {
-            showEmptyState(R.string.station_list_empty);
+            renderState(ListUiState.EMPTY, R.string.station_list_empty);
         } else {
-            setVisibleContent(View.GONE, View.GONE, View.GONE, View.VISIBLE);
+            renderState(ListUiState.CONTENT, 0);
         }
-    }
-
-    private void showEmpty() {
-        showEmptyState(R.string.station_list_empty);
     }
 
     private void showIdle() {
-        showEmptyState(R.string.station_search_idle);
+        renderState(ListUiState.IDLE, R.string.station_search_idle);
     }
 
-    private void showEmptyState(int messageResId) {
+    private void renderState(@NonNull ListUiState state, @StringRes int messageResId) {
         if (stationAdapter != null) {
-            stationAdapter.submitList(Collections.emptyList());
+            if (state != ListUiState.CONTENT) {
+                stationAdapter.submitList(Collections.emptyList());
+            }
         }
-        if (emptyView != null) {
-            emptyView.setText(messageResId);
-        }
-        setVisibleContent(View.GONE, View.GONE, View.VISIBLE, View.GONE);
-    }
-
-    private void showError() {
-        if (stationAdapter != null) {
-            stationAdapter.submitList(Collections.emptyList());
-        }
-        if (errorTextView != null) {
-            errorTextView.setText(getString(R.string.station_list_error));
-        }
-        setVisibleContent(View.GONE, View.VISIBLE, View.GONE, View.GONE);
-    }
-
-    private void setVisibleContent(int loadingVisibility,
-                                   int errorVisibility,
-                                   int emptyVisibility,
-                                   int recyclerVisibility) {
         if (loadingView != null) {
-            loadingView.setVisibility(loadingVisibility);
+            loadingView.setVisibility(state == ListUiState.LOADING ? View.VISIBLE : View.GONE);
         }
         if (errorContainerView != null) {
-            errorContainerView.setVisibility(errorVisibility);
+            errorContainerView.setVisibility(state == ListUiState.ERROR ? View.VISIBLE : View.GONE);
         }
         if (emptyView != null) {
-            emptyView.setVisibility(emptyVisibility);
+            emptyView.setVisibility(state == ListUiState.EMPTY || state == ListUiState.IDLE ? View.VISIBLE : View.GONE);
+            if (state == ListUiState.EMPTY || state == ListUiState.IDLE) {
+                emptyView.setText(messageResId);
+            }
+        }
+        if (errorTextView != null && state == ListUiState.ERROR) {
+            errorTextView.setText(messageResId);
         }
         if (recyclerView != null) {
-            recyclerView.setVisibility(recyclerVisibility);
+            recyclerView.setVisibility(state == ListUiState.CONTENT ? View.VISIBLE : View.GONE);
         }
-        updateRootPadding(recyclerVisibility != View.VISIBLE);
+        updateRootPadding(state != ListUiState.CONTENT);
         updateRecyclerPadding();
     }
 
@@ -373,8 +349,8 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
     }
 
     private int getTopContentPaddingPx() {
-        if (applyTopInset) {
-            return topSystemInset + dpToPx(TOP_CONTENT_GAP_DP);
+        if (mode.shouldApplyTopInset()) {
+            return topSystemInset + UiDimensions.px(requireContext(), R.dimen.top_content_gap);
         }
         return searchTopPaddingPx;
     }
@@ -387,7 +363,7 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         if (bottomRecyclerGapPx > 0) {
             return bottomRecyclerGapPx;
         }
-        return dpToPx(LIST_BOTTOM_PADDING_DP);
+        return UiDimensions.px(requireContext(), R.dimen.list_bottom_padding);
     }
 
     private int getPlayerShellHeight() {
@@ -404,15 +380,49 @@ public class StationListFragment extends Fragment implements StationAdapter.OnSt
         return height;
     }
 
-    private int dpToPx(int dp) {
-        return Math.round(dp * getResources().getDisplayMetrics().density);
-    }
-
     @NonNull
     private String normalizeQuery(@Nullable String query) {
         if (query == null) {
             return "";
         }
         return query.trim();
+    }
+
+    private enum Mode {
+        HOME(true, true),
+        SEARCH(false, false);
+
+        private final boolean applyTopInset;
+        private final boolean loadOnStart;
+
+        Mode(boolean applyTopInset, boolean loadOnStart) {
+            this.applyTopInset = applyTopInset;
+            this.loadOnStart = loadOnStart;
+        }
+
+        static Mode fromName(@NonNull String name) {
+            for (Mode mode : values()) {
+                if (mode.name().equals(name)) {
+                    return mode;
+                }
+            }
+            return HOME;
+        }
+
+        boolean shouldApplyTopInset() {
+            return applyTopInset;
+        }
+
+        boolean shouldLoadOnStart() {
+            return loadOnStart;
+        }
+    }
+
+    private enum ListUiState {
+        LOADING,
+        ERROR,
+        EMPTY,
+        IDLE,
+        CONTENT
     }
 }

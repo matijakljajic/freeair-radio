@@ -26,7 +26,8 @@
             android:maxLines="1"
             android:textAppearance="?attr/textAppearanceTitleMedium"
             android:textStyle="bold"
-            tools:text="1-NRK Jazz" />
+            tools:text="1-NRK Jazz"
+            tools:ignore="VisualLintSystemUi" />
 
         <TextView
             android:id="@+id/station_item_details"

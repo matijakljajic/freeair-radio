@@ -40,12 +40,12 @@ public class PlayerFragmentTest {
 
     @Test
     public void showStationUpdatesTextAndActivatesMarqueeAfterDelay() throws InterruptedException {
-        Station station = new Station(
-                "id-1",
-                "Test Station 1",
-                "https://example.com/stream",
-                StationOrigin.RADIO_BROWSER
-        );
+        Station station = Station.builder(
+                        "id-1",
+                        "Test Station 1",
+                        "https://example.com/stream",
+                        StationOrigin.RADIO_BROWSER)
+                .build();
 
         try (FragmentScenario<PlayerFragment> scenario = FragmentScenario.launchInContainer(
                 PlayerFragment.class,

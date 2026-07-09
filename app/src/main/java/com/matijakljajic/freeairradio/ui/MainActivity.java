@@ -1,9 +1,6 @@
 package com.matijakljajic.freeairradio.ui;
 
 import android.os.Bundle;
-import android.view.View;
-import android.view.ViewGroup;
-
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -21,7 +18,7 @@ import com.matijakljajic.freeairradio.ui.settings.SettingsFragment;
 import com.matijakljajic.freeairradio.ui.stations.StationListFragment;
 import com.matijakljajic.freeairradio.ui.stations.StationSearchFragment;
 
-public class MainActivity extends AppCompatActivity implements StationListFragment.OnStationSelectedListener {
+public class MainActivity extends AppCompatActivity implements StationListFragment.OnStationSelectedListener, StationSearchFragment.ShellChromeHost {
 
     private static final String STATE_SELECTED_STATION = "state_selected_station";
     private static final String STATE_CURRENT_TAB = "state_current_tab";
@@ -33,7 +30,7 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
     @Nullable
     private MaterialButtonToggleGroup navToggleGroup;
     @Nullable
-    private ShellFilterController shellFilterController;
+    private ShellChromeController shellChromeController;
     private boolean suppressNavCallbacks;
 
     @Override
@@ -51,11 +48,12 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
         }
 
         navToggleGroup = findViewById(R.id.main_nav_toggle_group);
-        shellFilterController = new ShellFilterController(
+        shellChromeController = new ShellChromeController(
                 findViewById(R.id.main),
                 findViewById(R.id.status_bar_filter),
                 findViewById(R.id.bottom_content_filter),
-                findViewById(R.id.player_shell_container)
+                findViewById(R.id.player_shell_container),
+                findViewById(R.id.search_shell_overlay_container)
         );
         if (navToggleGroup != null) {
             navToggleGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
@@ -68,8 +66,8 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
                 }
             });
         }
-        if (shellFilterController != null) {
-            shellFilterController.attach();
+        if (shellChromeController != null) {
+            shellChromeController.attach();
         }
         selectTab(currentTab, true);
         syncPlayerFragment();
@@ -97,22 +95,18 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
 
     @Override
     protected void onDestroy() {
-        if (shellFilterController != null) {
-            shellFilterController.detach();
+        if (shellChromeController != null) {
+            shellChromeController.detach();
         }
         super.onDestroy();
     }
 
-    public void setTopContentFilterHeightPx(int heightPx) {
-        if (shellFilterController != null) {
-            shellFilterController.setTopContentFilterHeightPx(heightPx);
+    @NonNull
+    public ShellChromeController getShellChromeController() {
+        if (shellChromeController == null) {
+            throw new IllegalStateException("ShellChromeController is not initialized");
         }
-    }
-
-    public void resetTopContentFilterHeight() {
-        if (shellFilterController != null) {
-            shellFilterController.resetTopContentFilterHeight();
-        }
+        return shellChromeController;
     }
 
     private void selectTab(@NonNull Tab tab) {
@@ -125,6 +119,9 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
             return;
         }
         currentTab = tab;
+        if (shellChromeController != null) {
+            shellChromeController.setActiveSearchTab(tab == Tab.SEARCH);
+        }
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.station_list_fragment_container, tab.createFragment())
                 .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_CLOSE)
@@ -188,118 +185,5 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
 
         @NonNull
         abstract Fragment createFragment();
-    }
-
-    private static final class ShellFilterController {
-
-        private static final int BOTTOM_CONTENT_GAP_DP = 10;
-
-        @NonNull
-        private final View rootView;
-        @Nullable
-        private final View statusBarFilterView;
-        @Nullable
-        private final View bottomContentFilterView;
-        @Nullable
-        private final View playerShellContainerView;
-        @Nullable
-        private final View.OnLayoutChangeListener playerShellLayoutChangeListener;
-        private int statusBarInsetPx;
-        private int topContentFilterHeightPx;
-
-        private ShellFilterController(@NonNull View rootView,
-                                       @Nullable View statusBarFilterView,
-                                       @Nullable View bottomContentFilterView,
-                                       @Nullable View playerShellContainerView) {
-            this.rootView = rootView;
-            this.statusBarFilterView = statusBarFilterView;
-            this.bottomContentFilterView = bottomContentFilterView;
-            this.playerShellContainerView = playerShellContainerView;
-            this.playerShellLayoutChangeListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateBottomContentFilter();
-        }
-
-        private void attach() {
-            if (playerShellContainerView != null && playerShellLayoutChangeListener != null) {
-                playerShellContainerView.addOnLayoutChangeListener(playerShellLayoutChangeListener);
-            }
-            if (statusBarFilterView != null) {
-                androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootView, (view, insets) -> {
-                    androidx.core.graphics.Insets statusBarInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars());
-                    statusBarInsetPx = statusBarInsets.top;
-                    updateTopContentFilter();
-                    return insets;
-                });
-            }
-            androidx.core.view.ViewCompat.requestApplyInsets(rootView);
-            updateTopContentFilter();
-            updateBottomContentFilter();
-        }
-
-        private void detach() {
-            if (playerShellContainerView != null && playerShellLayoutChangeListener != null) {
-                playerShellContainerView.removeOnLayoutChangeListener(playerShellLayoutChangeListener);
-            }
-        }
-
-        private void setTopContentFilterHeightPx(int heightPx) {
-            int sanitizedHeightPx = Math.max(0, heightPx);
-            if (topContentFilterHeightPx == sanitizedHeightPx) {
-                return;
-            }
-            topContentFilterHeightPx = sanitizedHeightPx;
-            updateTopContentFilter();
-        }
-
-        private void resetTopContentFilterHeight() {
-            if (topContentFilterHeightPx == 0) {
-                return;
-            }
-            topContentFilterHeightPx = 0;
-            updateTopContentFilter();
-        }
-
-        private void updateTopContentFilter() {
-            if (statusBarFilterView == null) {
-                return;
-            }
-
-            int desiredHeight = Math.max(statusBarInsetPx, topContentFilterHeightPx);
-            ViewGroup.LayoutParams layoutParams = statusBarFilterView.getLayoutParams();
-            if (layoutParams != null && layoutParams.height != desiredHeight) {
-                layoutParams.height = desiredHeight;
-                statusBarFilterView.setLayoutParams(layoutParams);
-            }
-            statusBarFilterView.setVisibility(desiredHeight > 0 ? View.VISIBLE : View.GONE);
-        }
-
-        private void updateBottomContentFilter() {
-            if (bottomContentFilterView == null || playerShellContainerView == null) {
-                return;
-            }
-
-            int desiredHeight = playerShellContainerView.getHeight() + getPlayerShellBottomMarginPx() + dpToPx(BOTTOM_CONTENT_GAP_DP);
-            ViewGroup.LayoutParams layoutParams = bottomContentFilterView.getLayoutParams();
-            if (layoutParams != null && layoutParams.height != desiredHeight) {
-                layoutParams.height = desiredHeight;
-                bottomContentFilterView.setLayoutParams(layoutParams);
-            }
-            bottomContentFilterView.setVisibility(desiredHeight > 0 ? View.VISIBLE : View.GONE);
-        }
-
-        private int getPlayerShellBottomMarginPx() {
-            if (playerShellContainerView == null) {
-                return 0;
-            }
-
-            ViewGroup.LayoutParams layoutParams = playerShellContainerView.getLayoutParams();
-            if (layoutParams instanceof ViewGroup.MarginLayoutParams) {
-                return ((ViewGroup.MarginLayoutParams) layoutParams).bottomMargin;
-            }
-            return 0;
-        }
-
-        private int dpToPx(int dp) {
-            return Math.round(dp * rootView.getResources().getDisplayMetrics().density);
-        }
     }
 }

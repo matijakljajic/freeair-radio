@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
@@ -18,7 +19,8 @@
         android:maxLines="3"
         android:textAlignment="center"
         android:textAppearance="?attr/textAppearanceHeadlineSmall"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        tools:ignore="VisualLintSystemUi" />
 
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
