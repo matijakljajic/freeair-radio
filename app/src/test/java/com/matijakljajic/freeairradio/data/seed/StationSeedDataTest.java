@@ -27,11 +27,11 @@ public class StationSeedDataTest {
         List<Station> stations = StationSeedData.createDemoStations();
 
         assertThrows(UnsupportedOperationException.class, () ->
-                stations.add(new Station(
+                stations.add(Station.builder(
                         "extra",
                         "Extra Station",
                         "https://example.com/stream",
-                        com.matijakljajic.freeairradio.data.model.StationOrigin.RADIO_BROWSER
-                )));
+                        com.matijakljajic.freeairradio.data.model.StationOrigin.RADIO_BROWSER)
+                        .build()));
     }
 }
