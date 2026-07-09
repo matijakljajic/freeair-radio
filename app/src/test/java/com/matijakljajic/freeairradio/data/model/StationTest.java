@@ -3,6 +3,7 @@ package com.matijakljajic.freeairradio.data.model;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 public class StationTest {
 
@@ -112,5 +113,41 @@ public class StationTest {
         assertEquals(Station.UNKNOWN, station.getTags());
         assertEquals(Station.UNKNOWN, station.getCodec());
         assertEquals(128, station.getBitrate());
+    }
+
+    @Test
+    public void equalsAndHashCodeDependOnNormalizedValues() {
+        Station first = new Station(
+                "id-7",
+                "Test Station",
+                "https://example.com/stream",
+                " Norway ",
+                "norwegian",
+                "jazz",
+                "MP3",
+                128,
+                StationOrigin.RADIO_BROWSER
+        );
+        Station second = new Station(
+                "id-7",
+                "Test Station",
+                "https://example.com/stream",
+                "Norway",
+                "norwegian",
+                "jazz",
+                "MP3",
+                128,
+                StationOrigin.RADIO_BROWSER
+        );
+        Station different = new Station(
+                "id-8",
+                "Other Station",
+                "https://example.com/stream",
+                StationOrigin.RADIO_BROWSER
+        );
+
+        assertEquals(first, second);
+        assertEquals(first.hashCode(), second.hashCode());
+        assertNotEquals(first, different);
     }
 }

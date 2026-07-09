@@ -49,12 +49,9 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
                 if (!isChecked || suppressNavCallbacks) {
                     return;
                 }
-                if (checkedId == R.id.nav_home_button) {
-                    selectTab(Tab.HOME);
-                } else if (checkedId == R.id.nav_search_button) {
-                    selectTab(Tab.SEARCH);
-                } else if (checkedId == R.id.nav_settings_button) {
-                    selectTab(Tab.SETTINGS);
+                Tab tab = Tab.fromButtonId(checkedId);
+                if (tab != null) {
+                    selectTab(tab);
                 }
             });
         }
@@ -93,7 +90,7 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
         }
         currentTab = tab;
         getSupportFragmentManager().beginTransaction()
-                .replace(R.id.station_list_fragment_container, createFragmentForTab(tab))
+                .replace(R.id.station_list_fragment_container, tab.createFragment())
                 .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_CLOSE)
                 .commit();
         syncNavSelection();
@@ -114,28 +111,46 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
         suppressNavCallbacks = false;
     }
 
-    @NonNull
-    private Fragment createFragmentForTab(@NonNull Tab tab) {
-        switch (tab) {
-            case SEARCH:
-                return new StationSearchFragment();
-            case SETTINGS:
-                return new SettingsFragment();
-            case HOME:
-            default:
-                return new StationListFragment();
-        }
-    }
-
     private enum Tab {
-        HOME(R.id.nav_home_button),
-        SEARCH(R.id.nav_search_button),
-        SETTINGS(R.id.nav_settings_button);
+        HOME(R.id.nav_home_button) {
+            @NonNull
+            @Override
+            Fragment createFragment() {
+                return new StationListFragment();
+            }
+        },
+        SEARCH(R.id.nav_search_button) {
+            @NonNull
+            @Override
+            Fragment createFragment() {
+                return new StationSearchFragment();
+            }
+        },
+        SETTINGS(R.id.nav_settings_button) {
+            @NonNull
+            @Override
+            Fragment createFragment() {
+                return new SettingsFragment();
+            }
+        };
 
         final int buttonId;
 
         Tab(int buttonId) {
             this.buttonId = buttonId;
         }
+
+        @Nullable
+        static Tab fromButtonId(int buttonId) {
+            for (Tab tab : values()) {
+                if (tab.buttonId == buttonId) {
+                    return tab;
+                }
+            }
+            return null;
+        }
+
+        @NonNull
+        abstract Fragment createFragment();
     }
 }

@@ -39,15 +39,7 @@ public class StationAdapter extends ListAdapter<Station, StationAdapter.StationV
 
         @Override
         public boolean areContentsTheSame(@NonNull Station oldItem, @NonNull Station newItem) {
-            return oldItem.getId().equals(newItem.getId())
-                    && oldItem.getName().equals(newItem.getName())
-                    && oldItem.getStreamUrl().equals(newItem.getStreamUrl())
-                    && oldItem.getCountry().equals(newItem.getCountry())
-                    && oldItem.getLanguage().equals(newItem.getLanguage())
-                    && oldItem.getTags().equals(newItem.getTags())
-                    && oldItem.getCodec().equals(newItem.getCodec())
-                    && oldItem.getBitrate() == newItem.getBitrate()
-                    && oldItem.getOrigin().equals(newItem.getOrigin());
+            return oldItem.equals(newItem);
         }
     };
 
@@ -62,12 +54,6 @@ public class StationAdapter extends ListAdapter<Station, StationAdapter.StationV
     @Override
     public void onBindViewHolder(@NonNull StationViewHolder holder, int position) {
         holder.bind(getItem(position));
-    }
-
-    @Override
-    public void onViewRecycled(@NonNull StationViewHolder holder) {
-        holder.boundStation = null;
-        super.onViewRecycled(holder);
     }
 
     public static class StationViewHolder extends RecyclerView.ViewHolder {
