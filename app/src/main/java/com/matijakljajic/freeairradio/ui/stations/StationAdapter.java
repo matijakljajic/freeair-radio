@@ -13,6 +13,7 @@ import com.matijakljajic.freeairradio.data.model.Station;
 import android.widget.TextView;
 import com.matijakljajic.freeairradio.ui.util.StationDisplayFormatter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationViewHolder> {
@@ -63,6 +64,12 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
     @Override
     public int getItemCount() {
         return stations.size();
+    }
+
+    public void submitStations(@NonNull List<Station> updatedStations) {
+        stations.clear();
+        stations.addAll(new ArrayList<>(updatedStations));
+        notifyDataSetChanged();
     }
 
     public static class StationViewHolder extends RecyclerView.ViewHolder {
