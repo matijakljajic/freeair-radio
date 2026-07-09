@@ -9,17 +9,18 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.SimpleItemAnimator;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.seed.StationSeedData;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class StationListFragment extends Fragment implements
@@ -32,7 +33,7 @@ public class StationListFragment extends Fragment implements
         void onStationSelected(Station station);
     }
 
-    private final List<Station> stations = StationSeedData.createDemoStations();
+    private final List<Station> stations = new ArrayList<>();
     @Nullable
     private OnStationSelectedListener listener;
     @Nullable
@@ -60,6 +61,13 @@ public class StationListFragment extends Fragment implements
     }
 
     @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        stations.clear();
+        stations.addAll(StationSeedData.createDemoStations());
+    }
+
+    @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         recyclerView = view.findViewById(R.id.station_list_recycler_view);
@@ -82,6 +90,7 @@ public class StationListFragment extends Fragment implements
             playerShellView.addOnLayoutChangeListener(playerShellLayoutChangeListener);
         }
 
+        // TODO: replace the seeded demo list with a FavoriteStationList.
         view.post(this::updateRecyclerPadding);
     }
 
