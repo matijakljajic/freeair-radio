@@ -1,6 +1,5 @@
 package com.matijakljajic.freeairradio.ui.stations;
 
-import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,39 +13,20 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.matijakljajic.freeairradio.R;
+import com.matijakljajic.freeairradio.ui.ShellChromeAwareFragment;
 import com.matijakljajic.freeairradio.ui.ShellChromeController;
 
-public class StationSearchFragment extends Fragment {
+public class StationSearchFragment extends ShellChromeAwareFragment {
 
     private static final String STATE_QUERY = "state_query";
-
-    public interface ShellChromeHost {
-        @NonNull
-        ShellChromeController getShellChromeController();
-    }
-
-    @Nullable
-    private ShellChromeHost shellChromeHost;
     @Nullable
     private EditText searchInput;
     @Nullable
     private View searchButton;
     @Nullable
-    private ShellChromeController shellChromeController;
-    @Nullable
     private StationListFragment stationListFragment;
     @NonNull
     private String currentQuery = "";
-
-    @Override
-    public void onAttach(@NonNull Context context) {
-        super.onAttach(context);
-        if (context instanceof ShellChromeHost) {
-            shellChromeHost = (ShellChromeHost) context;
-        } else {
-            throw new IllegalStateException("Host activity must implement ShellChromeHost");
-        }
-    }
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -65,7 +45,6 @@ public class StationSearchFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        shellChromeController = shellChromeHost != null ? shellChromeHost.getShellChromeController() : null;
         ensureStationListFragment();
         bindSearchControls();
     }
@@ -78,6 +57,7 @@ public class StationSearchFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
+        ShellChromeController shellChromeController = getShellChromeController();
         if (shellChromeController != null) {
             shellChromeController.setFloaterStationListFragment(null);
         }
@@ -89,15 +69,8 @@ public class StationSearchFragment extends Fragment {
         }
         searchInput = null;
         searchButton = null;
-        shellChromeController = null;
         stationListFragment = null;
         super.onDestroyView();
-    }
-
-    @Override
-    public void onDetach() {
-        shellChromeHost = null;
-        super.onDetach();
     }
 
     private void ensureStationListFragment() {
@@ -112,6 +85,7 @@ public class StationSearchFragment extends Fragment {
 
         if (fragment instanceof StationListFragment) {
             stationListFragment = (StationListFragment) fragment;
+            ShellChromeController shellChromeController = getShellChromeController();
             if (shellChromeController != null) {
                 shellChromeController.setFloaterStationListFragment(stationListFragment);
             }
@@ -151,6 +125,7 @@ public class StationSearchFragment extends Fragment {
     }
 
     private void bindSearchControls() {
+        ShellChromeController shellChromeController = getShellChromeController();
         if (shellChromeController == null) {
             return;
         }
