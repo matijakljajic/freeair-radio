@@ -1,10 +1,13 @@
 package com.matijakljajic.freeairradio.data.remote.radiobrowser;
 
+import android.content.Context;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
+import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerSelector;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.dto.RadioBrowserStationDto;
 import com.matijakljajic.freeairradio.data.repository.StationRepository;
 
@@ -21,45 +24,96 @@ import retrofit2.Response;
 public class RadioBrowserRepository implements StationRepository {
 
     private static final int DEFAULT_LIMIT = 50;
-    private final RadioBrowserApi api;
+    private static final long SERVER_DISCOVERY_TIMEOUT_MILLIS = 7000L;
+    @NonNull
+    private final RadioBrowserApiFactory apiFactory;
+    @NonNull
+    private final RadioBrowserServerSelector serverSelector;
 
     public RadioBrowserRepository() {
-        this(RadioBrowserClient.getInstance().getApi());
+        this(RadioBrowserClient.getInstance(), new RadioBrowserServerSelector());
     }
 
-    RadioBrowserRepository(@NonNull RadioBrowserApi api) {
-        this.api = api;
+    public RadioBrowserRepository(@NonNull Context context) {
+        this(RadioBrowserClient.getInstance(), new RadioBrowserServerSelector(context));
+    }
+
+    RadioBrowserRepository(@NonNull RadioBrowserApiFactory apiFactory,
+                           @NonNull RadioBrowserServerSelector serverSelector) {
+        this.apiFactory = apiFactory;
+        this.serverSelector = serverSelector;
     }
 
     @Override
     public void loadTopStations(@NonNull LoadCallback callback) {
-        enqueueStations(api.loadTopStations(DEFAULT_LIMIT, true), "load top stations", callback);
+        enqueueStationsAsync("load top stations", callback, api -> api.loadTopStations(DEFAULT_LIMIT, true));
     }
 
     @Override
     public void searchStationsByName(@NonNull String query, @NonNull LoadCallback callback) {
-        enqueueStations(api.searchStationsByName(query.trim(), DEFAULT_LIMIT, true), "search stations", callback);
+        enqueueStationsAsync("search stations", callback, api -> api.searchStationsByName(query.trim(), DEFAULT_LIMIT, true));
     }
 
-    private void enqueueStations(@NonNull Call<List<RadioBrowserStationDto>> call,
-                                 @NonNull String action,
-                                 @NonNull LoadCallback callback) {
+    private void enqueueStationsAsync(@NonNull String action,
+                                      @NonNull LoadCallback callback,
+                                      @NonNull RequestFactory requestFactory) {
+        Thread workerThread = new Thread(() -> enqueueStations(action, callback, requestFactory),
+                "RadioBrowserStationLoad");
+        workerThread.start();
+    }
+
+    private void enqueueStations(@NonNull String action,
+                                 @NonNull LoadCallback callback,
+                                 @NonNull RequestFactory requestFactory) {
+        enqueueStations(action, callback, requestFactory, 0);
+    }
+
+    private void enqueueStations(@NonNull String action,
+                                 @NonNull LoadCallback callback,
+                                 @NonNull RequestFactory requestFactory,
+                                 int attempt) {
+        if (!serverSelector.awaitReady(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
+            callback.onError(new IOException("Timed out waiting for Radio Browser servers"));
+            return;
+        }
+
+        String baseUrl = serverSelector.getSelectedBaseUrl();
+        if (baseUrl == null) {
+            callback.onError(new IOException("No Radio Browser servers available"));
+            return;
+        }
+        RadioBrowserApi api = apiFactory.create(baseUrl);
+        Call<List<RadioBrowserStationDto>> call = requestFactory.create(api);
         call.enqueue(new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<List<RadioBrowserStationDto>> call,
                                    @NonNull Response<List<RadioBrowserStationDto>> response) {
                 if (!response.isSuccessful()) {
+                    if (attempt == 0 && serverSelector.rotateToNextServer(baseUrl)) {
+                        enqueueStations(action, callback, requestFactory, attempt + 1);
+                        return;
+                    }
                     callback.onError(new IOException("Failed to " + action + ": " + response.code()));
                     return;
                 }
+                serverSelector.rememberSuccess(baseUrl);
                 callback.onStationsLoaded(mapStations(response.body()));
             }
 
             @Override
             public void onFailure(@NonNull Call<List<RadioBrowserStationDto>> call, @NonNull Throwable t) {
+                if (attempt == 0 && serverSelector.rotateToNextServer(baseUrl)) {
+                    enqueueStations(action, callback, requestFactory, attempt + 1);
+                    return;
+                }
                 callback.onError(t);
             }
         });
+    }
+
+    private interface RequestFactory {
+        @NonNull
+        Call<List<RadioBrowserStationDto>> create(@NonNull RadioBrowserApi api);
     }
 
     @NonNull
@@ -84,25 +138,41 @@ public class RadioBrowserRepository implements StationRepository {
             return null;
         }
 
-        String stationUuid = dto.getStationUuid();
-        String name = dto.getName();
-        String streamUrl = dto.getUrl();
+        String stationUuid = trimRequired(dto.getStationUuid());
+        String name = trimRequired(dto.getName());
+        String streamUrl = trimRequired(dto.getUrl());
         if (stationUuid == null || name == null || streamUrl == null) {
             return null;
         }
 
         return Station.builder("RADIO_BROWSER:" + stationUuid, name, streamUrl, StationOrigin.RADIO_BROWSER)
-                .setResolvedStreamUrl(dto.getUrlResolved())
-                .setHomepage(dto.getHomepage())
-                .setFavicon(dto.getFavicon())
-                .setCountry(dto.getCountry())
-                .setCountryCode(dto.getCountryCode())
-                .setLanguage(dto.getLanguage())
-                .setTags(dto.getTags())
-                .setCodec(dto.getCodec())
+                .setResolvedStreamUrl(trimNullable(dto.getUrlResolved()))
+                .setHomepage(trimNullable(dto.getHomepage()))
+                .setFavicon(trimNullable(dto.getFavicon()))
+                .setCountry(trimNullable(dto.getCountry()))
+                .setCountryCode(trimNullable(dto.getCountryCode()))
+                .setLanguage(trimNullable(dto.getLanguage()))
+                .setTags(trimNullable(dto.getTags()))
+                .setCodec(trimNullable(dto.getCodec()))
                 .setBitrate(dto.getBitrate())
                 .setHls(mapHls(dto.getHls()))
                 .build();
+    }
+
+    @Nullable
+    private static String trimRequired(@Nullable String value) {
+        String trimmedValue = trimNullable(value);
+        return trimmedValue == null || trimmedValue.isEmpty() ? null : trimmedValue;
+    }
+
+    @Nullable
+    private static String trimNullable(@Nullable String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmedValue = value.trim();
+        return trimmedValue.isEmpty() ? null : trimmedValue;
     }
 
     @Nullable

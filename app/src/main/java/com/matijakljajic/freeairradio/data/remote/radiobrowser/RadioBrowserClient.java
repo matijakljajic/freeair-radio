@@ -12,24 +12,17 @@ import okhttp3.Request;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
-public final class RadioBrowserClient {
+public final class RadioBrowserClient implements RadioBrowserApiFactory {
 
-    private static final String BASE_URL = "https://de1.api.radio-browser.info/";
     private static final RadioBrowserClient INSTANCE = new RadioBrowserClient();
+    private static final Gson GSON = new GsonBuilder().create();
 
-    private final RadioBrowserApi api;
+    private final OkHttpClient okHttpClient;
 
     private RadioBrowserClient() {
-        Gson gson = new GsonBuilder().create();
-        OkHttpClient okHttpClient = new OkHttpClient.Builder()
+        okHttpClient = new OkHttpClient.Builder()
                 .addInterceptor(createHeaderInterceptor())
                 .build();
-        Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl(BASE_URL)
-                .client(okHttpClient)
-                .addConverterFactory(GsonConverterFactory.create(gson))
-                .build();
-        api = retrofit.create(RadioBrowserApi.class);
     }
 
     @NonNull
@@ -38,8 +31,14 @@ public final class RadioBrowserClient {
     }
 
     @NonNull
-    public RadioBrowserApi getApi() {
-        return api;
+    @Override
+    public RadioBrowserApi create(@NonNull String baseUrl) {
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(baseUrl)
+                .client(okHttpClient)
+                .addConverterFactory(GsonConverterFactory.create(GSON))
+                .build();
+        return retrofit.create(RadioBrowserApi.class);
     }
 
     @NonNull
