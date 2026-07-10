@@ -50,8 +50,17 @@ public final class ShellChromeController {
     private View searchButton;
     @Nullable
     private StationListFragment floaterStationListFragment;
+    @Nullable
+    private View contentPaddingView;
     private int statusBarInsetPx;
     private int topContentFilterHeightPx;
+    private int bottomContentFilterHeightPx;
+    private int contentPaddingTopGapPx;
+    private int contentPaddingBottomGapPx;
+    private int contentPaddingBaseLeftPx;
+    private int contentPaddingBaseTopPx;
+    private int contentPaddingBaseRightPx;
+    private int contentPaddingBaseBottomPx;
     private boolean floaterShellVisible;
 
     public ShellChromeController(@NonNull View rootView,
@@ -77,6 +86,7 @@ public final class ShellChromeController {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             statusBarInsetPx = systemBars.top;
             updateTopContentFilter();
+            updateContentPadding();
             applyFloaterShellTopMargin();
             return insets;
         });
@@ -102,6 +112,7 @@ public final class ShellChromeController {
         searchInput = null;
         searchButton = null;
         floaterStationListFragment = null;
+        contentPaddingView = null;
     }
 
     public void setFloaterShellVisible(boolean visible) {
@@ -127,6 +138,25 @@ public final class ShellChromeController {
     public void setFloaterStationListFragment(@Nullable StationListFragment stationListFragment) {
         floaterStationListFragment = stationListFragment;
         updateFloaterShellLayout();
+    }
+
+    public void attachContentPaddingView(@NonNull View contentPaddingView,
+                                         int topGapPx,
+                                         int bottomGapPx) {
+        this.contentPaddingView = contentPaddingView;
+        contentPaddingTopGapPx = Math.max(0, topGapPx);
+        contentPaddingBottomGapPx = Math.max(0, bottomGapPx);
+        contentPaddingBaseLeftPx = contentPaddingView.getPaddingLeft();
+        contentPaddingBaseTopPx = contentPaddingView.getPaddingTop();
+        contentPaddingBaseRightPx = contentPaddingView.getPaddingRight();
+        contentPaddingBaseBottomPx = contentPaddingView.getPaddingBottom();
+        updateContentPadding();
+    }
+
+    public void detachContentPaddingView(@NonNull View contentPaddingView) {
+        if (this.contentPaddingView == contentPaddingView) {
+            this.contentPaddingView = null;
+        }
     }
 
     @Nullable
@@ -235,6 +265,7 @@ public final class ShellChromeController {
         }
         topContentFilterHeightPx = sanitizedHeightPx;
         updateTopContentFilter();
+        updateContentPadding();
     }
 
     public void resetTopContentFilterHeight() {
@@ -243,6 +274,7 @@ public final class ShellChromeController {
         }
         topContentFilterHeightPx = 0;
         updateTopContentFilter();
+        updateContentPadding();
     }
 
     private void updateTopContentFilter() {
@@ -261,18 +293,42 @@ public final class ShellChromeController {
 
     private void updateBottomContentFilter() {
         if (bottomContentFilterView == null || playerShellContainerView == null) {
+            bottomContentFilterHeightPx = 0;
+            updateContentPadding();
             return;
         }
 
         int desiredHeight = playerShellContainerView.getHeight()
                 + getPlayerShellBottomMarginPx()
                 + UiDimensions.px(rootView.getContext(), R.dimen.bottom_content_gap);
+        bottomContentFilterHeightPx = Math.max(0, desiredHeight);
         ViewGroup.LayoutParams layoutParams = bottomContentFilterView.getLayoutParams();
         if (layoutParams != null && layoutParams.height != desiredHeight) {
             layoutParams.height = desiredHeight;
             bottomContentFilterView.setLayoutParams(layoutParams);
         }
         bottomContentFilterView.setVisibility(desiredHeight > 0 ? View.VISIBLE : View.GONE);
+        updateContentPadding();
+    }
+
+    private void updateContentPadding() {
+        if (contentPaddingView == null) {
+            return;
+        }
+
+        int desiredTopPaddingPx = contentPaddingBaseTopPx + statusBarInsetPx + contentPaddingTopGapPx;
+        int desiredBottomPaddingPx = contentPaddingBaseBottomPx + bottomContentFilterHeightPx + contentPaddingBottomGapPx;
+        if (contentPaddingView.getPaddingLeft() != contentPaddingBaseLeftPx
+                || contentPaddingView.getPaddingTop() != desiredTopPaddingPx
+                || contentPaddingView.getPaddingRight() != contentPaddingBaseRightPx
+                || contentPaddingView.getPaddingBottom() != desiredBottomPaddingPx) {
+            contentPaddingView.setPadding(
+                    contentPaddingBaseLeftPx,
+                    desiredTopPaddingPx,
+                    contentPaddingBaseRightPx,
+                    desiredBottomPaddingPx
+            );
+        }
     }
 
     private int getPlayerShellBottomMarginPx() {

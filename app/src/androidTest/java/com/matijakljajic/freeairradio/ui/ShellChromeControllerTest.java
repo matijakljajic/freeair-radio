@@ -51,6 +51,27 @@ public class ShellChromeControllerTest {
         }
     }
 
+    @Test
+    public void settingsContentUsesShellPadding() {
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            Espresso.onView(withId(R.id.nav_settings_button)).perform(androidx.test.espresso.action.ViewActions.click());
+
+            Espresso.onView(withId(R.id.settings_root)).check(matches(isDisplayed()));
+
+            scenario.onActivity(activity -> {
+                View settingsRoot = activity.findViewById(R.id.settings_root);
+                View statusBarFilter = activity.findViewById(R.id.status_bar_filter);
+                View bottomFilter = activity.findViewById(R.id.bottom_content_filter);
+
+                assertNotNull(settingsRoot);
+                assertNotNull(statusBarFilter);
+                assertNotNull(bottomFilter);
+                assertTrue(settingsRoot.getPaddingTop() > 0);
+                assertTrue(settingsRoot.getPaddingBottom() > 0);
+            });
+        }
+    }
+
     private static int assertChromeState(MainActivity activity, int expectedSearchVisibility) {
         View searchShell = activity.findViewById(R.id.station_search_shell);
         View statusBarFilter = activity.findViewById(R.id.status_bar_filter);

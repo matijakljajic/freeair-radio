@@ -12,12 +12,13 @@ import androidx.fragment.app.Fragment;
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
+import com.matijakljajic.freeairradio.ui.homepage.HomePageFragment;
 import com.matijakljajic.freeairradio.ui.player.PlayerFragment;
 import com.matijakljajic.freeairradio.ui.settings.SettingsFragment;
 import com.matijakljajic.freeairradio.ui.stations.StationListFragment;
 import com.matijakljajic.freeairradio.ui.stations.StationSearchFragment;
 
-public class MainActivity extends AppCompatActivity implements StationListFragment.OnStationSelectedListener, StationSearchFragment.ShellChromeHost {
+public class MainActivity extends AppCompatActivity implements StationListFragment.OnStationSelectedListener, ShellChromeHost {
 
     private static final String STATE_SELECTED_STATION = "state_selected_station";
     private static final String STATE_CURRENT_TAB = "state_current_tab";
@@ -100,11 +101,8 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
         super.onDestroy();
     }
 
-    @NonNull
+    @Nullable
     public ShellChromeController getShellChromeController() {
-        if (shellChromeController == null) {
-            throw new IllegalStateException("ShellChromeController is not initialized");
-        }
         return shellChromeController;
     }
 
@@ -119,7 +117,7 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
         }
         currentTab = tab;
         getSupportFragmentManager().beginTransaction()
-                .replace(R.id.station_list_fragment_container, tab.createFragment())
+                .replace(R.id.main_content_fragment_container, tab.createFragment())
                 .setTransition(ShellChromeController.DEFAULT_SHELL_TRANSITION_TYPE)
                 .runOnCommit(() -> {
                     if (shellChromeController != null) {
@@ -150,7 +148,7 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
             @NonNull
             @Override
             Fragment createFragment() {
-                return StationListFragment.newHomeInstance();
+                return new HomePageFragment();
             }
         },
         SEARCH(R.id.nav_search_button) {

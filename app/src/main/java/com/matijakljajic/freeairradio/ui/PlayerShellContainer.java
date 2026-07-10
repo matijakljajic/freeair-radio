@@ -3,7 +3,7 @@ package com.matijakljajic.freeairradio.ui;
 import android.content.Context;
 import android.util.AttributeSet;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -14,7 +14,7 @@ import androidx.core.view.WindowInsetsCompat;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
-public class PlayerShellContainer extends FrameLayout {
+public class PlayerShellContainer extends LinearLayout {
 
     private int lastAppliedBottomMarginPx = Integer.MIN_VALUE;
 
@@ -34,6 +34,7 @@ public class PlayerShellContainer extends FrameLayout {
     }
 
     private void init() {
+        setOrientation(VERTICAL);
         setClipChildren(false);
         setClipToPadding(false);
         ViewCompat.setOnApplyWindowInsetsListener(this, (view, insets) -> {
