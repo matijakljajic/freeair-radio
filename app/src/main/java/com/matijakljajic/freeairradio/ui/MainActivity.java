@@ -4,12 +4,10 @@ import android.os.Bundle;
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.os.BundleCompat;
 import androidx.core.view.WindowCompat;
 import androidx.fragment.app.Fragment;
-import androidx.media3.common.util.UnstableApi;
 
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.matijakljajic.freeairradio.R;
@@ -18,10 +16,10 @@ import com.matijakljajic.freeairradio.playback.RadioPlayer;
 import com.matijakljajic.freeairradio.ui.homepage.HomePageFragment;
 import com.matijakljajic.freeairradio.ui.player.PlayerFragment;
 import com.matijakljajic.freeairradio.ui.settings.SettingsFragment;
-import com.matijakljajic.freeairradio.ui.stations.StationListFragment;
+import com.matijakljajic.freeairradio.ui.stations.StationFeedFragment;
 import com.matijakljajic.freeairradio.ui.stations.StationSearchFragment;
 
-public class MainActivity extends AppCompatActivity implements StationListFragment.OnStationSelectedListener, ShellChromeHost {
+public class MainActivity extends AppCompatActivity implements StationFeedFragment.OnStationSelectedListener, ShellChromeHost {
 
     private static final String STATE_SELECTED_STATION = "state_selected_station";
     private static final String STATE_CURRENT_TAB = "state_current_tab";
@@ -95,7 +93,6 @@ public class MainActivity extends AppCompatActivity implements StationListFragme
         outState.putString(STATE_CURRENT_TAB, currentTab.name());
     }
 
-    @OptIn(markerClass = UnstableApi.class)
     private void syncPlayerFragment() {
         PlayerFragment fragment = (PlayerFragment) getSupportFragmentManager().findFragmentById(R.id.player_fragment_container);
         if (fragment != null) {

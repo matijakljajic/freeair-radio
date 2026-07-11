@@ -17,9 +17,7 @@ import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 public class HomePageFragment extends StationFeedFragment {
 
     @Nullable
-    private View homepageRootView;
-    @Nullable
-    private ConcatAdapter homepageAdapter;
+    private RecyclerView homepageRecyclerView;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -30,12 +28,6 @@ public class HomePageFragment extends StationFeedFragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        homepageRootView = view.findViewById(R.id.homepage_root);
-
-        if (homepageRootView != null) {
-            attachShellContentPadding(homepageRootView, UiDimensions.px(requireContext(), R.dimen.top_content_gap), 0);
-        }
-
         bindStationFeed(
                 view,
                 R.id.station_feed_recycler_view,
@@ -53,11 +45,10 @@ public class HomePageFragment extends StationFeedFragment {
 
     @Override
     public void onDestroyView() {
-        if (homepageRootView != null) {
-            detachShellContentPadding(homepageRootView);
+        if (homepageRecyclerView != null) {
+            detachShellContentPadding(homepageRecyclerView);
         }
-        homepageAdapter = null;
-        homepageRootView = null;
+        homepageRecyclerView = null;
         clearStationFeed();
         super.onDestroyView();
     }
@@ -67,12 +58,12 @@ public class HomePageFragment extends StationFeedFragment {
     }
 
     private void bindHomepageList() {
-        RecyclerView recyclerView = getRecyclerView();
-        recyclerView.setNestedScrollingEnabled(true);
-        ViewGroup.LayoutParams layoutParams = recyclerView.getLayoutParams();
+        homepageRecyclerView = getRecyclerView();
+        attachShellContentPadding(homepageRecyclerView, UiDimensions.px(requireContext(), R.dimen.top_content_gap));
+        homepageRecyclerView.setNestedScrollingEnabled(true);
+        ViewGroup.LayoutParams layoutParams = homepageRecyclerView.getLayoutParams();
         layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
-        recyclerView.setLayoutParams(layoutParams);
-        homepageAdapter = new ConcatAdapter(new HomePageHeaderAdapter(), getStationAdapter());
-        recyclerView.setAdapter(homepageAdapter);
+        homepageRecyclerView.setLayoutParams(layoutParams);
+        homepageRecyclerView.setAdapter(new ConcatAdapter(new HomePageHeaderAdapter(), getStationAdapter()));
     }
 }

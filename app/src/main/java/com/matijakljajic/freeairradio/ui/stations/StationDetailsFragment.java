@@ -84,48 +84,22 @@ public class StationDetailsFragment extends DialogFragment {
     }
 
     private void bindCompactTextRow(@NonNull View contentView, int rowId, int labelStringId, @NonNull String value) {
-        bindTextRow(contentView, rowId, labelStringId, value, true);
+        StationDetailRowView row = contentView.findViewById(rowId);
+        row.bindCompactText(labelStringId, value);
     }
 
     private void bindTallTextRow(@NonNull View contentView, int rowId, int labelStringId, @NonNull String value) {
-        bindTextRow(contentView, rowId, labelStringId, value, false);
-    }
-
-    private void bindTextRow(@NonNull View contentView,
-                             int rowId,
-                             int labelStringId,
-                             @NonNull String value,
-                             boolean compact) {
         StationDetailRowView row = contentView.findViewById(rowId);
-        if (compact) {
-            row.useCompactStyle();
-        } else {
-            row.useTallStyle();
-        }
-        if (row.bindText(labelStringId, value)) {
-            row.setMarqueeRestartOnLongClickListener();
-        }
+        row.bindTallText(labelStringId, value);
     }
 
     private void bindBitrateRow(@NonNull View contentView, @NonNull Station station) {
         StationDetailRowView row = contentView.findViewById(R.id.row_bitrate);
-        row.useCompactStyle();
-        if (row.bindBitrate(R.string.station_details_bitrate, station.getBitrate())) {
-            row.setMarqueeRestartOnLongClickListener();
-        }
+        row.bindCompactBitrate(R.string.station_details_bitrate, station.getBitrate());
     }
 
     private void bindLinkRow(@NonNull View contentView, int rowId, int labelStringId, @Nullable String value) {
-        if (value == null) {
-            StationDetailRowView row = contentView.findViewById(rowId);
-            row.hide();
-            return;
-        }
-
         StationDetailRowView row = contentView.findViewById(rowId);
-        row.useTallStyle();
-        if (row.bindLink(labelStringId, value, v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(value))))) {
-            row.setMarqueeRestartOnLongClickListener();
-        }
+        row.bindTallLink(labelStringId, value, value == null ? null : v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(value))));
     }
 }

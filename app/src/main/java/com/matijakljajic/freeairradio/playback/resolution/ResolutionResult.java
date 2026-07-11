@@ -72,14 +72,6 @@ public final class ResolutionResult {
         return failureReason;
     }
 
-    @NonNull
-    public String getBestPlayableUrl() {
-        if (selectedCandidate != null) {
-            return selectedCandidate.getUrl();
-        }
-        return originalUrl;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) {

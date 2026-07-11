@@ -23,12 +23,12 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class RadioBrowserRepository implements StationRepository {
+public final class RadioBrowserRepository implements StationRepository {
 
     private static final int DEFAULT_LIMIT = 50;
     private static final long SERVER_DISCOVERY_TIMEOUT_MILLIS = 7000L;
     @NonNull
-    private final RadioBrowserApiFactory apiFactory;
+    private final RadioBrowserClient client;
     @NonNull
     private final RadioBrowserServerSelector serverSelector;
     @NonNull
@@ -42,10 +42,10 @@ public class RadioBrowserRepository implements StationRepository {
         this(RadioBrowserClient.getInstance(), new RadioBrowserServerSelector(context), new Handler(Looper.getMainLooper()));
     }
 
-    RadioBrowserRepository(@NonNull RadioBrowserApiFactory apiFactory,
+    RadioBrowserRepository(@NonNull RadioBrowserClient client,
                            @NonNull RadioBrowserServerSelector serverSelector,
                            @NonNull Handler mainHandler) {
-        this.apiFactory = apiFactory;
+        this.client = client;
         this.serverSelector = serverSelector;
         this.mainHandler = mainHandler;
     }
@@ -92,7 +92,7 @@ public class RadioBrowserRepository implements StationRepository {
                                  @NonNull LoadCallback callback,
                                  @NonNull RequestFactory requestFactory,
                                  int attempt) {
-        if (!serverSelector.isReadyWithin(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
+        if (serverSelector.isReadyWithin(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
             postError(callback, new IOException("Timed out waiting for Radio Browser servers"));
             return;
         }
@@ -102,7 +102,7 @@ public class RadioBrowserRepository implements StationRepository {
             postError(callback, new IOException("No Radio Browser servers available"));
             return;
         }
-        RadioBrowserApi api = apiFactory.create(baseUrl);
+        RadioBrowserApi api = client.create(baseUrl);
         Call<List<RadioBrowserStationDto>> call = requestFactory.create(api);
         call.enqueue(new Callback<>() {
             @Override
@@ -137,7 +137,7 @@ public class RadioBrowserRepository implements StationRepository {
     }
 
     private void enqueueClick(@NonNull String stationUuid) {
-        if (!serverSelector.isReadyWithin(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
+        if (serverSelector.isReadyWithin(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
             return;
         }
 
@@ -146,7 +146,7 @@ public class RadioBrowserRepository implements StationRepository {
             return;
         }
 
-        RadioBrowserApi api = apiFactory.create(baseUrl);
+        RadioBrowserApi api = client.create(baseUrl);
         api.reportStationUsage(stationUuid).enqueue(new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {

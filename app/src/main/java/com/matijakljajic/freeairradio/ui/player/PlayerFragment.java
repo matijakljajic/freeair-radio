@@ -9,7 +9,6 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.media3.common.util.UnstableApi;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
@@ -21,7 +20,6 @@ import com.matijakljajic.freeairradio.playback.RadioPlayer;
 import com.matijakljajic.freeairradio.ui.util.MarqueeTextView;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
-@UnstableApi
 public class PlayerFragment extends Fragment {
     private static final long MARQUEE_START_DELAY_MS = 1000L;
     private static final long METADATA_ANIMATION_DURATION_MS = 180L;
@@ -95,7 +93,7 @@ public class PlayerFragment extends Fragment {
             return;
         }
 
-        Station stationToShow = selectedStation != null ? selectedStation : playbackStation;
+        Station stationToShow = selectedStation;
         boolean stationChanged = renderStation(stationToShow);
         boolean nowPlayingChanged = renderNowPlaying(stationToShow, nowPlaying);
         if (stationChanged || nowPlayingChanged) {
@@ -153,9 +151,7 @@ public class PlayerFragment extends Fragment {
         }
 
         String displayText = nowPlaying != null
-                && currentStation != null
-                && stationToShow != null
-                && currentStation.getId().equals(stationToShow.getId())
+                && isCurrentStation(stationToShow)
                 ? nowPlaying.buildDisplayText()
                 : null;
 
@@ -282,9 +278,7 @@ public class PlayerFragment extends Fragment {
         }
 
         boolean hasStation = stationToShow != null;
-        boolean isCurrentStation = hasStation
-                && currentStation != null
-                && currentStation.getId().equals(stationToShow.getId());
+        boolean isCurrentStation = isCurrentStation(stationToShow);
         boolean isLoading = isCurrentStation
                 && currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.CONNECTING;
         boolean isPlaying = isCurrentStation
@@ -302,13 +296,12 @@ public class PlayerFragment extends Fragment {
     }
 
     private void onPlayStopClicked() {
-        Station stationToShow = selectedStation != null ? selectedStation : currentStation;
+        Station stationToShow = selectedStation;
         if (stationToShow == null || radioPlayer == null) {
             return;
         }
 
-        boolean isCurrentStation = currentStation != null
-                && currentStation.getId().equals(stationToShow.getId());
+        boolean isCurrentStation = isCurrentStation(stationToShow);
         boolean canStop = isCurrentStation
                 && (currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.CONNECTING
                 || currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.PLAYING);
@@ -333,5 +326,11 @@ public class PlayerFragment extends Fragment {
             topMarginPx = ((ViewGroup.MarginLayoutParams) layoutParams).topMargin;
         }
         return (nowPlayingText.getLineHeight() + topMarginPx) / 2f;
+    }
+
+    private boolean isCurrentStation(@Nullable Station station) {
+        return station != null
+                && currentStation != null
+                && currentStation.getId().equals(station.getId());
     }
 }

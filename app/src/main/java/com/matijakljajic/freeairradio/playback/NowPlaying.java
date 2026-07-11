@@ -29,16 +29,10 @@ public final class NowPlaying {
 
     @Nullable
     public String buildDisplayText() {
-        if (artist != null && title != null) {
-            return artist + " - " + title;
-        }
         if (title != null) {
-            return title;
+            return artist == null ? title : artist + " - " + title;
         }
-        if (artist != null) {
-            return artist;
-        }
-        return null;
+        return artist;
     }
 
     @Override

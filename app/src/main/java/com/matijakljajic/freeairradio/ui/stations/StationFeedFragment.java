@@ -23,6 +23,10 @@ import java.util.List;
 
 public abstract class StationFeedFragment extends ShellChromeAwareFragment implements StationAdapter.OnStationInteractionListener {
 
+    public interface OnStationSelectedListener {
+        void onStationSelected(@NonNull Station station);
+    }
+
     @Nullable
     private StationRepository stationRepository;
     @Nullable
@@ -150,11 +154,6 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
         return recyclerView;
     }
 
-    @Nullable
-    protected final RecyclerView peekRecyclerView() {
-        return recyclerView;
-    }
-
     @NonNull
     protected StationRepository createStationRepository() {
         return new RadioBrowserRepository(requireContext().getApplicationContext());
@@ -162,8 +161,8 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
 
     @Override
     public void onStationClick(Station station) {
-        if (requireActivity() instanceof StationListFragment.OnStationSelectedListener) {
-            ((StationListFragment.OnStationSelectedListener) requireActivity()).onStationSelected(station);
+        if (requireActivity() instanceof OnStationSelectedListener) {
+            ((OnStationSelectedListener) requireActivity()).onStationSelected(station);
         }
     }
 
@@ -189,11 +188,15 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
     }
 
     private void renderState(@NonNull ListUiState state, @StringRes int messageResId) {
-        if (stationAdapter != null && state != ListUiState.CONTENT) {
+        boolean hasVisibleStations = stationAdapter != null && !stationAdapter.getCurrentList().isEmpty();
+        boolean keepCurrentStationsVisible = state == ListUiState.LOADING && hasVisibleStations;
+
+        if (stationAdapter != null && state != ListUiState.CONTENT && !keepCurrentStationsVisible) {
             stationAdapter.submitList(Collections.emptyList());
+            hasVisibleStations = false;
         }
         if (loadingView != null) {
-            loadingView.setVisibility(state == ListUiState.LOADING ? View.VISIBLE : View.GONE);
+            loadingView.setVisibility(state == ListUiState.LOADING && !hasVisibleStations ? View.VISIBLE : View.GONE);
         }
         if (errorContainerView != null) {
             errorContainerView.setVisibility(state == ListUiState.ERROR ? View.VISIBLE : View.GONE);
@@ -208,7 +211,7 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
             errorTextView.setText(messageResId);
         }
         if (recyclerView != null) {
-            recyclerView.setVisibility(state == ListUiState.CONTENT ? View.VISIBLE : View.GONE);
+            recyclerView.setVisibility(state == ListUiState.CONTENT || keepCurrentStationsVisible ? View.VISIBLE : View.GONE);
         }
     }
 

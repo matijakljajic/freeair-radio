@@ -7,7 +7,8 @@
     android:layout_height="match_parent"
     android:clipChildren="false"
     android:clipToPadding="false"
-    tools:context=".ui.MainActivity">
+    tools:context=".ui.MainActivity"
+    tools:ignore="MergeRootFrame">
 
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/main_content_fragment_container"
@@ -21,7 +22,6 @@
         android:layout_height="0dp"
         android:layout_gravity="bottom"
         android:background="@drawable/bottom_content_filter"
-        android:clickable="false"
         android:importantForAccessibility="no" />
 
     <View
@@ -30,7 +30,6 @@
         android:layout_height="0dp"
         android:layout_gravity="top"
         android:background="@drawable/top_content_filter"
-        android:clickable="false"
         android:importantForAccessibility="no" />
 
     <FrameLayout
@@ -63,8 +62,7 @@
             android:layout_marginTop="8dp"
             app:cardCornerRadius="20dp"
             app:cardElevation="2dp"
-            app:cardBackgroundColor="?attr/colorSurface"
-            app:contentPadding="0dp">
+            app:cardBackgroundColor="?attr/colorSurface">
 
             <com.google.android.material.button.MaterialButtonToggleGroup
                 android:id="@+id/main_nav_toggle_group"
