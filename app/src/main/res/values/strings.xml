@@ -3,6 +3,8 @@
     <string name="player_no_station_selected">No station selected</string>
     <string name="player_play_button">Play station</string>
     <string name="player_stop_button">Stop playback</string>
+    <string name="player_favorite_button">Favorite station</string>
+    <string name="player_unfavorite_button">Unfavorite station</string>
     <string name="nav_home">Homepage</string>
     <string name="nav_search">Search</string>
     <string name="nav_settings">Settings</string>
@@ -24,6 +26,7 @@
     <string name="station_details_homepage">Homepage</string>
     <string name="station_details_close">Close</string>
     <string name="playback_notification_channel_name">Radio playback</string>
+    <string name="playback_notification_connecting">Connecting…</string>
     <string name="settings_server_section_title">Radio Browser server</string>
     <string name="settings_server_section_summary">Choose the mirror used for loading stations. Automatic uses the Radio Browser discovery list.</string>
     <string name="settings_server_status_loading">Discovering servers…</string>
