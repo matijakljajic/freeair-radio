@@ -1,26 +1,53 @@
 package com.matijakljajic.freeairradio.ui.player;
 
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.media3.common.util.UnstableApi;
 
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.progressindicator.CircularProgressIndicator;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
+import com.matijakljajic.freeairradio.playback.CurrentPlaybackState;
+import com.matijakljajic.freeairradio.playback.NowPlaying;
+import com.matijakljajic.freeairradio.playback.RadioPlayer;
 import com.matijakljajic.freeairradio.ui.util.MarqueeTextView;
+import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
+@UnstableApi
 public class PlayerFragment extends Fragment {
     private static final long MARQUEE_START_DELAY_MS = 1000L;
+    private static final long METADATA_ANIMATION_DURATION_MS = 180L;
 
+    @Nullable
+    private Station selectedStation;
+    @Nullable
+    private Station currentStation;
+    @Nullable
+    private String renderedStationTitle;
+    @Nullable
+    private String renderedNowPlayingText;
+    private boolean nowPlayingVisible;
+    private boolean pendingUserStopAnimation;
+    @NonNull
+    private CurrentPlaybackState.PlaybackStatus currentPlaybackStatus = CurrentPlaybackState.PlaybackStatus.IDLE;
+    private float singleLineTitleOffsetPx;
+    private int metadataShiftPx;
     private View playerView;
     private MarqueeTextView stationNameText;
     private MarqueeTextView nowPlayingText;
-    private Button playStopButton;
+    private MaterialButton playStopButton;
+    private CircularProgressIndicator playStopLoadingIndicator;
+    @Nullable
+    private RadioPlayer radioPlayer;
+    private final CurrentPlaybackState.Listener playbackStateListener = this::renderPlaybackState;
     private final Runnable activateMarqueeRunnable = this::activateMiniPlayerMarquee;
 
     @Nullable
@@ -37,29 +64,62 @@ public class PlayerFragment extends Fragment {
         stationNameText = view.findViewById(R.id.player_station_name);
         nowPlayingText = view.findViewById(R.id.player_now_playing);
         playStopButton = view.findViewById(R.id.player_play_stop_button);
-        renderStation(null);
+        playStopLoadingIndicator = view.findViewById(R.id.player_play_stop_loading_indicator);
+        playStopButton.setOnClickListener(v -> onPlayStopClicked());
+        radioPlayer = new RadioPlayer(requireContext());
+        metadataShiftPx = UiDimensions.px(requireContext(), R.dimen.mini_player_metadata_shift);
+        singleLineTitleOffsetPx = calculateSingleLineTitleOffset();
+        resetMetadataLayout();
+        CurrentPlaybackState.getInstance().addListener(playbackStateListener);
     }
 
     public void showStation(@Nullable Station station) {
-        renderStation(station);
+        selectedStation = station;
+        CurrentPlaybackState playbackState = CurrentPlaybackState.getInstance();
+        renderPlaybackState(
+                playbackState.getCurrentStation(),
+                playbackState.getCurrentNowPlaying(),
+                playbackState.getPlaybackStatus()
+        );
     }
 
-    private void renderStation(@Nullable Station station) {
+    private void renderPlaybackState(@Nullable Station playbackStation,
+                                     @Nullable NowPlaying nowPlaying,
+                                     @NonNull CurrentPlaybackState.PlaybackStatus playbackStatus) {
+        currentStation = playbackStation;
+        currentPlaybackStatus = playbackStatus;
+        if (playbackStation != null) {
+            selectedStation = playbackStation;
+        }
         if (stationNameText == null || nowPlayingText == null || playStopButton == null) {
             return;
         }
 
-        if (station == null) {
-            stationNameText.setText(R.string.player_no_station_selected);
-        } else {
-            stationNameText.setText(station.getName());
+        Station stationToShow = selectedStation != null ? selectedStation : playbackStation;
+        boolean stationChanged = renderStation(stationToShow);
+        boolean nowPlayingChanged = renderNowPlaying(stationToShow, nowPlaying);
+        if (stationChanged || nowPlayingChanged) {
+            scheduleMiniPlayerMarquee();
         }
-        nowPlayingText.setText(R.string.player_now_playing_placeholder);
 
-        scheduleMiniPlayerMarquee();
+        renderPlayStopButton(stationToShow);
+    }
 
-        playStopButton.setEnabled(false);
-        playStopButton.setText(R.string.player_play_stop_placeholder);
+    private boolean renderStation(@Nullable Station station) {
+        if (stationNameText == null) {
+            return false;
+        }
+
+        String desiredTitle = station == null
+                ? getString(R.string.player_no_station_selected)
+                : station.getName();
+        if (TextUtils.equals(renderedStationTitle, desiredTitle)) {
+            return false;
+        }
+
+        renderedStationTitle = desiredTitle;
+        stationNameText.setText(desiredTitle);
+        return true;
     }
 
     @Override
@@ -67,11 +127,134 @@ public class PlayerFragment extends Fragment {
         if (playerView != null) {
             playerView.removeCallbacks(activateMarqueeRunnable);
         }
+        CurrentPlaybackState.getInstance().removeListener(playbackStateListener);
+        selectedStation = null;
+        currentStation = null;
+        renderedStationTitle = null;
+        renderedNowPlayingText = null;
+        nowPlayingVisible = false;
+        pendingUserStopAnimation = false;
+        currentPlaybackStatus = CurrentPlaybackState.PlaybackStatus.IDLE;
+        if (playStopButton != null) {
+            playStopButton.setOnClickListener(null);
+        }
+        radioPlayer = null;
         playerView = null;
         stationNameText = null;
         nowPlayingText = null;
         playStopButton = null;
+        playStopLoadingIndicator = null;
         super.onDestroyView();
+    }
+
+    private boolean renderNowPlaying(@Nullable Station stationToShow, @Nullable NowPlaying nowPlaying) {
+        if (nowPlayingText == null) {
+            return false;
+        }
+
+        String displayText = nowPlaying != null
+                && currentStation != null
+                && stationToShow != null
+                && currentStation.getId().equals(stationToShow.getId())
+                ? nowPlaying.buildDisplayText()
+                : null;
+
+        if (displayText == null) {
+            if (!nowPlayingVisible && renderedNowPlayingText == null) {
+                pendingUserStopAnimation = false;
+                return false;
+            }
+            if (pendingUserStopAnimation && nowPlayingVisible) {
+                pendingUserStopAnimation = false;
+                animateMetadataOut();
+            } else {
+                pendingUserStopAnimation = false;
+                renderedNowPlayingText = null;
+                resetMetadataLayout();
+            }
+            return true;
+        }
+
+        boolean textChanged = !TextUtils.equals(renderedNowPlayingText, displayText);
+        renderedNowPlayingText = displayText;
+
+        if (textChanged) {
+            nowPlayingText.setText(displayText);
+        }
+
+        if (nowPlayingVisible) {
+            return textChanged;
+        }
+
+        animateMetadataIn();
+        return true;
+    }
+
+    private void animateMetadataIn() {
+        if (stationNameText == null || nowPlayingText == null) {
+            return;
+        }
+
+        nowPlayingVisible = true;
+        stationNameText.animate().cancel();
+        nowPlayingText.animate().cancel();
+        nowPlayingText.setVisibility(View.VISIBLE);
+        nowPlayingText.setAlpha(0f);
+        nowPlayingText.setTranslationY(-metadataShiftPx);
+        stationNameText.setTranslationY(singleLineTitleOffsetPx);
+
+        stationNameText.animate()
+                .translationY(0f)
+                .setDuration(METADATA_ANIMATION_DURATION_MS)
+                .start();
+        nowPlayingText.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(METADATA_ANIMATION_DURATION_MS)
+                .start();
+    }
+
+    private void resetMetadataLayout() {
+        if (stationNameText == null || nowPlayingText == null) {
+            return;
+        }
+
+        stationNameText.animate().cancel();
+        nowPlayingText.animate().cancel();
+        stationNameText.setTranslationY(singleLineTitleOffsetPx);
+        nowPlayingText.setAlpha(0f);
+        nowPlayingText.setTranslationY(-metadataShiftPx / 2f);
+        nowPlayingText.setText(null);
+        nowPlayingText.setVisibility(View.INVISIBLE);
+        nowPlayingVisible = false;
+    }
+
+    private void animateMetadataOut() {
+        if (stationNameText == null || nowPlayingText == null) {
+            return;
+        }
+
+        stationNameText.animate().cancel();
+        nowPlayingText.animate().cancel();
+
+        stationNameText.animate()
+                .translationY(singleLineTitleOffsetPx)
+                .setDuration(METADATA_ANIMATION_DURATION_MS)
+                .start();
+        nowPlayingText.animate()
+                .alpha(0f)
+                .translationY(-metadataShiftPx / 2f)
+                .setDuration(METADATA_ANIMATION_DURATION_MS)
+                .withEndAction(() -> {
+                    if (nowPlayingText == null) {
+                        return;
+                    }
+                    renderedNowPlayingText = null;
+                    nowPlayingText.setText(null);
+                    nowPlayingText.setVisibility(View.INVISIBLE);
+                    nowPlayingVisible = false;
+                })
+                .start();
     }
 
     private void scheduleMiniPlayerMarquee() {
@@ -90,6 +273,65 @@ public class PlayerFragment extends Fragment {
             return;
         }
         stationNameText.setSelected(true);
-        nowPlayingText.setSelected(true);
+        nowPlayingText.setSelected(nowPlayingText.getVisibility() == View.VISIBLE);
+    }
+
+    private void renderPlayStopButton(@Nullable Station stationToShow) {
+        if (playStopButton == null) {
+            return;
+        }
+
+        boolean hasStation = stationToShow != null;
+        boolean isCurrentStation = hasStation
+                && currentStation != null
+                && currentStation.getId().equals(stationToShow.getId());
+        boolean isLoading = isCurrentStation
+                && currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.CONNECTING;
+        boolean isPlaying = isCurrentStation
+                && currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.PLAYING;
+        boolean canStop = isLoading || isPlaying;
+
+        playStopButton.setEnabled(hasStation);
+        playStopButton.setIconResource(canStop ? R.drawable.ic_stop : R.drawable.ic_play);
+        playStopButton.setContentDescription(getString(
+                canStop ? R.string.player_stop_button : R.string.player_play_button
+        ));
+        if (playStopLoadingIndicator != null) {
+            playStopLoadingIndicator.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void onPlayStopClicked() {
+        Station stationToShow = selectedStation != null ? selectedStation : currentStation;
+        if (stationToShow == null || radioPlayer == null) {
+            return;
+        }
+
+        boolean isCurrentStation = currentStation != null
+                && currentStation.getId().equals(stationToShow.getId());
+        boolean canStop = isCurrentStation
+                && (currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.CONNECTING
+                || currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.PLAYING);
+        if (canStop) {
+            pendingUserStopAnimation = true;
+            radioPlayer.stop();
+            return;
+        }
+
+        pendingUserStopAnimation = false;
+        radioPlayer.play(stationToShow);
+    }
+
+    private float calculateSingleLineTitleOffset() {
+        if (nowPlayingText == null) {
+            return 0f;
+        }
+
+        ViewGroup.LayoutParams layoutParams = nowPlayingText.getLayoutParams();
+        int topMarginPx = 0;
+        if (layoutParams instanceof ViewGroup.MarginLayoutParams) {
+            topMarginPx = ((ViewGroup.MarginLayoutParams) layoutParams).topMargin;
+        }
+        return (nowPlayingText.getLineHeight() + topMarginPx) / 2f;
     }
 }

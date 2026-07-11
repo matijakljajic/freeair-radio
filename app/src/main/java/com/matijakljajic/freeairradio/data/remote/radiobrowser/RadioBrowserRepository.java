@@ -1,6 +1,8 @@
 package com.matijakljajic.freeairradio.data.remote.radiobrowser;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -29,19 +31,23 @@ public class RadioBrowserRepository implements StationRepository {
     private final RadioBrowserApiFactory apiFactory;
     @NonNull
     private final RadioBrowserServerSelector serverSelector;
+    @NonNull
+    private final Handler mainHandler;
 
     public RadioBrowserRepository() {
-        this(RadioBrowserClient.getInstance(), new RadioBrowserServerSelector());
+        this(RadioBrowserClient.getInstance(), new RadioBrowserServerSelector(), new Handler(Looper.getMainLooper()));
     }
 
     public RadioBrowserRepository(@NonNull Context context) {
-        this(RadioBrowserClient.getInstance(), new RadioBrowserServerSelector(context));
+        this(RadioBrowserClient.getInstance(), new RadioBrowserServerSelector(context), new Handler(Looper.getMainLooper()));
     }
 
     RadioBrowserRepository(@NonNull RadioBrowserApiFactory apiFactory,
-                           @NonNull RadioBrowserServerSelector serverSelector) {
+                           @NonNull RadioBrowserServerSelector serverSelector,
+                           @NonNull Handler mainHandler) {
         this.apiFactory = apiFactory;
         this.serverSelector = serverSelector;
+        this.mainHandler = mainHandler;
     }
 
     @Override
@@ -52,6 +58,20 @@ public class RadioBrowserRepository implements StationRepository {
     @Override
     public void searchStationsByName(@NonNull String query, @NonNull LoadCallback callback) {
         enqueueStationsAsync("search stations", callback, api -> api.searchStationsByName(query.trim(), DEFAULT_LIMIT, true));
+    }
+
+    @Override
+    public void reportStationUsage(@NonNull Station station) {
+        if (station.getOrigin() != StationOrigin.RADIO_BROWSER) {
+            return;
+        }
+
+        String stationUuid = extractStationUuid(station.getId());
+        if (stationUuid == null) {
+            return;
+        }
+
+        enqueueClickAsync(stationUuid);
     }
 
     private void enqueueStationsAsync(@NonNull String action,
@@ -72,14 +92,14 @@ public class RadioBrowserRepository implements StationRepository {
                                  @NonNull LoadCallback callback,
                                  @NonNull RequestFactory requestFactory,
                                  int attempt) {
-        if (!serverSelector.awaitReady(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
-            callback.onError(new IOException("Timed out waiting for Radio Browser servers"));
+        if (!serverSelector.isReadyWithin(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
+            postError(callback, new IOException("Timed out waiting for Radio Browser servers"));
             return;
         }
 
         String baseUrl = serverSelector.getSelectedBaseUrl();
         if (baseUrl == null) {
-            callback.onError(new IOException("No Radio Browser servers available"));
+            postError(callback, new IOException("No Radio Browser servers available"));
             return;
         }
         RadioBrowserApi api = apiFactory.create(baseUrl);
@@ -93,11 +113,11 @@ public class RadioBrowserRepository implements StationRepository {
                         enqueueStations(action, callback, requestFactory, attempt + 1);
                         return;
                     }
-                    callback.onError(new IOException("Failed to " + action + ": " + response.code()));
+                    postError(callback, new IOException("Failed to " + action + ": " + response.code()));
                     return;
                 }
                 serverSelector.rememberSuccess(baseUrl);
-                callback.onStationsLoaded(mapStations(response.body()));
+                postStationsLoaded(callback, mapStations(response.body()));
             }
 
             @Override
@@ -106,7 +126,38 @@ public class RadioBrowserRepository implements StationRepository {
                     enqueueStations(action, callback, requestFactory, attempt + 1);
                     return;
                 }
-                callback.onError(t);
+                postError(callback, t);
+            }
+        });
+    }
+
+    private void enqueueClickAsync(@NonNull String stationUuid) {
+        Thread workerThread = new Thread(() -> enqueueClick(stationUuid), "RadioBrowserStationClick");
+        workerThread.start();
+    }
+
+    private void enqueueClick(@NonNull String stationUuid) {
+        if (!serverSelector.isReadyWithin(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
+            return;
+        }
+
+        String baseUrl = serverSelector.getSelectedBaseUrl();
+        if (baseUrl == null) {
+            return;
+        }
+
+        RadioBrowserApi api = apiFactory.create(baseUrl);
+        api.reportStationUsage(stationUuid).enqueue(new Callback<>() {
+            @Override
+            public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
+                if (response.isSuccessful()) {
+                    serverSelector.rememberSuccess(baseUrl);
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {
+                // Fire-and-forget tracking. Selection must not be blocked by analytics.
             }
         });
     }
@@ -114,6 +165,35 @@ public class RadioBrowserRepository implements StationRepository {
     private interface RequestFactory {
         @NonNull
         Call<List<RadioBrowserStationDto>> create(@NonNull RadioBrowserApi api);
+    }
+
+    private void postStationsLoaded(@NonNull StationRepository.LoadCallback callback,
+                                    @NonNull List<Station> stations) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            callback.onStationsLoaded(stations);
+            return;
+        }
+        mainHandler.post(() -> callback.onStationsLoaded(stations));
+    }
+
+    private void postError(@NonNull StationRepository.LoadCallback callback,
+                           @NonNull Throwable throwable) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            callback.onError(throwable);
+            return;
+        }
+        mainHandler.post(() -> callback.onError(throwable));
+    }
+
+    @Nullable
+    private static String extractStationUuid(@NonNull String stationId) {
+        String prefix = "RADIO_BROWSER:";
+        if (!stationId.startsWith(prefix)) {
+            return null;
+        }
+
+        String stationUuid = stationId.substring(prefix.length()).trim();
+        return stationUuid.isEmpty() ? null : stationUuid;
     }
 
     @NonNull

@@ -11,7 +11,6 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.card.MaterialCardView;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.ui.util.StationDisplayFormatter;
@@ -57,7 +56,6 @@ public class StationAdapter extends ListAdapter<Station, StationAdapter.StationV
     }
 
     public static class StationViewHolder extends RecyclerView.ViewHolder {
-        private final MaterialCardView cardView;
         private final TextView nameText;
         private final TextView detailsText;
         @Nullable
@@ -65,15 +63,14 @@ public class StationAdapter extends ListAdapter<Station, StationAdapter.StationV
 
         StationViewHolder(@NonNull View itemView, @NonNull OnStationInteractionListener listener) {
             super(itemView);
-            cardView = itemView.findViewById(R.id.station_item_card);
             nameText = itemView.findViewById(R.id.station_item_name);
             detailsText = itemView.findViewById(R.id.station_item_details);
-            cardView.setOnClickListener(v -> {
+            itemView.setOnClickListener(v -> {
                 if (boundStation != null) {
                     listener.onStationClick(boundStation);
                 }
             });
-            cardView.setOnLongClickListener(v -> {
+            itemView.setOnLongClickListener(v -> {
                 if (boundStation != null) {
                     listener.onStationLongClick(boundStation);
                 }

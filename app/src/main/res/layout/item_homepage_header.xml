@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="16dp"
+    android:layout_marginBottom="24dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <!-- TODO: Use this header as the source switch between Now Popular and Favorites. -->
+    <TextView
+        android:id="@+id/homepage_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:drawablePadding="6dp"
+        android:gravity="start"
+        android:text="@string/station_list_title_now_popular"
+        android:textAlignment="viewStart"
+        android:textAppearance="?attr/textAppearanceHeadlineSmall"
+        android:textColor="?attr/colorOnSurface"
+        android:textStyle="bold"
+        app:drawableEndCompat="@drawable/ic_chevron_down_offset"
+        app:drawableTint="?attr/colorOnSurface"
+        tools:text="Now Popular" />
+
+    <Space
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1" />
+
+    <!-- TODO: Use this button to add a local station type station later. -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/homepage_add_station_button"
+        style="@style/Widget.FreeAirRadio.NavPillButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="1dp"
+        android:contentDescription="@string/homepage_add_station"
+        android:elevation="1dp"
+        android:enabled="true"
+        android:gravity="center"
+        android:text=""
+        android:textColor="@color/nav_pill_text_color"
+        app:cornerRadius="16dp"
+        app:icon="@drawable/ic_add"
+        app:iconGravity="textStart"
+        app:iconPadding="0dp"
+        app:iconSize="18dp"
+        app:iconTint="@color/nav_pill_text_color"
+        app:rippleColor="?attr/colorPrimaryContainer"
+        app:strokeWidth="0dp"
+        tools:ignore="SpeakableTextPresentCheck,MissingConstraints" />
+
+</LinearLayout>

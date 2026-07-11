@@ -13,4 +13,5 @@
     <dimen name="detail_row_vertical_padding_tall_bottom">10dp</dimen>
     <dimen name="detail_row_label_value_spacing">12dp</dimen>
     <dimen name="detail_row_tall_value_spacing">4dp</dimen>
+    <dimen name="mini_player_metadata_shift">8dp</dimen>
 </resources>

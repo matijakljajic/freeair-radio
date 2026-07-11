@@ -78,10 +78,6 @@ public class Station implements Serializable {
         return homepage;
     }
 
-    public boolean hasHomepage() {
-        return homepage != null;
-    }
-
     @Nullable
     public String getFavicon() {
         return favicon;

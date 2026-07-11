@@ -42,6 +42,9 @@ dependencies {
     implementation libs.recyclerview
     implementation libs.retrofit
     implementation libs.retrofit.converter.gson
+    implementation libs.media3.session
+    implementation libs.media3.exoplayer
+    implementation libs.media3.exoplayer.hls
     testImplementation libs.junit
     debugImplementation libs.fragment.testing
     androidTestImplementation libs.fragment.testing

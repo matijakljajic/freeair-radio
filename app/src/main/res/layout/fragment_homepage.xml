@@ -1,86 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/homepage_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:clipChildren="false"
     android:clipToPadding="false"
-    android:fillViewport="true"
     android:paddingStart="16dp"
     android:paddingEnd="16dp">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
+    <include layout="@layout/fragment_station_feed_content" />
 
-        <LinearLayout
-            android:id="@+id/homepage_title_row"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="24dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <!-- TODO: Use this header as the source switch between Now Popular and Favorites. -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/homepage_title"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/station_list_title_now_popular"
-                    android:textAlignment="viewStart"
-                    android:textAppearance="?attr/textAppearanceHeadlineSmall"
-                    android:textStyle="bold"
-                    tools:text="Now Popular" />
-
-                <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:layout_marginStart="6dp"
-                    android:layout_marginTop="2dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/ic_chevron_down"
-                    app:tint="?attr/colorOnSurface" />
-
-            </LinearLayout>
-
-            <!-- TODO: Use this button to add a local station type station later. -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/homepage_add_station_button"
-                style="@style/Widget.FreeAirRadio.NavPillButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_marginStart="12dp"
-                android:layout_marginTop="1dp"
-                android:contentDescription="@string/homepage_add_station"
-                android:elevation="1dp"
-                android:enabled="true"
-                android:gravity="center"
-                android:text=""
-                android:textColor="@color/nav_pill_text_color"
-                app:cornerRadius="16dp"
-                app:icon="@drawable/ic_add"
-                app:iconGravity="textStart"
-                app:iconPadding="0dp"
-                app:iconSize="18dp"
-                app:iconTint="@color/nav_pill_text_color"
-                app:rippleColor="?attr/colorPrimaryContainer"
-                app:strokeWidth="0dp"
-                tools:ignore="SpeakableTextPresentCheck,MissingConstraints" />
-
-        </LinearLayout>
-
-        <include layout="@layout/fragment_station_feed_content" />
-
-    </LinearLayout>
-
-</androidx.core.widget.NestedScrollView>
+</FrameLayout>
