@@ -1,10 +1,15 @@
 package com.matijakljajic.freeairradio.ui;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.os.BundleCompat;
 import androidx.core.view.WindowCompat;
 import androidx.fragment.app.Fragment;
@@ -21,6 +26,7 @@ import com.matijakljajic.freeairradio.ui.stations.StationSearchFragment;
 
 public class MainActivity extends AppCompatActivity implements StationFeedFragment.OnStationSelectedListener, ShellChromeHost {
 
+    private static final int REQUEST_CODE_POST_NOTIFICATIONS = 1001;
     private static final String STATE_SELECTED_STATION = "state_selected_station";
     private static final String STATE_CURRENT_TAB = "state_current_tab";
 
@@ -73,6 +79,7 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
         if (shellChromeController != null) {
             shellChromeController.attach();
         }
+        requestNotificationPermissionIfNeeded();
         selectTab(currentTab, true);
         syncPlayerFragment();
     }
@@ -149,6 +156,21 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
         suppressNavCallbacks = true;
         navToggleGroup.check(desiredButtonId);
         suppressNavCallbacks = false;
+    }
+
+    private void requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        ActivityCompat.requestPermissions(
+                this,
+                new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                REQUEST_CODE_POST_NOTIFICATIONS
+        );
     }
 
     private enum Tab {

@@ -49,4 +49,11 @@ public class NowPlayingObserverTest {
 
         assertNull(nowPlaying.buildDisplayText());
     }
+
+    @Test
+    public void nowPlayingDecodesNumericCharacterReferences() {
+        NowPlaying nowPlaying = new NowPlaying("Bajaga", "Moji drugovi &#263;e misliti da je gotovo");
+
+        assertEquals("Bajaga - Moji drugovi će misliti da je gotovo", nowPlaying.buildDisplayText());
+    }
 }
