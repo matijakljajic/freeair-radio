@@ -10,12 +10,15 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
         android:padding="16dp">
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -38,21 +41,56 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:ellipsize="marquee"
-                android:text="@string/player_now_playing_placeholder"
                 android:marqueeRepeatLimit="marquee_forever"
-                tools:text="{Artist - Track}" />
+                android:minLines="1"
+                android:visibility="invisible"
+                tools:text="{Artist - Track}"
+                tools:visibility="visible" />
 
         </LinearLayout>
 
-        <Button
-            android:id="@+id/player_play_stop_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
+        <FrameLayout
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:layout_gravity="center_vertical"
-            android:enabled="false"
-            android:text="@string/player_play_stop_placeholder"
-            tools:ignore="VisualLintSystemUi" />
+            android:layout_marginStart="16dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/player_play_stop_button"
+                style="@style/Widget.FreeAirRadio.NavPillButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/player_play_button"
+                android:enabled="false"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text=""
+                app:cornerRadius="24dp"
+                app:icon="@drawable/ic_play"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp"
+                app:iconSize="30dp"
+                app:iconTint="@color/nav_pill_text_color"
+                tools:ignore="VisualLintSystemUi,VisualLintOverlap" />
+
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/player_play_stop_loading_indicator"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:clickable="false"
+                android:importantForAccessibility="no"
+                android:indeterminate="true"
+                android:visibility="gone"
+                app:indicatorColor="?attr/colorPrimaryContainer"
+                app:indicatorInset="0dp"
+                app:indicatorSize="48dp"
+                app:trackColor="?attr/colorOutlineVariant"
+                app:trackThickness="3dp"
+                tools:visibility="visible" />
+
+        </FrameLayout>
 
     </LinearLayout>
 
