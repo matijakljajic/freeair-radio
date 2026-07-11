@@ -36,10 +36,10 @@ public abstract class ShellChromeAwareFragment extends Fragment {
         return shellChromeHost.getShellChromeController();
     }
 
-    protected final void attachShellContentPadding(@NonNull View contentView, int topGapPx, int bottomGapPx) {
+    protected final void attachShellContentPadding(@NonNull View contentView, int topGapPx) {
         ShellChromeController shellChromeController = getShellChromeController();
         if (shellChromeController != null) {
-            shellChromeController.attachContentPaddingView(contentView, topGapPx, bottomGapPx);
+            shellChromeController.attachContentPaddingView(contentView, topGapPx);
         }
     }
 

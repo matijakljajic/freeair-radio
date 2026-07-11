@@ -25,10 +25,6 @@ public class StationListFragment extends StationFeedFragment {
     private int bottomRecyclerGapPx;
     private final View.OnLayoutChangeListener playerShellLayoutChangeListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateRootPadding();
 
-    public static StationListFragment newSearchInstance() {
-        return new StationListFragment();
-    }
-
     public void setSearchTopPaddingPx(int searchTopPaddingPx) {
         int sanitizedPaddingPx = Math.max(0, searchTopPaddingPx);
         if (this.searchTopPaddingPx == sanitizedPaddingPx) {

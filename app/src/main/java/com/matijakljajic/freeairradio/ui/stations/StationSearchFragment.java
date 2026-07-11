@@ -77,7 +77,7 @@ public class StationSearchFragment extends ShellChromeAwareFragment {
         FragmentManager childFragmentManager = getChildFragmentManager();
         Fragment fragment = childFragmentManager.findFragmentById(R.id.station_search_list_container);
         if (fragment == null) {
-            fragment = StationListFragment.newSearchInstance();
+            fragment = new StationListFragment();
             childFragmentManager.beginTransaction()
                     .replace(R.id.station_search_list_container, fragment)
                     .commitNow();

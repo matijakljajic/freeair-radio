@@ -47,8 +47,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         if (settingsRootView != null) {
             attachShellContentPadding(
                     settingsRootView,
-                    UiDimensions.px(requireContext(), R.dimen.top_content_gap),
-                    0
+                    UiDimensions.px(requireContext(), R.dimen.top_content_gap)
             );
         }
         serverSettings = new RadioBrowserServerSettings(requireContext());

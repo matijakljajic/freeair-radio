@@ -93,7 +93,7 @@ public class PlayerFragment extends Fragment {
             return;
         }
 
-        Station stationToShow = selectedStation != null ? selectedStation : playbackStation;
+        Station stationToShow = selectedStation;
         boolean stationChanged = renderStation(stationToShow);
         boolean nowPlayingChanged = renderNowPlaying(stationToShow, nowPlaying);
         if (stationChanged || nowPlayingChanged) {
@@ -151,9 +151,7 @@ public class PlayerFragment extends Fragment {
         }
 
         String displayText = nowPlaying != null
-                && currentStation != null
-                && stationToShow != null
-                && currentStation.getId().equals(stationToShow.getId())
+                && isCurrentStation(stationToShow)
                 ? nowPlaying.buildDisplayText()
                 : null;
 
@@ -280,9 +278,7 @@ public class PlayerFragment extends Fragment {
         }
 
         boolean hasStation = stationToShow != null;
-        boolean isCurrentStation = hasStation
-                && currentStation != null
-                && currentStation.getId().equals(stationToShow.getId());
+        boolean isCurrentStation = isCurrentStation(stationToShow);
         boolean isLoading = isCurrentStation
                 && currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.CONNECTING;
         boolean isPlaying = isCurrentStation
@@ -300,13 +296,12 @@ public class PlayerFragment extends Fragment {
     }
 
     private void onPlayStopClicked() {
-        Station stationToShow = selectedStation != null ? selectedStation : currentStation;
+        Station stationToShow = selectedStation;
         if (stationToShow == null || radioPlayer == null) {
             return;
         }
 
-        boolean isCurrentStation = currentStation != null
-                && currentStation.getId().equals(stationToShow.getId());
+        boolean isCurrentStation = isCurrentStation(stationToShow);
         boolean canStop = isCurrentStation
                 && (currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.CONNECTING
                 || currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.PLAYING);
@@ -331,5 +326,11 @@ public class PlayerFragment extends Fragment {
             topMarginPx = ((ViewGroup.MarginLayoutParams) layoutParams).topMargin;
         }
         return (nowPlayingText.getLineHeight() + topMarginPx) / 2f;
+    }
+
+    private boolean isCurrentStation(@Nullable Station station) {
+        return station != null
+                && currentStation != null
+                && currentStation.getId().equals(station.getId());
     }
 }

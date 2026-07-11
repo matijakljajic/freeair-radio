@@ -56,7 +56,6 @@ public final class ShellChromeController {
     private int topContentFilterHeightPx;
     private int bottomContentFilterHeightPx;
     private int contentPaddingTopGapPx;
-    private int contentPaddingBottomGapPx;
     private int contentPaddingBaseLeftPx;
     private int contentPaddingBaseTopPx;
     private int contentPaddingBaseRightPx;
@@ -141,11 +140,9 @@ public final class ShellChromeController {
     }
 
     public void attachContentPaddingView(@NonNull View contentPaddingView,
-                                         int topGapPx,
-                                         int bottomGapPx) {
+                                         int topGapPx) {
         this.contentPaddingView = contentPaddingView;
         contentPaddingTopGapPx = Math.max(0, topGapPx);
-        contentPaddingBottomGapPx = Math.max(0, bottomGapPx);
         contentPaddingBaseLeftPx = contentPaddingView.getPaddingLeft();
         contentPaddingBaseTopPx = contentPaddingView.getPaddingTop();
         contentPaddingBaseRightPx = contentPaddingView.getPaddingRight();
@@ -308,7 +305,7 @@ public final class ShellChromeController {
         }
 
         int desiredTopPaddingPx = contentPaddingBaseTopPx + statusBarInsetPx + contentPaddingTopGapPx;
-        int desiredBottomPaddingPx = contentPaddingBaseBottomPx + bottomContentFilterHeightPx + contentPaddingBottomGapPx;
+        int desiredBottomPaddingPx = contentPaddingBaseBottomPx + bottomContentFilterHeightPx;
         if (contentPaddingView.getPaddingLeft() != contentPaddingBaseLeftPx
                 || contentPaddingView.getPaddingTop() != desiredTopPaddingPx
                 || contentPaddingView.getPaddingRight() != contentPaddingBaseRightPx
