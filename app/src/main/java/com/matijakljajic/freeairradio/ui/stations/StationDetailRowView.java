@@ -196,7 +196,7 @@ public class StationDetailRowView extends LinearLayout {
         setLongClickable(false);
     }
 
-    private boolean bindStaticValue(@StringRes int labelResId, @NonNull String value) {
+    private void bindStaticValue(@StringRes int labelResId, @NonNull String value) {
         resetBoundState();
         setVisibility(VISIBLE);
         labelView.setText(labelResId);
@@ -204,7 +204,6 @@ public class StationDetailRowView extends LinearLayout {
         valueView.setText(value);
         valueView.setContentDescription(value);
         bindOverflowMarqueeLongClick();
-        return true;
     }
 
     private void resetBoundState() {

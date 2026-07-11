@@ -279,10 +279,6 @@ public class RadioPlaybackService extends MediaSessionService {
     }
 
     private void createPlaybackNotificationChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return;
-        }
-
         NotificationManager notificationManager = getSystemService(NotificationManager.class);
         if (notificationManager == null) {
             return;
@@ -297,11 +293,14 @@ public class RadioPlaybackService extends MediaSessionService {
     }
 
     private void promoteToForeground(@NonNull Station station, @Nullable NowPlaying nowPlaying) {
+        int foregroundServiceType = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                ? ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                : 0;
         ServiceCompat.startForeground(
                 this,
                 PLAYBACK_NOTIFICATION_ID,
                 buildPlaybackNotification(station, nowPlaying),
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                foregroundServiceType
         );
     }
 
