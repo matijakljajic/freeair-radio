@@ -12,7 +12,7 @@ import okhttp3.Request;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
-public final class RadioBrowserClient implements RadioBrowserApiFactory {
+public final class RadioBrowserClient {
 
     private static final RadioBrowserClient INSTANCE = new RadioBrowserClient();
     private static final Gson GSON = new GsonBuilder().create();
@@ -31,7 +31,6 @@ public final class RadioBrowserClient implements RadioBrowserApiFactory {
     }
 
     @NonNull
-    @Override
     public RadioBrowserApi create(@NonNull String baseUrl) {
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(baseUrl)

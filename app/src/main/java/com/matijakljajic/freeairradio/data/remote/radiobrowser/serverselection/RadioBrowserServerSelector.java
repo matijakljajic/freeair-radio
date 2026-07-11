@@ -25,15 +25,15 @@ public final class RadioBrowserServerSelector {
     private final CountDownLatch readyLatch;
 
     public RadioBrowserServerSelector() {
-        this(null, true, false);
+        this(null, true);
     }
 
     public RadioBrowserServerSelector(@NonNull Context context) {
-        this(new RadioBrowserServerSettings(context).getPreferredBaseUrl(), true, false);
+        this(new RadioBrowserServerSettings(context).getPreferredBaseUrl(), true);
     }
 
     RadioBrowserServerSelector(@NonNull List<String> baseUrls) {
-        this(null, false, false);
+        this(null, false);
         synchronized (lock) {
             this.baseUrls = buildInitialBaseUrls(baseUrls, null);
             this.selectedIndex = 0;
@@ -41,8 +41,7 @@ public final class RadioBrowserServerSelector {
     }
 
     private RadioBrowserServerSelector(@Nullable String preferredBaseUrl,
-                                       boolean refreshAsync,
-                                       boolean ignored) {
+                                       boolean refreshAsync) {
         this.preferredBaseUrl = normalizeBaseUrl(preferredBaseUrl);
         this.baseUrls = new ArrayList<>();
         this.selectedIndex = 0;
