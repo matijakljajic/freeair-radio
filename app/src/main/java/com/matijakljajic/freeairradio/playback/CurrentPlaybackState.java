@@ -81,7 +81,7 @@ public final class CurrentPlaybackState {
     }
 
     public void setCurrentNowPlaying(@NonNull Station station, @Nullable NowPlaying nowPlaying) {
-        if (currentStation == null || !currentStation.getId().equals(station.getId())) {
+        if (!isCurrentStation(station)) {
             return;
         }
         if (Objects.equals(currentNowPlaying, nowPlaying)) {
@@ -93,7 +93,7 @@ public final class CurrentPlaybackState {
     }
 
     public void setPlaybackStatus(@NonNull Station station, @NonNull PlaybackStatus playbackStatus) {
-        if (currentStation == null || !currentStation.getId().equals(station.getId())) {
+        if (!isCurrentStation(station)) {
             return;
         }
         if (this.playbackStatus == playbackStatus) {
@@ -121,5 +121,9 @@ public final class CurrentPlaybackState {
         for (Listener listener : listeners) {
             listener.onPlaybackStateChanged(currentStation, currentNowPlaying, playbackStatus);
         }
+    }
+
+    private boolean isCurrentStation(@NonNull Station station) {
+        return currentStation != null && currentStation.getId().equals(station.getId());
     }
 }

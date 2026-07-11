@@ -9,7 +9,6 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.media3.common.util.UnstableApi;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
@@ -21,7 +20,6 @@ import com.matijakljajic.freeairradio.playback.RadioPlayer;
 import com.matijakljajic.freeairradio.ui.util.MarqueeTextView;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
-@UnstableApi
 public class PlayerFragment extends Fragment {
     private static final long MARQUEE_START_DELAY_MS = 1000L;
     private static final long METADATA_ANIMATION_DURATION_MS = 180L;

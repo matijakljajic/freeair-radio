@@ -62,9 +62,9 @@ public class RadioPlaybackService extends MediaSessionService {
     @NonNull
     private final StreamResolutionEngine streamResolver = new StreamResolutionEngine();
     @NonNull
-    private final NowPlayingObserver nowPlayingObserver = NowPlayingObserver.getInstance();
-    @NonNull
     private final CurrentPlaybackState currentPlaybackState = CurrentPlaybackState.getInstance();
+    @NonNull
+    private final NowPlayingObserver nowPlayingObserver = new NowPlayingObserver(currentPlaybackState);
     @NonNull
     private final CurrentPlaybackState.Listener foregroundPlaybackStateListener = (station, nowPlaying, playbackStatus) -> {
         if (station != null) {
@@ -109,7 +109,6 @@ public class RadioPlaybackService extends MediaSessionService {
         }
     };
 
-    @UnstableApi
     @Override
     public void onCreate() {
         super.onCreate();
@@ -187,15 +186,6 @@ public class RadioPlaybackService extends MediaSessionService {
         stopForeground(STOP_FOREGROUND_REMOVE);
         currentPlaybackState.clear();
         stopSelf();
-    }
-
-    public boolean isPlaying() {
-        return player != null && player.isPlaying();
-    }
-
-    @Nullable
-    public Station getCurrentStation() {
-        return currentStation;
     }
 
     @Override

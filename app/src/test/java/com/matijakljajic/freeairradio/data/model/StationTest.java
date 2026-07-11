@@ -151,4 +151,16 @@ public class StationTest {
         assertEquals(first.hashCode(), second.hashCode());
         assertNotEquals(first, different);
     }
+
+    @Test
+    public void getPlayableStreamUrlFallsBackToOriginalStreamUrl() {
+        Station station = Station.builder(
+                        "RADIO_BROWSER:1",
+                        "Station",
+                        "https://example.com/stream",
+                        StationOrigin.RADIO_BROWSER)
+                .build();
+
+        assertEquals("https://example.com/stream", station.getPlayableStreamUrl());
+    }
 }

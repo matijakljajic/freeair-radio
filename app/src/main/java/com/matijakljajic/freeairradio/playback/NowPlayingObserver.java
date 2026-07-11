@@ -17,10 +17,8 @@ import java.util.Objects;
 @UnstableApi
 public final class NowPlayingObserver implements Player.Listener {
 
-    private static final NowPlayingObserver INSTANCE = new NowPlayingObserver();
-
     @NonNull
-    private final CurrentPlaybackState currentPlaybackState = CurrentPlaybackState.getInstance();
+    private final CurrentPlaybackState currentPlaybackState;
     @Nullable
     private Player observedPlayer;
     @Nullable
@@ -29,12 +27,8 @@ public final class NowPlayingObserver implements Player.Listener {
     private NowPlaying lastEmitted;
     private long playbackGeneration;
 
-    private NowPlayingObserver() {
-    }
-
-    @NonNull
-    public static NowPlayingObserver getInstance() {
-        return INSTANCE;
+    NowPlayingObserver(@NonNull CurrentPlaybackState currentPlaybackState) {
+        this.currentPlaybackState = currentPlaybackState;
     }
 
     public void clearNowPlaying(long generationSnapshot) {
@@ -57,7 +51,6 @@ public final class NowPlayingObserver implements Player.Listener {
         this.playbackGeneration = playbackGeneration;
         this.lastEmitted = null;
         player.addListener(this);
-        currentPlaybackState.setCurrentStation(station);
     }
 
     public void stopObserving() {
