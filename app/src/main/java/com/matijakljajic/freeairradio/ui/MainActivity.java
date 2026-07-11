@@ -18,10 +18,10 @@ import com.matijakljajic.freeairradio.playback.RadioPlayer;
 import com.matijakljajic.freeairradio.ui.homepage.HomePageFragment;
 import com.matijakljajic.freeairradio.ui.player.PlayerFragment;
 import com.matijakljajic.freeairradio.ui.settings.SettingsFragment;
-import com.matijakljajic.freeairradio.ui.stations.StationListFragment;
+import com.matijakljajic.freeairradio.ui.stations.StationFeedFragment;
 import com.matijakljajic.freeairradio.ui.stations.StationSearchFragment;
 
-public class MainActivity extends AppCompatActivity implements StationListFragment.OnStationSelectedListener, ShellChromeHost {
+public class MainActivity extends AppCompatActivity implements StationFeedFragment.OnStationSelectedListener, ShellChromeHost {
 
     private static final String STATE_SELECTED_STATION = "state_selected_station";
     private static final String STATE_CURRENT_TAB = "state_current_tab";
