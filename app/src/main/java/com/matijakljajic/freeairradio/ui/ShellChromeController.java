@@ -268,15 +268,6 @@ public final class ShellChromeController {
         updateContentPadding();
     }
 
-    public void resetTopContentFilterHeight() {
-        if (topContentFilterHeightPx == 0) {
-            return;
-        }
-        topContentFilterHeightPx = 0;
-        updateTopContentFilter();
-        updateContentPadding();
-    }
-
     private void updateTopContentFilter() {
         if (statusBarFilterView == null) {
             return;
