@@ -38,17 +38,17 @@ public final class RadioBrowserServerDirectory {
 
     @NonNull
     public static List<String> discoverBaseUrls() {
-        Set<String> discoveredBaseUrls = new LinkedHashSet<>();
-        discoveredBaseUrls.addAll(discoverViaDns());
-        discoveredBaseUrls.addAll(discoverViaServerDirectory());
+        List<String> directoryBaseUrls = discoverViaServerDirectory();
+        if (!directoryBaseUrls.isEmpty()) {
+            return shuffle(directoryBaseUrls);
+        }
 
-        if (discoveredBaseUrls.isEmpty()) {
+        List<String> dnsBaseUrls = discoverViaDns();
+        if (dnsBaseUrls.isEmpty()) {
             return Collections.emptyList();
         }
 
-        List<String> randomizedBaseUrls = new ArrayList<>(discoveredBaseUrls);
-        Collections.shuffle(randomizedBaseUrls, new Random());
-        return randomizedBaseUrls;
+        return shuffle(dnsBaseUrls);
     }
 
     @NonNull
@@ -58,7 +58,7 @@ public final class RadioBrowserServerDirectory {
             InetAddress[] addresses = InetAddress.getAllByName("all.api.radio-browser.info");
             for (InetAddress address : addresses) {
                 String host = address.getCanonicalHostName();
-                if (host != null && !host.trim().isEmpty()) {
+                if (!host.trim().isEmpty()) {
                     discoveredBaseUrls.add(normalizeBaseUrl(host));
                 }
             }
@@ -87,10 +87,17 @@ public final class RadioBrowserServerDirectory {
     }
 
     @NonNull
+    private static List<String> shuffle(@NonNull List<String> baseUrls) {
+        List<String> randomizedBaseUrls = new ArrayList<>(new LinkedHashSet<>(baseUrls));
+        Collections.shuffle(randomizedBaseUrls, new Random());
+        return randomizedBaseUrls;
+    }
+
+    @NonNull
     static List<String> parseBaseUrls(@NonNull String json) {
         JsonElement parsedJson = JsonParser.parseString(json);
         JsonArray serverArray = extractServerArray(parsedJson);
-        if (serverArray == null || serverArray.size() == 0) {
+        if (serverArray == null || serverArray.isEmpty()) {
             return Collections.emptyList();
         }
 

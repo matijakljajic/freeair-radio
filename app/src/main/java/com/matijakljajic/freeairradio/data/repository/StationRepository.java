@@ -8,6 +8,8 @@ import java.util.List;
 
 public interface StationRepository {
 
+    void reportStationUsage(@NonNull Station station);
+
     interface LoadCallback {
         void onStationsLoaded(@NonNull List<Station> stations);
 

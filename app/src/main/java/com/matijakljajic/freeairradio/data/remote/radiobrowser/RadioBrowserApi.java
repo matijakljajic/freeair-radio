@@ -6,6 +6,7 @@ import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.http.GET;
+import retrofit2.http.Path;
 import retrofit2.http.Query;
 
 @SuppressWarnings("GrazieInspectionRunner")
@@ -23,4 +24,7 @@ public interface RadioBrowserApi {
             @Query("limit") int limit,
             @Query("hidebroken") boolean hideBroken
     );
+
+    @GET("json/url/{stationuuid}")
+    Call<Void> reportStationUsage(@Path("stationuuid") String stationUuid);
 }

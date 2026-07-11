@@ -32,6 +32,14 @@ public final class RadioBrowserServerSelector {
         this(new RadioBrowserServerSettings(context).getPreferredBaseUrl(), true, false);
     }
 
+    RadioBrowserServerSelector(@NonNull List<String> baseUrls) {
+        this(null, false, false);
+        synchronized (lock) {
+            this.baseUrls = buildInitialBaseUrls(baseUrls, null);
+            this.selectedIndex = 0;
+        }
+    }
+
     private RadioBrowserServerSelector(@Nullable String preferredBaseUrl,
                                        boolean refreshAsync,
                                        boolean ignored) {
@@ -86,7 +94,7 @@ public final class RadioBrowserServerSelector {
         }
     }
 
-    public boolean awaitReady(long timeoutMillis) {
+    public boolean isReadyWithin(long timeoutMillis) {
         try {
             return readyLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
