@@ -7,6 +7,8 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.ConcatAdapter;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.ui.stations.StationFeedFragment;
@@ -16,6 +18,8 @@ public class HomePageFragment extends StationFeedFragment {
 
     @Nullable
     private View homepageRootView;
+    @Nullable
+    private ConcatAdapter homepageAdapter;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -42,6 +46,7 @@ public class HomePageFragment extends StationFeedFragment {
                 R.id.station_feed_retry_button,
                 this::loadHomepageStations
         );
+        bindHomepageList();
 
         view.post(this::loadHomepageStations);
     }
@@ -51,6 +56,7 @@ public class HomePageFragment extends StationFeedFragment {
         if (homepageRootView != null) {
             detachShellContentPadding(homepageRootView);
         }
+        homepageAdapter = null;
         homepageRootView = null;
         clearStationFeed();
         super.onDestroyView();
@@ -58,5 +64,15 @@ public class HomePageFragment extends StationFeedFragment {
 
     private void loadHomepageStations() {
         loadTopStations(R.string.station_list_empty, R.string.station_list_error);
+    }
+
+    private void bindHomepageList() {
+        RecyclerView recyclerView = getRecyclerView();
+        recyclerView.setNestedScrollingEnabled(true);
+        ViewGroup.LayoutParams layoutParams = recyclerView.getLayoutParams();
+        layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
+        recyclerView.setLayoutParams(layoutParams);
+        homepageAdapter = new ConcatAdapter(new HomePageHeaderAdapter(), getStationAdapter());
+        recyclerView.setAdapter(homepageAdapter);
     }
 }

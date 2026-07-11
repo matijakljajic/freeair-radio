@@ -105,7 +105,7 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
     protected final void loadTopStations(@StringRes int emptyMessageResId,
                                          @StringRes int errorMessageResId) {
         loadStations(
-                (repository, callback) -> repository.loadTopStations(callback),
+                StationRepository::loadTopStations,
                 emptyMessageResId,
                 errorMessageResId
         );

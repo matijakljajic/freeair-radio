@@ -105,6 +105,7 @@ public class StationListFragment extends StationFeedFragment {
                 this::loadCurrentQuery
         );
 
+        assert rootView != null;
         ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             topSystemInset = mode.shouldApplyTopInset() ? systemBars.top : 0;

@@ -1,6 +1,5 @@
 package com.matijakljajic.freeairradio.ui;
 
-import androidx.test.core.app.ActivityScenario;
 import androidx.test.espresso.Espresso;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
@@ -18,18 +17,17 @@ public class MainActivityTest {
 
     @Test
     public void tabsOpenExpectedFragmentRoots() {
-        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
-            assertVisible(R.id.station_list_root);
+        assertVisible(R.id.station_list_root);
 
-            Espresso.onView(withId(R.id.nav_search_button)).perform(androidx.test.espresso.action.ViewActions.click());
-            assertVisible(R.id.station_search_root);
+        Espresso.onView(withId(R.id.nav_search_button)).perform(androidx.test.espresso.action.ViewActions.click());
+        assertVisible(R.id.station_search_root);
 
-            Espresso.onView(withId(R.id.nav_settings_button)).perform(androidx.test.espresso.action.ViewActions.click());
-            assertVisible(R.id.settings_root);
+        Espresso.onView(withId(R.id.nav_settings_button)).perform(androidx.test.espresso.action.ViewActions.click());
+        assertVisible(R.id.settings_root);
 
-            Espresso.onView(withId(R.id.nav_home_button)).perform(androidx.test.espresso.action.ViewActions.click());
-            assertVisible(R.id.station_list_root);
-        }
+        Espresso.onView(withId(R.id.nav_home_button)).perform(androidx.test.espresso.action.ViewActions.click());
+        assertVisible(R.id.station_list_root);
+
     }
 
     private static void assertVisible(int viewId) {
