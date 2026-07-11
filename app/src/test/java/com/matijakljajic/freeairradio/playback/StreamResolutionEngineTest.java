@@ -55,14 +55,14 @@ public class StreamResolutionEngineTest {
     }
 
     @Test
-    public void selectPlayableStreamUrlUsesResolvedUrlDirectly() {
+    public void stationGetPlayableStreamUrlUsesResolvedUrlDirectly() {
         Station station = Station.builder("RADIO_BROWSER:1", "Station", "https://example.com/stream", StationOrigin.RADIO_BROWSER)
                 .setResolvedStreamUrl("https://example.com/final")
                 .setCodec("MP3")
                 .setHls(Boolean.FALSE)
                 .build();
 
-        assertEquals("https://example.com/final", new StreamResolutionEngine().resolveUrls(station).getBestPlayableUrl());
+        assertEquals("https://example.com/final", station.getPlayableStreamUrl());
     }
 
     @Test

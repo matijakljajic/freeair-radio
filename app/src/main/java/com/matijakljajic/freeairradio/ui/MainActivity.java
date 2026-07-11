@@ -4,12 +4,10 @@ import android.os.Bundle;
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.os.BundleCompat;
 import androidx.core.view.WindowCompat;
 import androidx.fragment.app.Fragment;
-import androidx.media3.common.util.UnstableApi;
 
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.matijakljajic.freeairradio.R;
@@ -95,7 +93,6 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
         outState.putString(STATE_CURRENT_TAB, currentTab.name());
     }
 
-    @OptIn(markerClass = UnstableApi.class)
     private void syncPlayerFragment() {
         PlayerFragment fragment = (PlayerFragment) getSupportFragmentManager().findFragmentById(R.id.player_fragment_container);
         if (fragment != null) {
