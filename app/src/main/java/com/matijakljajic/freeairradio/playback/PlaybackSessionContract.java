@@ -3,10 +3,13 @@ package com.matijakljajic.freeairradio.playback;
 import android.content.Context;
 import android.content.Intent;
 
+import androidx.annotation.OptIn;
 import androidx.annotation.NonNull;
+import androidx.media3.common.util.UnstableApi;
 
 import com.matijakljajic.freeairradio.data.model.Station;
 
+@OptIn(markerClass = UnstableApi.class)
 public final class PlaybackSessionContract {
 
     public static final String ACTION_PLAY_STATION = "com.matijakljajic.freeairradio.action.PLAY_STATION";
