@@ -37,12 +37,9 @@ public class StationListFragmentTest {
         ControllableStationRepositoryTest repository = new ControllableStationRepositoryTest();
         TestStationListFragment.repository = repository;
 
-        Bundle args = new Bundle();
-        args.putString("arg_mode", "SEARCH");
-
         try (FragmentScenario<TestStationListFragment> scenario = FragmentScenario.launchInContainer(
                 TestStationListFragment.class,
-                args,
+                Bundle.EMPTY,
                 R.style.Theme_FreeAirRadio)) {
             scenario.onFragment(fragment -> fragment.submitQuery("jazz"));
             assertEquals("jazz", repository.getLastSearchQuery());
@@ -51,9 +48,9 @@ public class StationListFragmentTest {
             scenario.onFragment(fragment -> repository.deliverStations(Collections.singletonList(createStation())));
 
             scenario.onFragment(fragment -> {
-                TextView emptyView = fragment.requireView().findViewById(R.id.station_list_empty_view);
-                ProgressBar loadingView = fragment.requireView().findViewById(R.id.station_list_loading_view);
-                View recyclerView = fragment.requireView().findViewById(R.id.station_list_recycler_view);
+                TextView emptyView = fragment.requireView().findViewById(R.id.station_feed_empty_view);
+                ProgressBar loadingView = fragment.requireView().findViewById(R.id.station_feed_loading_view);
+                View recyclerView = fragment.requireView().findViewById(R.id.station_feed_recycler_view);
 
                 assertEquals(View.VISIBLE, emptyView.getVisibility());
                 assertEquals(fragment.getString(R.string.station_search_idle), emptyView.getText().toString());
@@ -92,6 +89,11 @@ public class StationListFragmentTest {
         private LoadCallback callback;
         @Nullable
         private String lastSearchQuery;
+
+        @Override
+        public void reportStationUsage(@NonNull Station station) {
+            // Search test does not exercise click reporting.
+        }
 
         @Override
         public void loadTopStations(@NonNull LoadCallback callback) {

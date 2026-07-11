@@ -18,8 +18,6 @@ public class HomePageFragment extends StationFeedFragment {
 
     @Nullable
     private View homepageRootView;
-    @Nullable
-    private ConcatAdapter homepageAdapter;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -56,7 +54,6 @@ public class HomePageFragment extends StationFeedFragment {
         if (homepageRootView != null) {
             detachShellContentPadding(homepageRootView);
         }
-        homepageAdapter = null;
         homepageRootView = null;
         clearStationFeed();
         super.onDestroyView();
@@ -72,7 +69,6 @@ public class HomePageFragment extends StationFeedFragment {
         ViewGroup.LayoutParams layoutParams = recyclerView.getLayoutParams();
         layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
         recyclerView.setLayoutParams(layoutParams);
-        homepageAdapter = new ConcatAdapter(new HomePageHeaderAdapter(), getStationAdapter());
-        recyclerView.setAdapter(homepageAdapter);
+        recyclerView.setAdapter(new ConcatAdapter(new HomePageHeaderAdapter(), getStationAdapter()));
     }
 }

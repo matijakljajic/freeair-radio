@@ -23,6 +23,10 @@ import java.util.List;
 
 public abstract class StationFeedFragment extends ShellChromeAwareFragment implements StationAdapter.OnStationInteractionListener {
 
+    public interface OnStationSelectedListener {
+        void onStationSelected(@NonNull Station station);
+    }
+
     @Nullable
     private StationRepository stationRepository;
     @Nullable
@@ -162,8 +166,8 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
 
     @Override
     public void onStationClick(Station station) {
-        if (requireActivity() instanceof StationListFragment.OnStationSelectedListener) {
-            ((StationListFragment.OnStationSelectedListener) requireActivity()).onStationSelected(station);
+        if (requireActivity() instanceof OnStationSelectedListener) {
+            ((OnStationSelectedListener) requireActivity()).onStationSelected(station);
         }
     }
 
