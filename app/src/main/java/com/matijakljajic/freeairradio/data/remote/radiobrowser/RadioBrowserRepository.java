@@ -92,7 +92,7 @@ public final class RadioBrowserRepository implements StationRepository {
                                  @NonNull LoadCallback callback,
                                  @NonNull RequestFactory requestFactory,
                                  int attempt) {
-        if (!serverSelector.isReadyWithin(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
+        if (serverSelector.isReadyWithin(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
             postError(callback, new IOException("Timed out waiting for Radio Browser servers"));
             return;
         }
@@ -137,7 +137,7 @@ public final class RadioBrowserRepository implements StationRepository {
     }
 
     private void enqueueClick(@NonNull String stationUuid) {
-        if (!serverSelector.isReadyWithin(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
+        if (serverSelector.isReadyWithin(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
             return;
         }
 

@@ -95,10 +95,10 @@ public final class RadioBrowserServerSelector {
 
     public boolean isReadyWithin(long timeoutMillis) {
         try {
-            return readyLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
+            return !readyLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return false;
+            return true;
         }
     }
 
