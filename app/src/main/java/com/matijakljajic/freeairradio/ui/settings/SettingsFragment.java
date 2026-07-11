@@ -32,6 +32,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     private TextView serverStatusText;
     @Nullable
     private Button resetButton;
+    private int serverLoadRequestId;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -60,6 +61,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
 
     @Override
     public void onDestroyView() {
+        serverLoadRequestId++;
         if (settingsRootView != null) {
             detachShellContentPadding(settingsRootView);
         }
@@ -78,15 +80,22 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     }
 
     private void loadServerChoices() {
-        final RadioGroup group = serverSelectionGroup;
-        if (group == null) {
+        if (serverSelectionGroup == null) {
             return;
         }
 
+        int requestId = ++serverLoadRequestId;
         updateServerStatus(-1);
         new Thread(() -> {
             List<String> discoveredBaseUrls = RadioBrowserServerDirectory.discoverBaseUrls();
-            group.post(() -> {
+            View rootView = settingsRootView;
+            if (rootView == null) {
+                return;
+            }
+            rootView.post(() -> {
+                if (isStaleServerLoad(requestId)) {
+                    return;
+                }
                 populateServerChoices(discoveredBaseUrls);
                 updateServerStatus(discoveredBaseUrls.size());
             });
@@ -188,6 +197,10 @@ public class SettingsFragment extends ShellChromeAwareFragment {
                     serverCount
             ));
         }
+    }
+
+    private boolean isStaleServerLoad(int requestId) {
+        return requestId != serverLoadRequestId || !isAdded() || settingsRootView == null;
     }
 
     @NonNull

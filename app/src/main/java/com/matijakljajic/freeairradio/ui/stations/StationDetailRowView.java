@@ -101,29 +101,53 @@ public class StationDetailRowView extends LinearLayout {
         contentContainer.addView(valueView, valueParams);
     }
 
-    public boolean bindText(@StringRes int labelResId, @NonNull String value) {
-        if (isUnknown(value)) {
-            setVisibility(GONE);
-            return false;
-        }
-
-        return bindStaticValue(labelResId, value);
+    public void bindCompactText(@StringRes int labelResId, @NonNull String value) {
+        useCompactStyle();
+        bindText(labelResId, value);
     }
 
-    public boolean bindBitrate(@StringRes int labelResId, int bitrate) {
+    public void bindTallText(@StringRes int labelResId, @NonNull String value) {
+        useTallStyle();
+        bindText(labelResId, value);
+    }
+
+    public void bindCompactBitrate(@StringRes int labelResId, int bitrate) {
+        useCompactStyle();
+        bindBitrate(labelResId, bitrate);
+    }
+
+    public void bindTallLink(@StringRes int labelResId,
+                             @Nullable String value,
+                             @Nullable OnClickListener onClickListener) {
+        useTallStyle();
+        bindLink(labelResId, value, onClickListener);
+    }
+
+    private void bindText(@StringRes int labelResId, @NonNull String value) {
+        if (isUnknown(value)) {
+            hide();
+            return;
+        }
+
+        bindStaticValue(labelResId, value);
+    }
+
+    private void bindBitrate(@StringRes int labelResId, int bitrate) {
         if (bitrate <= 0) {
-            setVisibility(GONE);
-            return false;
+            hide();
+            return;
         }
 
         String bitrateText = getResources().getString(com.matijakljajic.freeairradio.R.string.station_details_bitrate_value, bitrate);
-        return bindStaticValue(labelResId, bitrateText);
+        bindStaticValue(labelResId, bitrateText);
     }
 
-    public boolean bindLink(@StringRes int labelResId, @NonNull String value, @Nullable OnClickListener onClickListener) {
+    private void bindLink(@StringRes int labelResId,
+                          @Nullable String value,
+                          @Nullable OnClickListener onClickListener) {
         if (isUnknown(value)) {
-            setVisibility(GONE);
-            return false;
+            hide();
+            return;
         }
 
         resetBoundState();
@@ -138,7 +162,6 @@ public class StationDetailRowView extends LinearLayout {
         valueView.setLongClickable(false);
         setOnClickListener(onClickListener);
         setClickable(onClickListener != null);
-        return true;
     }
 
     public void restartMarquee() {
@@ -150,7 +173,7 @@ public class StationDetailRowView extends LinearLayout {
         setVisibility(GONE);
     }
 
-    public void setMarqueeRestartOnLongClickListener() {
+    private void bindOverflowMarqueeLongClick() {
         setOnLongClickListener(v -> {
             if (!isValueOverflowing()) {
                 return true;
@@ -180,6 +203,7 @@ public class StationDetailRowView extends LinearLayout {
         setStaticValueDisplay();
         valueView.setText(value);
         valueView.setContentDescription(value);
+        bindOverflowMarqueeLongClick();
         return true;
     }
 
@@ -212,6 +236,7 @@ public class StationDetailRowView extends LinearLayout {
         valueView.setTextDirection(View.TEXT_DIRECTION_LTR);
         valueView.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         valueView.setSelected(false);
+        bindOverflowMarqueeLongClick();
     }
 
     private boolean isValueOverflowing() {
