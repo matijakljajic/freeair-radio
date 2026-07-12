@@ -8,6 +8,8 @@ import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.session.DefaultMediaNotificationProvider;
 
+import com.matijakljajic.freeairradio.R;
+
 @UnstableApi
 public final class RadioPlaybackNotificationProvider extends DefaultMediaNotificationProvider {
 
@@ -16,7 +18,7 @@ public final class RadioPlaybackNotificationProvider extends DefaultMediaNotific
                                              @NonNull String channelId,
                                              int channelNameResId) {
         super(context, session -> notificationId, channelId, channelNameResId);
-        setSmallIcon(android.R.drawable.ic_media_play);
+        setSmallIcon(R.drawable.ic_notification_small);
     }
 
     @Nullable
