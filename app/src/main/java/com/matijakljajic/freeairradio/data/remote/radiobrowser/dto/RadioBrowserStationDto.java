@@ -4,7 +4,8 @@ import androidx.annotation.Nullable;
 
 import com.google.gson.annotations.SerializedName;
 
-public class RadioBrowserStationDto {
+@SuppressWarnings("unused")
+public final class RadioBrowserStationDto {
 
     @SuppressWarnings("GrazieInspectionRunner")
     @SerializedName("stationuuid")

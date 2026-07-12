@@ -34,10 +34,6 @@ public final class RadioBrowserRepository implements StationRepository {
     @NonNull
     private final Handler mainHandler;
 
-    public RadioBrowserRepository() {
-        this(RadioBrowserClient.getInstance(), new RadioBrowserServerSelector(), new Handler(Looper.getMainLooper()));
-    }
-
     public RadioBrowserRepository(@NonNull Context context) {
         this(RadioBrowserClient.getInstance(), new RadioBrowserServerSelector(context), new Handler(Looper.getMainLooper()));
     }
@@ -77,9 +73,7 @@ public final class RadioBrowserRepository implements StationRepository {
     private void enqueueStationsAsync(@NonNull String action,
                                       @NonNull LoadCallback callback,
                                       @NonNull RequestFactory requestFactory) {
-        Thread workerThread = new Thread(() -> enqueueStations(action, callback, requestFactory),
-                "RadioBrowserStationLoad");
-        workerThread.start();
+        startWorker("RadioBrowserStationLoad", () -> enqueueStations(action, callback, requestFactory));
     }
 
     private void enqueueStations(@NonNull String action,
@@ -92,7 +86,7 @@ public final class RadioBrowserRepository implements StationRepository {
                                  @NonNull LoadCallback callback,
                                  @NonNull RequestFactory requestFactory,
                                  int attempt) {
-        if (serverSelector.isReadyWithin(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
+        if (!serverSelector.awaitReady(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
             postError(callback, new IOException("Timed out waiting for Radio Browser servers"));
             return;
         }
@@ -132,12 +126,15 @@ public final class RadioBrowserRepository implements StationRepository {
     }
 
     private void enqueueClickAsync(@NonNull String stationUuid) {
-        Thread workerThread = new Thread(() -> enqueueClick(stationUuid), "RadioBrowserStationClick");
-        workerThread.start();
+        startWorker("RadioBrowserStationClick", () -> enqueueClick(stationUuid));
+    }
+
+    private void startWorker(@NonNull String name, @NonNull Runnable work) {
+        new Thread(work, name).start();
     }
 
     private void enqueueClick(@NonNull String stationUuid) {
-        if (serverSelector.isReadyWithin(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
+        if (!serverSelector.awaitReady(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
             return;
         }
 
@@ -169,20 +166,20 @@ public final class RadioBrowserRepository implements StationRepository {
 
     private void postStationsLoaded(@NonNull StationRepository.LoadCallback callback,
                                     @NonNull List<Station> stations) {
-        if (Looper.myLooper() == Looper.getMainLooper()) {
-            callback.onStationsLoaded(stations);
-            return;
-        }
-        mainHandler.post(() -> callback.onStationsLoaded(stations));
+        postToMain(() -> callback.onStationsLoaded(stations));
     }
 
     private void postError(@NonNull StationRepository.LoadCallback callback,
                            @NonNull Throwable throwable) {
+        postToMain(() -> callback.onError(throwable));
+    }
+
+    private void postToMain(@NonNull Runnable action) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
-            callback.onError(throwable);
+            action.run();
             return;
         }
-        mainHandler.post(() -> callback.onError(throwable));
+        mainHandler.post(action);
     }
 
     @Nullable
