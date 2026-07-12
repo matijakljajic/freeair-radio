@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="station_favicon_request_tag" type="id" />
+    <item name="station_favicon_signature_tag" type="id" />
+    <item name="station_favicon_deep_resolve_tag" type="id" />
+    <item name="station_favicon_displayed_url_tag" type="id" />
+</resources>

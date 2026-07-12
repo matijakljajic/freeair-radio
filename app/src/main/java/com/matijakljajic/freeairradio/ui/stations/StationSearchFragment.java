@@ -13,9 +13,10 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.matijakljajic.freeairradio.R;
-import com.matijakljajic.freeairradio.ui.ShellChromeAwareFragment;
-import com.matijakljajic.freeairradio.ui.ShellChromeController;
+import com.matijakljajic.freeairradio.ui.shell.ShellChromeAwareFragment;
+import com.matijakljajic.freeairradio.ui.shell.ShellChromeController;
 
+@SuppressWarnings("unused")
 public class StationSearchFragment extends ShellChromeAwareFragment {
 
     private static final String STATE_QUERY = "state_query";

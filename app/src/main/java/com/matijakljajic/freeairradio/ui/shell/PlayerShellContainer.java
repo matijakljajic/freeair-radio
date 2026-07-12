@@ -1,4 +1,4 @@
-package com.matijakljajic.freeairradio.ui;
+package com.matijakljajic.freeairradio.ui.shell;
 
 import android.content.Context;
 import android.util.AttributeSet;
@@ -14,6 +14,7 @@ import androidx.core.view.WindowInsetsCompat;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
+@SuppressWarnings("unused")
 public class PlayerShellContainer extends LinearLayout {
 
     private int lastAppliedBottomMarginPx = Integer.MIN_VALUE;

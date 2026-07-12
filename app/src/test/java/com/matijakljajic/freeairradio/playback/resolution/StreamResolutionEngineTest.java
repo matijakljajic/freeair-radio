@@ -1,4 +1,4 @@
-package com.matijakljajic.freeairradio.playback;
+package com.matijakljajic.freeairradio.playback.resolution;
 
 import org.junit.Test;
 
@@ -34,24 +34,24 @@ public class StreamResolutionEngineTest {
     public void extractPlaylistTargetPrefersStreamLikeEntryOverIntroFile() {
         String body = "#EXTM3U\n#EXTINF:-1,Intro\nhttps://example.com/intro.mp3\n#EXTINF:-1,Live stream\nhttps://example.com/live";
 
-        assertEquals("https://example.com/live", StreamResolutionEngine.extractPlaylistTarget(body, "https://example.com/playlist.m3u"));
+        assertEquals("https://example.com/live", extractPlaylistTarget(body, "https://example.com/playlist.m3u"));
     }
 
     @Test
     public void extractPlaylistTargetResolvesRelativePlsEntryAgainstBaseUrl() {
         String body = "[playlist]\nFile1=/live\nFile2=/backup";
 
-        assertEquals("https://example.com/live", StreamResolutionEngine.extractPlaylistTarget(body, "https://example.com/playlist.pls"));
+        assertEquals("https://example.com/live", extractPlaylistTarget(body, "https://example.com/playlist.pls"));
     }
 
     @Test
     public void extractPlaylistTargetReturnsDirectUrlBody() {
-        assertEquals("https://example.com/live", StreamResolutionEngine.extractPlaylistTarget("https://example.com/live", "https://example.com/stream"));
+        assertEquals("https://example.com/live", extractPlaylistTarget("https://example.com/live", "https://example.com/stream"));
     }
 
     @Test
     public void extractPlaylistTargetReturnsNullForNonPlaylistText() {
-        assertNull(StreamResolutionEngine.extractPlaylistTarget("not a playlist", "https://example.com/stream"));
+        assertNull(extractPlaylistTarget("not a playlist", "https://example.com/stream"));
     }
 
     @Test
@@ -79,5 +79,11 @@ public class StreamResolutionEngineTest {
                 "https://example.com/stream",
                 "http://example.com/stream"
         ), StreamResolutionEngine.buildCandidates("https://example.com/stream"));
+    }
+
+    private static String extractPlaylistTarget(String body, String baseUrl) {
+        return StreamResolutionEngine.selectBestPlaylistTarget(
+                StreamResolutionEngine.extractPlaylistTargets(body, baseUrl)
+        );
     }
 }

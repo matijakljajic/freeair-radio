@@ -7,23 +7,25 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
+@SuppressWarnings("unused")
 public class StationListFragment extends StationFeedFragment {
 
     private static final String STATE_QUERY = "state_query";
 
     @Nullable
-    private View rootView;
-    @Nullable
     private View playerShellView;
+    @Nullable
+    private RecyclerView stationRecyclerView;
     @NonNull
     private String currentQuery = "";
     private int searchTopPaddingPx;
     private int bottomRecyclerGapPx;
-    private final View.OnLayoutChangeListener playerShellLayoutChangeListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateRootPadding();
+    private final View.OnLayoutChangeListener playerShellLayoutChangeListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateRecyclerPadding();
 
     public void setSearchTopPaddingPx(int searchTopPaddingPx) {
         int sanitizedPaddingPx = Math.max(0, searchTopPaddingPx);
@@ -31,7 +33,7 @@ public class StationListFragment extends StationFeedFragment {
             return;
         }
         this.searchTopPaddingPx = sanitizedPaddingPx;
-        updateRootPadding();
+        updateRecyclerPadding();
     }
 
     public void setBottomRecyclerGapPx(int bottomRecyclerGapPx) {
@@ -40,7 +42,7 @@ public class StationListFragment extends StationFeedFragment {
             return;
         }
         this.bottomRecyclerGapPx = sanitizedGapPx;
-        updateRootPadding();
+        updateRecyclerPadding();
     }
 
     @Override
@@ -61,7 +63,6 @@ public class StationListFragment extends StationFeedFragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        rootView = view.findViewById(R.id.station_list_root);
         bindStationFeed(
                 view,
                 R.id.station_feed_recycler_view,
@@ -70,20 +71,17 @@ public class StationListFragment extends StationFeedFragment {
                 R.id.station_feed_error_text,
                 R.id.station_feed_empty_view,
                 R.id.station_feed_retry_button,
-                this::loadCurrentQuery
+                this::refreshForCurrentQuery
         );
+        stationRecyclerView = getRecyclerView();
 
         playerShellView = requireActivity().findViewById(R.id.player_shell_container);
         if (playerShellView != null) {
             playerShellView.addOnLayoutChangeListener(playerShellLayoutChangeListener);
         }
 
-        updateRootPadding();
-        if (currentQuery.isEmpty()) {
-            showIdle(R.string.station_search_idle);
-        } else {
-            view.post(this::loadCurrentQuery);
-        }
+        updateRecyclerPadding();
+        view.post(this::refreshForCurrentQuery);
     }
 
     @Override
@@ -95,11 +93,7 @@ public class StationListFragment extends StationFeedFragment {
     public void submitQuery(@Nullable String query) {
         currentQuery = normalizeQuery(query);
         if (isAdded()) {
-            if (currentQuery.isEmpty()) {
-                showIdle(R.string.station_search_idle);
-                return;
-            }
-            loadCurrentQuery();
+            refreshForCurrentQuery();
         }
     }
 
@@ -109,12 +103,12 @@ public class StationListFragment extends StationFeedFragment {
             playerShellView.removeOnLayoutChangeListener(playerShellLayoutChangeListener);
             playerShellView = null;
         }
-        rootView = null;
+        stationRecyclerView = null;
         clearStationFeed();
         super.onDestroyView();
     }
 
-    private void loadCurrentQuery() {
+    private void refreshForCurrentQuery() {
         if (currentQuery.isEmpty()) {
             showIdle(R.string.station_search_idle);
             return;
@@ -122,28 +116,25 @@ public class StationListFragment extends StationFeedFragment {
         loadStationsByName(currentQuery, R.string.station_list_empty, R.string.station_list_error);
     }
 
-    private void updateRootPadding() {
-        if (rootView == null) {
+    private void updateRecyclerPadding() {
+        if (stationRecyclerView == null) {
             return;
         }
 
-        rootView.setPadding(
-                rootView.getPaddingLeft(),
-                getTopContentPaddingPx(),
-                rootView.getPaddingRight(),
-                getBottomRecyclerPaddingPx()
+        setStateContainerTopInsetPx(searchTopPaddingPx);
+        stationRecyclerView.setPadding(
+                stationRecyclerView.getPaddingLeft(),
+                searchTopPaddingPx,
+                stationRecyclerView.getPaddingRight(),
+                resolveBottomRecyclerPaddingPx()
         );
     }
 
-    private int getTopContentPaddingPx() {
-        return searchTopPaddingPx;
+    private int resolveBottomRecyclerPaddingPx() {
+        return getPlayerShellHeight() + resolveBottomRecyclerGapPx();
     }
 
-    private int getBottomRecyclerPaddingPx() {
-        return getPlayerShellHeight() + getBottomRecyclerGapPx();
-    }
-
-    private int getBottomRecyclerGapPx() {
+    private int resolveBottomRecyclerGapPx() {
         if (bottomRecyclerGapPx > 0) {
             return bottomRecyclerGapPx;
         }

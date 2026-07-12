@@ -10,7 +10,7 @@
     app:cardBackgroundColor="?attr/colorSurface"
     app:cardCornerRadius="20dp"
     app:cardElevation="8dp"
-    app:strokeColor="?attr/colorOutlineVariant"
+    app:strokeColor="?attr/colorOutline"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -59,7 +59,7 @@
                 android:layout_width="1dp"
                 android:layout_height="match_parent"
                 android:layout_gravity="start"
-                android:background="?attr/colorOutlineVariant" />
+                android:background="?attr/colorOutline" />
 
         </FrameLayout>
 

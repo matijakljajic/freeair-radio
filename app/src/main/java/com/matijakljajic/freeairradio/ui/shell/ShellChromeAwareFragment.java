@@ -1,4 +1,4 @@
-package com.matijakljajic.freeairradio.ui;
+package com.matijakljajic.freeairradio.ui.shell;
 
 import android.content.Context;
 import android.view.View;
@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+@SuppressWarnings("unused")
 public abstract class ShellChromeAwareFragment extends Fragment {
 
     @Nullable

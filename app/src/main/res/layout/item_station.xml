@@ -10,35 +10,60 @@
     android:focusable="true"
     app:cardBackgroundColor="?attr/colorSurface"
     app:cardCornerRadius="16dp"
-    app:cardElevation="1dp">
+    app:cardElevation="1dp"
+    app:strokeColor="?attr/colorOutline"
+    app:strokeWidth="0dp">
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:layout_height="wrap_content">
 
-        <TextView
-            android:id="@+id/station_item_name"
-            android:layout_width="match_parent"
+        <ImageView
+            android:id="@+id/station_item_favicon"
+            style="@style/Widget.FreeAirRadio.StationFaviconImage"
+            android:contentDescription="@null"
+            android:importantForAccessibility="no"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <LinearLayout
+            android:id="@+id/station_item_text_container"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textAppearance="?attr/textAppearanceTitleMedium"
-            android:textStyle="bold"
-            tools:text="1-NRK Jazz"
-            tools:ignore="VisualLintSystemUi" />
+            android:orientation="vertical"
+            android:paddingStart="12dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="16dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/station_item_favicon"
+            app:layout_constraintTop_toTopOf="parent">
 
-        <TextView
-            android:id="@+id/station_item_details"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textAppearance="?attr/textAppearanceBodySmall"
-            tools:text="Norway • jazz, smooth jazz" />
+            <TextView
+                android:id="@+id/station_item_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:textStyle="bold"
+                tools:ignore="VisualLintSystemUi"
+                tools:text="1-NRK Jazz" />
 
-    </LinearLayout>
+            <TextView
+                android:id="@+id/station_item_details"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                tools:text="Norway • jazz, smooth jazz" />
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </com.google.android.material.card.MaterialCardView>

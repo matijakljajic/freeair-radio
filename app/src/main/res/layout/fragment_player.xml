@@ -5,35 +5,50 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     app:cardCornerRadius="20dp"
-    app:cardElevation="2dp">
+    app:cardElevation="2dp"
+    app:strokeColor="?attr/colorOutline"
+    app:strokeWidth="1dp">
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:baselineAligned="false"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="16dp">
+        android:minHeight="72dp">
+
+        <ImageView
+            android:id="@+id/player_station_favicon"
+            style="@style/Widget.FreeAirRadio.StationFaviconImage"
+            android:contentDescription="@null"
+            android:importantForAccessibility="no"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
         <LinearLayout
+            android:id="@+id/player_station_text_container"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:paddingStart="12dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="0dp"
+            android:paddingBottom="16dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/player_button_container"
+            app:layout_constraintStart_toEndOf="@id/player_station_favicon"
+            app:layout_constraintTop_toTopOf="parent">
 
             <com.matijakljajic.freeairradio.ui.util.MarqueeTextView
                 android:id="@+id/player_station_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="marquee"
-                android:text="@string/player_no_station_selected"
                 android:marqueeRepeatLimit="marquee_forever"
+                android:text="@string/player_no_station_selected"
                 android:textAppearance="?attr/textAppearanceTitleLarge"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                tools:text="Random Station"
-                tools:ignore="VisualLintSystemUi" />
+                tools:ignore="VisualLintSystemUi"
+                tools:text="Random Station" />
 
             <com.matijakljajic.freeairradio.ui.util.MarqueeTextView
                 android:id="@+id/player_now_playing"
@@ -50,10 +65,14 @@
         </LinearLayout>
 
         <FrameLayout
+            android:id="@+id/player_button_container"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:layout_gravity="center_vertical"
-            android:layout_marginStart="16dp">
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/player_play_stop_button"
@@ -84,12 +103,12 @@
                 app:indicatorColor="?attr/colorPrimaryContainer"
                 app:indicatorInset="0dp"
                 app:indicatorSize="48dp"
-                app:trackColor="?attr/colorOutlineVariant"
+                app:trackColor="?attr/colorOutline"
                 app:trackThickness="3dp"
                 tools:visibility="visible" />
 
         </FrameLayout>
 
-    </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </com.google.android.material.card.MaterialCardView>

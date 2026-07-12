@@ -1,4 +1,4 @@
-package com.matijakljajic.freeairradio.playback;
+package com.matijakljajic.freeairradio.playback.metadata;
 
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;

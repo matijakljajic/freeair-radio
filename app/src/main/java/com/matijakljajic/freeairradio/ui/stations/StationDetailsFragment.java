@@ -4,6 +4,7 @@ import android.app.Dialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.graphics.drawable.ColorDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
@@ -20,6 +21,7 @@ import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.ui.util.StationDisplayFormatter;
 
+@SuppressWarnings("unused")
 public class StationDetailsFragment extends DialogFragment {
 
     private static final String ARG_STATION = "arg_station";
@@ -56,6 +58,7 @@ public class StationDetailsFragment extends DialogFragment {
 
         Window window = dialog.getWindow();
         if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(android.graphics.Color.TRANSPARENT));
             window.setGravity(Gravity.CENTER_HORIZONTAL);
             window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
         }

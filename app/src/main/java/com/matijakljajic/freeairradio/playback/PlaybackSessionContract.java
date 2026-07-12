@@ -13,6 +13,7 @@ import com.matijakljajic.freeairradio.data.model.Station;
 public final class PlaybackSessionContract {
 
     public static final String ACTION_PLAY_STATION = "com.matijakljajic.freeairradio.action.PLAY_STATION";
+    public static final String ACTION_RESUME_PLAYBACK = "com.matijakljajic.freeairradio.action.RESUME_PLAYBACK";
     public static final String ACTION_STOP_PLAYBACK = "com.matijakljajic.freeairradio.action.STOP_PLAYBACK";
     public static final String COMMAND_TOGGLE_FAVORITE = "com.matijakljajic.freeairradio.command.TOGGLE_FAVORITE";
     public static final String EXTRA_STATION = "com.matijakljajic.freeairradio.extra.STATION";
@@ -31,5 +32,11 @@ public final class PlaybackSessionContract {
     public static Intent createStopIntent(@NonNull Context context) {
         return new Intent(context, RadioPlaybackService.class)
                 .setAction(ACTION_STOP_PLAYBACK);
+    }
+
+    @NonNull
+    public static Intent createResumeIntent(@NonNull Context context) {
+        return new Intent(context, RadioPlaybackService.class)
+                .setAction(ACTION_RESUME_PLAYBACK);
     }
 }

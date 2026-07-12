@@ -1,9 +1,10 @@
-package com.matijakljajic.freeairradio.ui;
+package com.matijakljajic.freeairradio.ui.shell;
 
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.transition.ChangeBounds;
 import android.transition.Fade;
 import android.transition.Slide;
 import android.transition.Transition;
@@ -112,14 +113,6 @@ public final class ShellChromeController {
         searchButton = null;
         floaterStationListFragment = null;
         contentPaddingView = null;
-    }
-
-    public void setFloaterShellVisible(boolean visible) {
-        setFloaterShellVisible(visible, DEFAULT_SHELL_TRANSITION_TYPE, 0L);
-    }
-
-    public void setFloaterShellVisible(boolean visible, int transitionType) {
-        setFloaterShellVisible(visible, transitionType, 0L);
     }
 
     public void setFloaterShellVisible(boolean visible, int transitionType, long transitionDelayMs) {
@@ -270,13 +263,11 @@ public final class ShellChromeController {
             return;
         }
 
-        int desiredHeight = Math.max(statusBarInsetPx, topContentFilterHeightPx);
-        ViewGroup.LayoutParams layoutParams = statusBarFilterView.getLayoutParams();
-        if (layoutParams != null && layoutParams.height != desiredHeight) {
-            layoutParams.height = desiredHeight;
-            statusBarFilterView.setLayoutParams(layoutParams);
-        }
-        statusBarFilterView.setVisibility(desiredHeight > 0 ? View.VISIBLE : View.GONE);
+        int desiredHeight = Math.max(
+                Math.round(statusBarInsetPx * 1.5f),
+                topContentFilterHeightPx
+        );
+        animateFilterHeight(statusBarFilterView, desiredHeight);
     }
 
     private void updateBottomContentFilter() {
@@ -290,12 +281,7 @@ public final class ShellChromeController {
                 + getPlayerShellBottomMarginPx()
                 + UiDimensions.px(rootView.getContext(), R.dimen.bottom_content_gap);
         bottomContentFilterHeightPx = Math.max(0, desiredHeight);
-        ViewGroup.LayoutParams layoutParams = bottomContentFilterView.getLayoutParams();
-        if (layoutParams != null && layoutParams.height != desiredHeight) {
-            layoutParams.height = desiredHeight;
-            bottomContentFilterView.setLayoutParams(layoutParams);
-        }
-        bottomContentFilterView.setVisibility(desiredHeight > 0 ? View.VISIBLE : View.GONE);
+        animateFilterHeight(bottomContentFilterView, desiredHeight);
         updateContentPadding();
     }
 
@@ -329,5 +315,35 @@ public final class ShellChromeController {
             return ((ViewGroup.MarginLayoutParams) layoutParams).bottomMargin;
         }
         return 0;
+    }
+
+    private void animateFilterHeight(@NonNull View filterView, int desiredHeight) {
+        ViewGroup.LayoutParams layoutParams = filterView.getLayoutParams();
+        if (layoutParams == null) {
+            return;
+        }
+
+        int currentHeight = layoutParams.height;
+        if (currentHeight == desiredHeight) {
+            filterView.setVisibility(desiredHeight > 0 ? View.VISIBLE : View.GONE);
+            return;
+        }
+
+        if (rootView.isInLayout() || filterView.isInLayout()) {
+            layoutParams.height = desiredHeight;
+            filterView.setLayoutParams(layoutParams);
+            filterView.setVisibility(desiredHeight > 0 ? View.VISIBLE : View.GONE);
+            return;
+        }
+
+        if (desiredHeight > 0) {
+            filterView.setVisibility(View.VISIBLE);
+        }
+        Transition transition = new ChangeBounds();
+        transition.setDuration(DEFAULT_SHELL_TRANSITION_DURATION_MS);
+        TransitionManager.beginDelayedTransition((ViewGroup) rootView, transition);
+        layoutParams.height = desiredHeight;
+        filterView.setLayoutParams(layoutParams);
+        filterView.setVisibility(desiredHeight > 0 ? View.VISIBLE : View.GONE);
     }
 }

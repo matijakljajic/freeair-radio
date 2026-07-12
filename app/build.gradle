@@ -45,6 +45,8 @@ dependencies {
     implementation libs.media3.session
     implementation libs.media3.exoplayer
     implementation libs.media3.exoplayer.hls
+    implementation libs.glide
+    implementation libs.androidsvg
     testImplementation libs.junit
     debugImplementation libs.fragment.testing
     androidTestImplementation libs.fragment.testing

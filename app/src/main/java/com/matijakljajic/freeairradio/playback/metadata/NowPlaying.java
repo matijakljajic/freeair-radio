@@ -1,4 +1,4 @@
-package com.matijakljajic.freeairradio.playback;
+package com.matijakljajic.freeairradio.playback.metadata;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -19,6 +19,26 @@ public final class NowPlaying {
     }
 
     @Nullable
+    static NowPlaying fromMetadata(@Nullable String stationName,
+                                   @Nullable String artist,
+                                   @Nullable String title) {
+        String normalizedArtist = normalizeValue(artist);
+        ParsedTrack parsedTrack = parseTrackTitle(title);
+        if (normalizedArtist == null && parsedTrack != null) {
+            normalizedArtist = parsedTrack.artist;
+        }
+        String normalizedTitle = parsedTrack != null
+                ? parsedTrack.title
+                : normalizeValue(title);
+
+        NowPlaying nowPlaying = new NowPlaying(normalizedArtist, normalizedTitle);
+        if (!nowPlaying.hasTrackInfo() || nowPlaying.matchesStationNameOnly(stationName)) {
+            return null;
+        }
+        return nowPlaying;
+    }
+
+    @Nullable
     public String getArtist() {
         return artist;
     }
@@ -34,6 +54,46 @@ public final class NowPlaying {
             return artist == null ? title : artist + " - " + title;
         }
         return artist;
+    }
+
+    boolean hasTrackInfo() {
+        return artist != null || title != null;
+    }
+
+    private boolean matchesStationNameOnly(@Nullable String stationName) {
+        return artist == null
+                && stationName != null
+                && stationName.equals(title);
+    }
+
+    @Nullable
+    static ParsedTrack parseTrackTitle(@Nullable String rawTitle) {
+        String normalizedTitle = normalizeValue(rawTitle);
+        if (normalizedTitle == null) {
+            return null;
+        }
+
+        String[] separators = {" - ", " – ", " — "};
+        for (String separator : separators) {
+            int firstSeparator = normalizedTitle.indexOf(separator);
+            if (firstSeparator <= 0) {
+                continue;
+            }
+            int secondSeparator = normalizedTitle.indexOf(separator, firstSeparator + separator.length());
+            if (secondSeparator >= 0) {
+                continue;
+            }
+
+            String left = normalizeValue(normalizedTitle.substring(0, firstSeparator));
+            String right = normalizeValue(normalizedTitle.substring(firstSeparator + separator.length()));
+            if (left == null || right == null) {
+                continue;
+            }
+
+            return new ParsedTrack(left, right);
+        }
+
+        return new ParsedTrack(null, normalizedTitle);
     }
 
     @Nullable
@@ -138,6 +198,7 @@ public final class NowPlaying {
         return Character.digit(character, radix) != INVALID_INDEX;
     }
 
+    @SuppressWarnings("GrazieInspectionRunner")
     @Nullable
     private static DecodedReference decodeNamedReference(@NonNull String value, int ampersandIndex) {
         if (value.startsWith("&amp;", ampersandIndex)) {
@@ -169,6 +230,18 @@ public final class NowPlaying {
         private DecodedReference(@NonNull String value, int nextIndex) {
             this.value = value;
             this.nextIndex = nextIndex;
+        }
+    }
+
+    static final class ParsedTrack {
+        @Nullable
+        final String artist;
+        @Nullable
+        final String title;
+
+        private ParsedTrack(@Nullable String artist, @Nullable String title) {
+            this.artist = artist;
+            this.title = title;
         }
     }
 

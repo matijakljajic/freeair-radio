@@ -5,13 +5,10 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.MediaMetadata;
-import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
-import androidx.media3.session.CommandButton;
 import androidx.media3.session.DefaultMediaNotificationProvider;
-import androidx.media3.session.MediaSession;
 
-import com.google.common.collect.ImmutableList;
+import com.matijakljajic.freeairradio.R;
 
 @UnstableApi
 public final class RadioPlaybackNotificationProvider extends DefaultMediaNotificationProvider {
@@ -21,18 +18,7 @@ public final class RadioPlaybackNotificationProvider extends DefaultMediaNotific
                                              @NonNull String channelId,
                                              int channelNameResId) {
         super(context, session -> notificationId, channelId, channelNameResId);
-        setSmallIcon(android.R.drawable.ic_media_play);
-    }
-
-    @NonNull
-    @Override
-    protected ImmutableList<CommandButton> getMediaButtons(@NonNull MediaSession session,
-                                                           @NonNull Player.Commands playerCommands,
-                                                           @NonNull ImmutableList<CommandButton> mediaButtonPreferences,
-                                                           boolean showPauseButton) {
-        return playerCommands.contains(Player.COMMAND_STOP)
-                ? ImmutableList.copyOf(mediaButtonPreferences)
-                : ImmutableList.of();
+        setSmallIcon(R.drawable.ic_notification_small);
     }
 
     @Nullable
@@ -49,27 +35,32 @@ public final class RadioPlaybackNotificationProvider extends DefaultMediaNotific
 
     @Nullable
     static CharSequence buildNotificationTitle(@NonNull MediaMetadata metadata) {
+        if (hasCompleteTrackInfo(metadata)
+                && hasText(metadata.title)
+                && !contentEquals(metadata.title, metadata.station)) {
+            return metadata.title;
+        }
         if (hasText(metadata.station)) {
             return metadata.station;
         }
         if (hasText(metadata.displayTitle)) {
             return metadata.displayTitle;
         }
-        return metadata.title;
+        return metadata.artist;
     }
 
     @Nullable
     static CharSequence buildNotificationText(@NonNull MediaMetadata metadata) {
-        if (hasText(metadata.artist) && hasText(metadata.title)) {
-            return metadata.artist + " - " + metadata.title;
-        }
-        if (hasText(metadata.title) && !contentEquals(metadata.title, metadata.station)) {
-            return metadata.title;
-        }
-        if (hasText(metadata.artist)) {
+        if (hasCompleteTrackInfo(metadata)
+                && hasText(metadata.artist)
+                && !contentEquals(metadata.artist, metadata.title)) {
             return metadata.artist;
         }
         return null;
+    }
+
+    private static boolean hasCompleteTrackInfo(@NonNull MediaMetadata metadata) {
+        return hasText(metadata.title) && hasText(metadata.artist);
     }
 
     private static boolean hasText(@Nullable CharSequence text) {
