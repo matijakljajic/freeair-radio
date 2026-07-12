@@ -26,4 +26,8 @@ public final class RadioPlayer {
     public void stop() {
         appContext.startService(PlaybackSessionContract.createStopIntent(appContext));
     }
+
+    public void resume() {
+        appContext.startService(PlaybackSessionContract.createResumeIntent(appContext));
+    }
 }

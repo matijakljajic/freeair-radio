@@ -11,7 +11,6 @@ public final class ResolutionResult {
 
     public enum ResolutionStatus {
         SUCCESS,
-        PARTIAL,
         FAILURE,
         CANCELLED
     }

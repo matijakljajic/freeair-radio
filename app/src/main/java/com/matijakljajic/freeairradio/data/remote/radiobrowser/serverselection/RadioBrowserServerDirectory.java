@@ -26,6 +26,8 @@ import java.net.UnknownHostException;
 
 public final class RadioBrowserServerDirectory {
 
+    private static volatile List<String> cachedServers = Collections.emptyList();
+    private static final String BOOTSTRAP_BASE_URL = "https://all.api.radio-browser.info/";
     private static final String SERVER_DIRECTORY_URL = "https://all.api.radio-browser.info/json/servers";
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
             .callTimeout(5, TimeUnit.SECONDS)
@@ -34,6 +36,20 @@ public final class RadioBrowserServerDirectory {
             .build();
 
     private RadioBrowserServerDirectory() {
+    }
+
+    @NonNull
+    public static List<String> getCachedServers() {
+        return cachedServers;
+    }
+
+    @NonNull
+    public static String getBootstrapBaseUrl() {
+        return BOOTSTRAP_BASE_URL;
+    }
+
+    public static void refresh() {
+        cachedServers = RadioBrowserServerDirectory.discoverBaseUrls();
     }
 
     @NonNull
