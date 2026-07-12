@@ -35,52 +35,7 @@ public final class StationFaviconLoader {
     }
 
     public static void loadInto(@NonNull ImageView imageView, @Nullable Station station) {
-        imageView.animate().cancel();
-        imageView.setAlpha(1f);
-
-        if (station == null) {
-            clear(imageView);
-            return;
-        }
-
-        List<String> artworkUrls = StationArtworkResolver.getBestAvailableUrls(station);
-        String requestTag = buildRequestTag(station);
-        String signature = buildSignature(artworkUrls);
-        boolean sameRequest = TextUtils.equals(
-                requestTag,
-                (String) imageView.getTag(R.id.station_favicon_request_tag)
-        );
-
-        imageView.setTag(R.id.station_favicon_request_tag, requestTag);
-        imageView.setTag(R.id.station_favicon_signature_tag, signature);
-        imageView.setTag(R.id.station_favicon_deep_resolve_tag, null);
-
-        String cachedArtworkUrl = findCachedArtworkUrl(artworkUrls);
-        if (cachedArtworkUrl != null) {
-            Bitmap cachedBitmap = StationArtworkBitmapLoader.getCachedBitmap(cachedArtworkUrl);
-            if (cachedBitmap != null) {
-                if (TextUtils.equals(cachedArtworkUrl, getDisplayedUrl(imageView))) {
-                    restoreScaleTypeFromDisplayedArtwork(imageView);
-                    return;
-                }
-
-                if (imageView.getDrawable() != null) {
-                    replaceBitmapWithFade(
-                            imageView,
-                            cachedBitmap,
-                            cachedArtworkUrl,
-                            requestTag,
-                            signature,
-                            0L
-                    );
-                } else {
-                    showResolvedBitmap(imageView, cachedBitmap, cachedArtworkUrl);
-                }
-                return;
-            }
-        }
-
-        showDefaultIcon(imageView, !sameRequest && imageView.getDrawable() != null);
+        loadIntoInternal(imageView, station, -1);
     }
 
     public static void loadInto(@NonNull ImageView imageView,
@@ -90,6 +45,12 @@ public final class StationFaviconLoader {
     }
 
     private static void loadIntoListItem(@NonNull ImageView imageView,
+                                         @Nullable Station station,
+                                         int initialRevealOrder) {
+        loadIntoInternal(imageView, station, initialRevealOrder);
+    }
+
+    private static void loadIntoInternal(@NonNull ImageView imageView,
                                          @Nullable Station station,
                                          int initialRevealOrder) {
         imageView.animate().cancel();
