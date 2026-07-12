@@ -38,6 +38,8 @@ public class PlayerShellContainer extends LinearLayout {
         setOrientation(VERTICAL);
         setClipChildren(false);
         setClipToPadding(false);
+        setClickable(true);
+        setFocusable(true);
         ViewCompat.setOnApplyWindowInsetsListener(this, (view, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             applyBottomMargin(systemBars.bottom);
