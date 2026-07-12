@@ -40,14 +40,14 @@
         android:clipChildren="false"
         android:clipToPadding="false" />
 
-    <com.matijakljajic.freeairradio.ui.PlayerShellContainer
+    <com.matijakljajic.freeairradio.ui.shell.PlayerShellContainer
         android:id="@+id/player_shell_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginTop="16dp">
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="10dp">
 
         <androidx.fragment.app.FragmentContainerView
             android:id="@+id/player_fragment_container"
@@ -60,9 +60,11 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
+            app:cardBackgroundColor="?attr/colorSurface"
             app:cardCornerRadius="20dp"
             app:cardElevation="2dp"
-            app:cardBackgroundColor="?attr/colorSurface">
+            app:strokeColor="?attr/colorOutline"
+            app:strokeWidth="1dp">
 
             <com.google.android.material.button.MaterialButtonToggleGroup
                 android:id="@+id/main_nav_toggle_group"
@@ -102,6 +104,6 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-    </com.matijakljajic.freeairradio.ui.PlayerShellContainer>
+    </com.matijakljajic.freeairradio.ui.shell.PlayerShellContainer>
 
 </FrameLayout>

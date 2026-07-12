@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="theme_primary">#FFB4A1</color>
+    <color name="theme_on_primary">#5E1603</color>
+    <color name="theme_primary_container">#7E2F14</color>
+    <color name="theme_on_primary_container">#FFDCCF</color>
+
+    <color name="theme_secondary">#FFB8A3</color>
+    <color name="theme_on_secondary">#5C1705</color>
+    <color name="theme_secondary_container">#7C2E15</color>
+    <color name="theme_on_secondary_container">#FFE0D6</color>
+
+    <color name="theme_tertiary">#FFB4A0</color>
+    <color name="theme_on_tertiary">#561A09</color>
+    <color name="theme_tertiary_container">#79331B</color>
+    <color name="theme_on_tertiary_container">#FFDDD2</color>
+
+    <color name="theme_error">#FFB4AB</color>
+    <color name="theme_on_error">#690005</color>
+    <color name="theme_error_container">#93000A</color>
+    <color name="theme_on_error_container">#FFDAD6</color>
+
+    <color name="theme_background">#1F1411</color>
+    <color name="theme_on_background">#F7DED6</color>
+    <color name="theme_surface">#1F1411</color>
+    <color name="theme_on_surface">#F7DED6</color>
+    <color name="theme_surface_variant">#54413B</color>
+    <color name="theme_on_surface_variant">#DAC1B9</color>
+    <color name="theme_outline">#A58A82</color>
+</resources>

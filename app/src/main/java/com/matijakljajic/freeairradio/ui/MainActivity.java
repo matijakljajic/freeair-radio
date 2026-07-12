@@ -17,13 +17,18 @@ import androidx.fragment.app.Fragment;
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
+import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerDirectory;
 import com.matijakljajic.freeairradio.playback.RadioPlayer;
+import com.matijakljajic.freeairradio.ui.settings.AppThemeSettings;
 import com.matijakljajic.freeairradio.ui.homepage.HomePageFragment;
 import com.matijakljajic.freeairradio.ui.player.PlayerFragment;
 import com.matijakljajic.freeairradio.ui.settings.SettingsFragment;
+import com.matijakljajic.freeairradio.ui.shell.ShellChromeController;
+import com.matijakljajic.freeairradio.ui.shell.ShellChromeHost;
 import com.matijakljajic.freeairradio.ui.stations.StationFeedFragment;
 import com.matijakljajic.freeairradio.ui.stations.StationSearchFragment;
 
+@SuppressWarnings("unused")
 public class MainActivity extends AppCompatActivity implements StationFeedFragment.OnStationSelectedListener, ShellChromeHost {
 
     private static final int REQUEST_CODE_POST_NOTIFICATIONS = 1001;
@@ -32,6 +37,8 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
 
     @Nullable
     private Station selectedStation;
+    @Nullable
+    private AppThemeSettings appThemeSettings;
     @NonNull
     private Tab currentTab = Tab.HOME;
     @Nullable
@@ -44,6 +51,9 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        appThemeSettings = new AppThemeSettings(this);
+        appThemeSettings.applyNightMode();
+
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
@@ -80,6 +90,12 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
             shellChromeController.attach();
         }
         requestNotificationPermissionIfNeeded();
+
+        new Thread(
+                RadioBrowserServerDirectory::refresh,
+                "RadioBrowserServerRefresh"
+        ).start();
+
         selectTab(currentTab, true);
         syncPlayerFragment();
     }

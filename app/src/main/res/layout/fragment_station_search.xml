@@ -6,8 +6,8 @@
     android:layout_height="match_parent"
     android:clipChildren="false"
     android:clipToPadding="false"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp">
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp">
 
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/station_search_list_container"

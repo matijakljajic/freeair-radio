@@ -1,4 +1,4 @@
-package com.matijakljajic.freeairradio.ui;
+package com.matijakljajic.freeairradio.ui.shell;
 
 import androidx.annotation.Nullable;
 
