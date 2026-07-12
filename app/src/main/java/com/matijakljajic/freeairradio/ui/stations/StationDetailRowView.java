@@ -18,6 +18,7 @@ import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.ui.util.MarqueeTextView;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
+@SuppressWarnings("unused")
 public class StationDetailRowView extends LinearLayout {
 
     private final LinearLayout contentContainer;
@@ -53,7 +54,7 @@ public class StationDetailRowView extends LinearLayout {
         addView(contentContainer);
 
         dividerView.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, UiDimensions.px(getContext(), R.dimen.detail_row_divider_thickness)));
-        dividerView.setBackgroundColor(MaterialColors.getColor(this, android.R.attr.textColorSecondary));
+        dividerView.setBackgroundColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOutline));
         addView(dividerView);
 
         labelView.setEllipsize(TextUtils.TruncateAt.END);
