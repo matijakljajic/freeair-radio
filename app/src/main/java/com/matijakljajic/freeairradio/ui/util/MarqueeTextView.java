@@ -8,6 +8,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatTextView;
 
+@SuppressWarnings("unused")
 public class MarqueeTextView extends AppCompatTextView {
 
     public MarqueeTextView(@NonNull Context context) {

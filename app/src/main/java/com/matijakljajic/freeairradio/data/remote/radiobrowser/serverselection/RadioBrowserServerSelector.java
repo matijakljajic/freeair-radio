@@ -6,12 +6,15 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+@SuppressWarnings("unused")
 public final class RadioBrowserServerSelector {
 
     @NonNull
@@ -23,10 +26,6 @@ public final class RadioBrowserServerSelector {
     private int selectedIndex;
     @NonNull
     private final CountDownLatch readyLatch;
-
-    public RadioBrowserServerSelector() {
-        this(null, true);
-    }
 
     public RadioBrowserServerSelector(@NonNull Context context) {
         this(new RadioBrowserServerSettings(context).getPreferredBaseUrl(), true);
@@ -43,19 +42,17 @@ public final class RadioBrowserServerSelector {
     private RadioBrowserServerSelector(@Nullable String preferredBaseUrl,
                                        boolean refreshAsync) {
         this.preferredBaseUrl = normalizeBaseUrl(preferredBaseUrl);
-        this.baseUrls = new ArrayList<>();
+        List<String> cachedBaseUrls = RadioBrowserServerDirectory.getCachedServers();
+        this.baseUrls = buildStartupBaseUrls(cachedBaseUrls, this.preferredBaseUrl);
         this.selectedIndex = 0;
         this.readyLatch = new CountDownLatch(1);
-        if (refreshAsync) {
+        if (refreshAsync && cachedBaseUrls.isEmpty()) {
+            readyLatch.countDown();
+            refreshAsync();
+        } else if (this.baseUrls.isEmpty() && refreshAsync) {
             refreshAsync();
         } else {
             readyLatch.countDown();
-        }
-    }
-
-    public boolean hasServers() {
-        synchronized (lock) {
-            return !baseUrls.isEmpty();
         }
     }
 
@@ -93,22 +90,29 @@ public final class RadioBrowserServerSelector {
         }
     }
 
-    public boolean isReadyWithin(long timeoutMillis) {
+    public boolean awaitReady(long timeoutMillis) {
         try {
-            return !readyLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
+            return readyLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return true;
+            return false;
         }
     }
 
     private void refreshAsync() {
         Thread refreshThread = new Thread(() -> {
             try {
-                List<String> discoveredBaseUrls = RadioBrowserServerDirectory.discoverBaseUrls();
+                List<String> discoveredBaseUrls = RadioBrowserServerDirectory.getCachedServers();
+                if (discoveredBaseUrls.isEmpty()) {
+                    RadioBrowserServerDirectory.refresh();
+                    discoveredBaseUrls = RadioBrowserServerDirectory.getCachedServers();
+                }
                 synchronized (lock) {
-                    baseUrls = buildInitialBaseUrls(discoveredBaseUrls, preferredBaseUrl);
-                    selectedIndex = 0;
+                    List<String> refreshedBaseUrls = buildInitialBaseUrls(discoveredBaseUrls, preferredBaseUrl);
+                    if (!refreshedBaseUrls.isEmpty()) {
+                        baseUrls = refreshedBaseUrls;
+                        selectedIndex = 0;
+                    }
                 }
             } finally {
                 readyLatch.countDown();
@@ -116,6 +120,18 @@ public final class RadioBrowserServerSelector {
         }, "RadioBrowserServerRefresh");
         refreshThread.setDaemon(true);
         refreshThread.start();
+    }
+
+    @NonNull
+    static List<String> buildStartupBaseUrls(@NonNull List<String> cachedBaseUrls,
+                                             @Nullable String preferredBaseUrl) {
+        List<String> startupBaseUrls = buildInitialBaseUrls(cachedBaseUrls, preferredBaseUrl);
+        if (!startupBaseUrls.isEmpty()) {
+            return startupBaseUrls;
+        }
+
+        return new ArrayList<>(Collections.singletonList(Objects.requireNonNullElseGet(preferredBaseUrl, RadioBrowserServerDirectory::getBootstrapBaseUrl)));
+
     }
 
     @NonNull

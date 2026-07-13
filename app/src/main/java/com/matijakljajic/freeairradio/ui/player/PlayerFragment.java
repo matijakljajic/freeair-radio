@@ -5,6 +5,7 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -14,12 +15,14 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
-import com.matijakljajic.freeairradio.playback.CurrentPlaybackState;
-import com.matijakljajic.freeairradio.playback.NowPlaying;
 import com.matijakljajic.freeairradio.playback.RadioPlayer;
+import com.matijakljajic.freeairradio.playback.metadata.CurrentPlaybackState;
+import com.matijakljajic.freeairradio.playback.metadata.NowPlaying;
 import com.matijakljajic.freeairradio.ui.util.MarqueeTextView;
+import com.matijakljajic.freeairradio.ui.util.StationFaviconLoader;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
+@SuppressWarnings("unused")
 public class PlayerFragment extends Fragment {
     private static final long MARQUEE_START_DELAY_MS = 1000L;
     private static final long METADATA_ANIMATION_DURATION_MS = 180L;
@@ -39,6 +42,7 @@ public class PlayerFragment extends Fragment {
     private float singleLineTitleOffsetPx;
     private int metadataShiftPx;
     private View playerView;
+    private ImageView stationFaviconView;
     private MarqueeTextView stationNameText;
     private MarqueeTextView nowPlayingText;
     private MaterialButton playStopButton;
@@ -59,6 +63,7 @@ public class PlayerFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         playerView = view;
+        stationFaviconView = view.findViewById(R.id.player_station_favicon);
         stationNameText = view.findViewById(R.id.player_station_name);
         nowPlayingText = view.findViewById(R.id.player_now_playing);
         playStopButton = view.findViewById(R.id.player_play_stop_button);
@@ -104,6 +109,7 @@ public class PlayerFragment extends Fragment {
     }
 
     private boolean renderStation(@Nullable Station station) {
+        renderStationFavicon(station);
         if (stationNameText == null) {
             return false;
         }
@@ -118,6 +124,20 @@ public class PlayerFragment extends Fragment {
         renderedStationTitle = desiredTitle;
         stationNameText.setText(desiredTitle);
         return true;
+    }
+
+    private void renderStationFavicon(@Nullable Station station) {
+        if (stationFaviconView == null) {
+            return;
+        }
+        if (station == null) {
+            stationFaviconView.setVisibility(View.GONE);
+            StationFaviconLoader.clear(stationFaviconView);
+            return;
+        }
+
+        stationFaviconView.setVisibility(View.VISIBLE);
+        StationFaviconLoader.loadInto(stationFaviconView, station);
     }
 
     @Override
@@ -138,6 +158,7 @@ public class PlayerFragment extends Fragment {
         }
         radioPlayer = null;
         playerView = null;
+        stationFaviconView = null;
         stationNameText = null;
         nowPlayingText = null;
         playStopButton = null;
@@ -308,6 +329,12 @@ public class PlayerFragment extends Fragment {
         if (canStop) {
             pendingUserStopAnimation = true;
             radioPlayer.stop();
+            return;
+        }
+
+        if (isCurrentStation && currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.PAUSED) {
+            pendingUserStopAnimation = false;
+            radioPlayer.resume();
             return;
         }
 

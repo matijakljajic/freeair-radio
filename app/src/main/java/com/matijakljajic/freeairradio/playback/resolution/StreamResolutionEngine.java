@@ -1,13 +1,11 @@
-package com.matijakljajic.freeairradio.playback;
+package com.matijakljajic.freeairradio.playback.resolution;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.matijakljajic.freeairradio.BuildConfig;
 import com.matijakljajic.freeairradio.data.model.Station;
-import com.matijakljajic.freeairradio.playback.resolution.ResolutionResult;
 import com.matijakljajic.freeairradio.playback.resolution.ResolutionResult.ResolutionStatus;
-import com.matijakljajic.freeairradio.playback.resolution.ResolvedStreamCandidate;
 import com.matijakljajic.freeairradio.playback.resolution.ResolvedStreamCandidate.MetadataCapability;
 import com.matijakljajic.freeairradio.playback.resolution.ResolvedStreamCandidate.StreamProtocol;
 
@@ -40,7 +38,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
-@SuppressWarnings("GrazieInspectionRunner")
+@SuppressWarnings({"unused", "GrazieInspectionRunner"})
 public final class StreamResolutionEngine {
 
     private static final int MAX_DEPTH = 10;
@@ -92,12 +90,6 @@ public final class StreamResolutionEngine {
                 || lowerCaseUrl.endsWith(".pls")
                 || lowerCaseUrl.endsWith(".xspf")
                 || lowerCaseUrl.endsWith(".asx");
-    }
-
-    @Nullable
-    static String extractPlaylistTarget(@NonNull String body, @NonNull String baseUrl) {
-        List<String> targets = extractPlaylistTargets(body, baseUrl);
-        return selectBestPlaylistTarget(targets);
     }
 
     static boolean isHlsManifest(@NonNull String url,

@@ -19,7 +19,7 @@
         android:textAppearance="?attr/textAppearanceHeadlineSmall"
         android:textColor="?attr/colorOnSurface"
         android:textStyle="bold"
-        app:drawableEndCompat="@drawable/ic_chevron_down_offset"
+        app:drawableEndCompat="@drawable/ic_chevron_down"
         app:drawableTint="?attr/colorOnSurface"
         tools:text="Now Popular" />
 

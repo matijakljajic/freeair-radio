@@ -10,19 +10,20 @@ import org.junit.Test;
 public class RadioPlaybackNotificationProviderTest {
 
     @Test
-    public void buildNotificationTitlePrefersStationName() {
+    public void buildNotificationTitleUsesTrackTitleWhenTrackIsComplete() {
         MediaMetadata metadata = new MediaMetadata.Builder()
                 .setStation("Radio Caroline")
+                .setArtist("Artist")
                 .setTitle("Track Title")
                 .build();
 
         CharSequence title = RadioPlaybackNotificationProvider.buildNotificationTitle(metadata);
 
-        assertEquals("Radio Caroline", title);
+        assertEquals("Track Title", title);
     }
 
     @Test
-    public void buildNotificationTextUsesArtistAndTitle() {
+    public void buildNotificationTextUsesArtistWhenTrackIsComplete() {
         MediaMetadata metadata = new MediaMetadata.Builder()
                 .setStation("Radio Caroline")
                 .setArtist("Artist")
@@ -31,18 +32,20 @@ public class RadioPlaybackNotificationProviderTest {
 
         CharSequence text = RadioPlaybackNotificationProvider.buildNotificationText(metadata);
 
-        assertEquals("Artist - Track Title", text);
+        assertEquals("Artist", text);
     }
 
     @Test
-    public void buildNotificationTextAvoidsDuplicatingStationName() {
+    public void buildNotificationFallsBackToStationWhenTrackIsIncomplete() {
         MediaMetadata metadata = new MediaMetadata.Builder()
                 .setStation("Radio Caroline")
-                .setTitle("Radio Caroline")
+                .setTitle("Track Title")
                 .build();
 
+        CharSequence title = RadioPlaybackNotificationProvider.buildNotificationTitle(metadata);
         CharSequence text = RadioPlaybackNotificationProvider.buildNotificationText(metadata);
 
+        assertEquals("Radio Caroline", title);
         assertNull(text);
     }
 }

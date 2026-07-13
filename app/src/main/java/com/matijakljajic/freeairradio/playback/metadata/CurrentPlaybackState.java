@@ -1,4 +1,4 @@
-package com.matijakljajic.freeairradio.playback;
+package com.matijakljajic.freeairradio.playback.metadata;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -13,6 +13,7 @@ public final class CurrentPlaybackState {
     public enum PlaybackStatus {
         IDLE,
         CONNECTING,
+        PAUSED,
         PLAYING,
         ERROR
     }

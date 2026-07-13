@@ -1,4 +1,4 @@
-package com.matijakljajic.freeairradio.playback;
+package com.matijakljajic.freeairradio.playback.metadata;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -14,11 +14,18 @@ import com.matijakljajic.freeairradio.data.model.Station;
 import java.util.Locale;
 import java.util.Objects;
 
+@SuppressWarnings("unused")
 @UnstableApi
 public final class NowPlayingObserver implements Player.Listener {
 
+    public interface Listener {
+        void onNowPlayingChanged(@NonNull Station station,
+                                 @Nullable NowPlaying previousNowPlaying,
+                                 @Nullable NowPlaying currentNowPlaying);
+    }
+
     @NonNull
-    private final CurrentPlaybackState currentPlaybackState;
+    private final Listener listener;
     @Nullable
     private Player observedPlayer;
     @Nullable
@@ -27,8 +34,8 @@ public final class NowPlayingObserver implements Player.Listener {
     private NowPlaying lastEmitted;
     private long playbackGeneration;
 
-    NowPlayingObserver(@NonNull CurrentPlaybackState currentPlaybackState) {
-        this.currentPlaybackState = currentPlaybackState;
+    public NowPlayingObserver(@NonNull Listener listener) {
+        this.listener = listener;
     }
 
     public void clearNowPlaying(long generationSnapshot) {
@@ -36,9 +43,10 @@ public final class NowPlayingObserver implements Player.Listener {
             return;
         }
 
+        NowPlaying previousNowPlaying = lastEmitted;
         lastEmitted = null;
-        if (station != null) {
-            currentPlaybackState.setCurrentNowPlaying(station, null);
+        if (station != null && previousNowPlaying != null) {
+            listener.onNowPlayingChanged(station, previousNowPlaying, null);
         }
     }
 
@@ -66,16 +74,16 @@ public final class NowPlayingObserver implements Player.Listener {
     @Override
     public void onMetadata(@NonNull Metadata metadata) {
         long generationSnapshot = playbackGeneration;
-        emitParsedNowPlaying(parseMetadata(metadata), generationSnapshot);
+        NowPlaying nowPlaying = parseMetadata(metadata);
+        if (nowPlaying != null) {
+            emitIfChanged(nowPlaying, generationSnapshot);
+        }
     }
 
     @Override
     public void onMediaMetadataChanged(@NonNull MediaMetadata mediaMetadata) {
         long generationSnapshot = playbackGeneration;
-        emitParsedNowPlaying(parseMediaMetadata(mediaMetadata), generationSnapshot);
-    }
-
-    private void emitParsedNowPlaying(@Nullable NowPlaying nowPlaying, long generationSnapshot) {
+        NowPlaying nowPlaying = parseMediaMetadata(mediaMetadata);
         if (nowPlaying != null) {
             emitIfChanged(nowPlaying, generationSnapshot);
         }
@@ -88,8 +96,10 @@ public final class NowPlayingObserver implements Player.Listener {
         if (Objects.equals(lastEmitted, nowPlaying)) {
             return;
         }
+
+        NowPlaying previousNowPlaying = lastEmitted;
         lastEmitted = nowPlaying;
-        currentPlaybackState.setCurrentNowPlaying(station, nowPlaying);
+        listener.onNowPlayingChanged(station, previousNowPlaying, nowPlaying);
     }
 
     @Nullable
@@ -109,25 +119,19 @@ public final class NowPlayingObserver implements Player.Listener {
                 icyTitle = normalizeNullable(icyInfo.title);
             } else if (entry instanceof TextInformationFrame) {
                 TextInformationFrame frame = (TextInformationFrame) entry;
+                String frameValue = getFirstFrameValue(frame);
+                if (frameValue == null) {
+                    continue;
+                }
                 if (isArtistFrame(frame.id)) {
-                    artist = pickFirst(artist, normalizeNullable(frame.values.get(0)));
+                    artist = pickFirst(artist, frameValue);
                 } else if (isTitleFrame(frame.id)) {
-                    title = pickFirst(title, normalizeNullable(frame.values.get(0)));
+                    title = pickFirst(title, frameValue);
                 }
             }
         }
 
-        ParsedTrack parsedTrack = parseTrackTitle(pickFirst(icyTitle, title));
-        if (parsedTrack != null) {
-            artist = pickFirst(artist, parsedTrack.artist);
-            title = parsedTrack.title != null ? parsedTrack.title : title;
-        }
-
-        if (artist == null && title == null) {
-            return null;
-        }
-
-        return new NowPlaying(artist, title);
+        return NowPlaying.fromMetadata(station.getName(), artist, pickFirst(icyTitle, title));
     }
 
     @Nullable
@@ -136,59 +140,29 @@ public final class NowPlayingObserver implements Player.Listener {
             return null;
         }
 
-        String artist = normalizeNullable((String) mediaMetadata.artist);
-        String title = normalizeNullable((String) mediaMetadata.title);
-
-        ParsedTrack parsedTrack = parseTrackTitle(title);
-        if (parsedTrack != null) {
-            artist = pickFirst(artist, parsedTrack.artist);
-            title = parsedTrack.title != null ? parsedTrack.title : title;
-        }
-
-        if (artist == null && title == null) {
-            return null;
-        }
-
-        if (station.getName().equals(title) && artist == null) {
-            return null;
-        }
-
-        return new NowPlaying(artist, title);
+        return NowPlaying.fromMetadata(
+                station.getName(),
+                charSequenceToString(mediaMetadata.artist),
+                charSequenceToString(mediaMetadata.title)
+        );
     }
 
     @Nullable
-    static ParsedTrack parseTrackTitle(@Nullable String rawTitle) {
-        String normalizedTitle = normalizeNullable(rawTitle);
-        if (normalizedTitle == null) {
+    private static String getFirstFrameValue(@NonNull TextInformationFrame frame) {
+        if (frame.values.isEmpty()) {
             return null;
         }
-
-        String[] separators = {" - ", " – ", " — "};
-        for (String separator : separators) {
-            int firstSeparator = normalizedTitle.indexOf(separator);
-            if (firstSeparator <= 0) {
-                continue;
-            }
-            int secondSeparator = normalizedTitle.indexOf(separator, firstSeparator + separator.length());
-            if (secondSeparator >= 0) {
-                continue;
-            }
-
-            String left = normalizeNullable(normalizedTitle.substring(0, firstSeparator));
-            String right = normalizeNullable(normalizedTitle.substring(firstSeparator + separator.length()));
-            if (left == null || right == null) {
-                continue;
-            }
-
-            return new ParsedTrack(left, right, normalizedTitle);
-        }
-
-        return new ParsedTrack(null, normalizedTitle, normalizedTitle);
+        return normalizeNullable(frame.values.get(0));
     }
 
     @Nullable
     private static String pickFirst(@Nullable String first, @Nullable String second) {
         return first != null ? first : second;
+    }
+
+    @Nullable
+    private static String charSequenceToString(@Nullable CharSequence value) {
+        return value == null ? null : value.toString();
     }
 
     @Nullable
@@ -210,35 +184,5 @@ public final class NowPlayingObserver implements Player.Listener {
 
     private static boolean isTitleFrame(@NonNull String id) {
         return "TIT2".equals(id.toUpperCase(Locale.ROOT));
-    }
-
-    static final class ParsedTrack {
-        @Nullable
-        private final String artist;
-        @Nullable
-        private final String title;
-        @NonNull
-        private final String rawTitle;
-
-        private ParsedTrack(@Nullable String artist, @Nullable String title, @NonNull String rawTitle) {
-            this.artist = artist;
-            this.title = title;
-            this.rawTitle = rawTitle;
-        }
-
-        @Nullable
-        String getArtist() {
-            return artist;
-        }
-
-        @Nullable
-        String getTitle() {
-            return title;
-        }
-
-        @NonNull
-        String getRawTitle() {
-            return rawTitle;
-        }
     }
 }

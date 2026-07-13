@@ -9,16 +9,14 @@ public final class ResolvedStreamCandidate {
 
     public enum StreamProtocol {
         CONTINUOUS_HTTP,
-        HLS,
-        UNKNOWN_AUDIO
+        HLS
     }
 
     public enum MetadataCapability {
         CONFIRMED_ICY,
         POSSIBLE_IN_STREAM_METADATA,
         HLS_TIMED_METADATA_POSSIBLE,
-        NO_METADATA_DETECTED,
-        UNKNOWN
+        NO_METADATA_DETECTED
     }
 
     private final String url;

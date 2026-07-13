@@ -2,6 +2,35 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+def readBuildSecret = { String key ->
+    def propertyValue = project.findProperty(key)
+    if (propertyValue != null && !propertyValue.toString().trim().isEmpty()) {
+        return propertyValue.toString().trim()
+    }
+
+    def envValue = System.getenv(key)
+    if (envValue != null && !envValue.trim().isEmpty()) {
+        return envValue.trim()
+    }
+
+    return null
+}
+
+def releaseKeystorePath = readBuildSecret('ANDROID_KEYSTORE_PATH')
+def releaseKeystorePassword = readBuildSecret('ANDROID_KEYSTORE_PASSWORD')
+def releaseKeyAlias = readBuildSecret('ANDROID_KEY_ALIAS')
+def releaseKeyPassword = readBuildSecret('ANDROID_KEY_PASSWORD')
+def hasReleaseSigning = [
+        releaseKeystorePath,
+        releaseKeystorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword
+].every { it != null }
+def resolveBuildFile = { String path ->
+    File candidate = new File(path)
+    return candidate.isAbsolute() ? candidate : rootProject.file(path)
+}
+
 android {
     namespace = 'com.matijakljajic.freeairradio'
     compileSdk = 36
@@ -10,12 +39,23 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile resolveBuildFile(releaseKeystorePath)
+                storePassword releaseKeystorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.matijakljajic.freeairradio"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.9.0-alpha1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -24,6 +64,9 @@ android {
         release {
             optimization {
                 enable = false
+            }
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
             }
         }
     }
@@ -45,6 +88,8 @@ dependencies {
     implementation libs.media3.session
     implementation libs.media3.exoplayer
     implementation libs.media3.exoplayer.hls
+    implementation libs.glide
+    implementation libs.androidsvg
     testImplementation libs.junit
     debugImplementation libs.fragment.testing
     androidTestImplementation libs.fragment.testing
