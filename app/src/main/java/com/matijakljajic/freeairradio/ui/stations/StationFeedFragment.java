@@ -74,7 +74,7 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
         retryButton.setOnClickListener(v -> retryAction.run());
 
         if (recyclerView != null) {
-            stationAdapter = new StationAdapter(this);
+            stationAdapter = new StationAdapter(this, createStationDragHandleListener());
             recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
             recyclerView.setAdapter(createRecyclerAdapter(stationAdapter));
             if (recyclerView.getItemAnimator() instanceof SimpleItemAnimator) {
@@ -190,8 +190,17 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
         return stationAdapter;
     }
 
+    @Nullable
+    protected StationAdapter.DragHandleListener createStationDragHandleListener() {
+        return null;
+    }
+
     protected boolean keepsRecyclerVisibleDuringStateViews() {
         return false;
+    }
+
+    protected boolean shouldCrossfadeStationListUpdates() {
+        return true;
     }
 
     protected final void setStateContainerTopInsetPx(int topInsetPx) {
@@ -231,18 +240,18 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
         }
 
         hasRenderedContent = true;
-        if (hadVisibleContent) {
+        if (hadVisibleContent && shouldCrossfadeStationListUpdates()) {
             crossfadeStationList(stations, () -> renderState(ListUiState.CONTENT, 0));
             return;
         }
 
         submitStationList(stations, () -> {
-            if (recyclerView != null) {
+            if (!hadVisibleContent && recyclerView != null) {
                 recyclerView.animate().cancel();
                 recyclerView.setAlpha(0f);
             }
             renderState(ListUiState.CONTENT, 0);
-            if (recyclerView != null) {
+            if (!hadVisibleContent && recyclerView != null) {
                 recyclerView.animate()
                         .alpha(1f)
                         .setDuration(CONTENT_FADE_IN_DURATION_MS)

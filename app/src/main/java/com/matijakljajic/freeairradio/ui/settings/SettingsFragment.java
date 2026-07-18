@@ -9,8 +9,10 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.RadioGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.AttrRes;
+import androidx.annotation.StringRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatDelegate;
@@ -20,6 +22,8 @@ import com.google.android.material.radiobutton.MaterialRadioButton;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerDirectory;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerSettings;
+import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
+import com.matijakljajic.freeairradio.ui.homepage.HomePageSource;
 import com.matijakljajic.freeairradio.ui.shell.ShellChromeAwareFragment;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
@@ -33,15 +37,27 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     @Nullable
     private RadioBrowserServerSettings serverSettings;
     @Nullable
+    private LibraryRepository libraryRepository;
+    @Nullable
     private AppThemeSettings appThemeSettings;
+    @Nullable
+    private HomePageSettings homePageSettings;
     @Nullable
     private RadioGroup serverSelectionGroup;
     @Nullable
     private RadioGroup themeSelectionGroup;
     @Nullable
+    private RadioGroup homePageDefaultSelectionGroup;
+    @Nullable
     private TextView serverStatusText;
     @Nullable
     private Button resetButton;
+    @Nullable
+    private Button clearFavoritesButton;
+    @Nullable
+    private Button clearLocalStationsButton;
+    @Nullable
+    private Button clearRecentlyPlayedButton;
     private int serverLoadRequestId;
 
     @Override
@@ -61,13 +77,26 @@ public class SettingsFragment extends ShellChromeAwareFragment {
             );
         }
         serverSettings = new RadioBrowserServerSettings(requireContext());
+        libraryRepository = LibraryRepository.getInstance(requireContext());
         appThemeSettings = new AppThemeSettings(requireContext());
+        homePageSettings = new HomePageSettings(requireContext());
         serverStatusText = view.findViewById(R.id.server_status_text);
         serverSelectionGroup = view.findViewById(R.id.server_selection_group);
         themeSelectionGroup = view.findViewById(R.id.theme_selection_group);
+        homePageDefaultSelectionGroup = view.findViewById(R.id.homepage_default_selection_group);
         resetButton = view.findViewById(R.id.server_reset_button);
+        clearFavoritesButton = view.findViewById(R.id.settings_clear_favorites_button);
+        clearLocalStationsButton = view.findViewById(R.id.settings_clear_local_stations_button);
+        clearRecentlyPlayedButton = view.findViewById(R.id.settings_clear_recently_played_button);
+        getChildFragmentManager().setFragmentResultListener(
+                SettingsResetDialogFragment.REQUEST_KEY,
+                getViewLifecycleOwner(),
+                (requestKey, result) -> onResetConfirmed(result.getString(SettingsResetDialogFragment.RESULT_KEY_ACTION))
+        );
         bindResetButton();
         bindThemeSelection();
+        bindHomePageDefaultSelection();
+        bindLibraryResetButtons();
         loadServerChoices();
     }
 
@@ -83,17 +112,77 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         if (themeSelectionGroup != null) {
             themeSelectionGroup.setOnCheckedChangeListener(null);
         }
+        if (homePageDefaultSelectionGroup != null) {
+            homePageDefaultSelectionGroup.setOnCheckedChangeListener(null);
+        }
         if (resetButton != null) {
             resetButton.setOnClickListener(null);
         }
+        if (clearFavoritesButton != null) {
+            clearFavoritesButton.setOnClickListener(null);
+        }
+        if (clearLocalStationsButton != null) {
+            clearLocalStationsButton.setOnClickListener(null);
+        }
+        if (clearRecentlyPlayedButton != null) {
+            clearRecentlyPlayedButton.setOnClickListener(null);
+        }
         serverSettings = null;
+        libraryRepository = null;
         appThemeSettings = null;
+        homePageSettings = null;
         serverSelectionGroup = null;
         themeSelectionGroup = null;
+        homePageDefaultSelectionGroup = null;
         serverStatusText = null;
         resetButton = null;
+        clearFavoritesButton = null;
+        clearLocalStationsButton = null;
+        clearRecentlyPlayedButton = null;
         settingsRootView = null;
         super.onDestroyView();
+    }
+
+    private void bindLibraryResetButtons() {
+        bindLibraryResetButton(
+                clearFavoritesButton,
+                SettingsResetDialogFragment.ACTION_CLEAR_FAVORITES,
+                R.string.settings_clear_favorites_title,
+                R.string.settings_clear_favorites_message
+        );
+        bindLibraryResetButton(
+                clearLocalStationsButton,
+                SettingsResetDialogFragment.ACTION_CLEAR_LOCAL_STATIONS,
+                R.string.settings_clear_local_stations_title,
+                R.string.settings_clear_local_stations_message
+        );
+        bindLibraryResetButton(
+                clearRecentlyPlayedButton,
+                SettingsResetDialogFragment.ACTION_CLEAR_RECENTLY_PLAYED,
+                R.string.settings_clear_recently_played_title,
+                R.string.settings_clear_recently_played_message
+        );
+    }
+
+    private void bindHomePageDefaultSelection() {
+        if (homePageDefaultSelectionGroup == null || homePageSettings == null) {
+            return;
+        }
+
+        homePageDefaultSelectionGroup.setOnCheckedChangeListener(null);
+        syncSelectedHomePageDefault();
+        homePageDefaultSelectionGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            if (homePageSettings == null) {
+                return;
+            }
+
+            HomePageSource source = homePageSourceForCheckedId(checkedId);
+            if (source == null || homePageSettings.getDefaultSource() == source) {
+                return;
+            }
+
+            homePageSettings.setDefaultSource(source);
+        });
     }
 
     private void bindThemeSelection() {
@@ -141,6 +230,25 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         }
     }
 
+    private void syncSelectedHomePageDefault() {
+        if (homePageDefaultSelectionGroup == null || homePageSettings == null) {
+            return;
+        }
+
+        switch (homePageSettings.getDefaultSource()) {
+            case FAVORITES:
+                homePageDefaultSelectionGroup.check(R.id.homepage_default_selection_favorites);
+                break;
+            case LOCAL_STATIONS:
+                homePageDefaultSelectionGroup.check(R.id.homepage_default_selection_local_stations);
+                break;
+            case NOW_POPULAR:
+            default:
+                homePageDefaultSelectionGroup.check(R.id.homepage_default_selection_now_popular);
+                break;
+        }
+    }
+
     private void loadServerChoices() {
         if (serverSelectionGroup == null) {
             return;
@@ -183,7 +291,8 @@ public class SettingsFragment extends ShellChromeAwareFragment {
             serverSelectionGroup.removeViewAt(1);
         }
 
-        ColorStateList serverButtonTint = createRadioButtonTintList();
+        ColorStateList serverButtonTint =
+                ColorStateList.valueOf(resolveThemeColor(androidx.appcompat.R.attr.colorPrimary));
         int serverButtonTextColor = resolveThemeColor(com.google.android.material.R.attr.colorOnSurface);
 
         for (String baseUrl : serverBaseUrls) {
@@ -232,6 +341,72 @@ public class SettingsFragment extends ShellChromeAwareFragment {
             }
 
             loadServerChoicesAsync(true);
+        });
+    }
+
+    private void bindLibraryResetButton(@Nullable Button button,
+                                        @NonNull String action,
+                                        @StringRes int titleResId,
+                                        @StringRes int messageResId) {
+        if (button == null) {
+            return;
+        }
+
+        button.setOnClickListener(v -> SettingsResetDialogFragment
+                .newInstance(action, titleResId, messageResId)
+                .show(getChildFragmentManager(), "settings_reset_dialog"));
+    }
+
+    private void onResetConfirmed(@Nullable String action) {
+        if (action == null || libraryRepository == null) {
+            return;
+        }
+
+        switch (action) {
+            case SettingsResetDialogFragment.ACTION_CLEAR_FAVORITES:
+                runLibraryReset(
+                        callback -> libraryRepository.clearFavoriteStations(callback),
+                        R.string.settings_clear_favorites_success,
+                        R.string.settings_clear_favorites_failure
+                );
+                return;
+            case SettingsResetDialogFragment.ACTION_CLEAR_LOCAL_STATIONS:
+                runLibraryReset(
+                        callback -> libraryRepository.clearLocalStations(callback),
+                        R.string.settings_clear_local_stations_success,
+                        R.string.settings_clear_local_stations_failure
+                );
+                return;
+            case SettingsResetDialogFragment.ACTION_CLEAR_RECENTLY_PLAYED:
+                runLibraryReset(
+                        callback -> libraryRepository.clearRecentlyPlayedStations(callback),
+                        R.string.settings_clear_recently_played_success,
+                        R.string.settings_clear_recently_played_failure
+                );
+                return;
+            default:
+        }
+    }
+
+    private void runLibraryReset(@NonNull ResetAction action,
+                                 @StringRes int successResId,
+                                 @StringRes int failureResId) {
+        action.run(new LibraryRepository.WriteCallback() {
+            @Override
+            public void onSuccess() {
+                if (!isAdded()) {
+                    return;
+                }
+                Toast.makeText(requireContext(), successResId, Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onError(@NonNull Throwable throwable) {
+                if (!isAdded()) {
+                    return;
+                }
+                Toast.makeText(requireContext(), failureResId, Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
@@ -305,26 +480,26 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         return AppCompatDelegate.MODE_NIGHT_UNSPECIFIED;
     }
 
+    @Nullable
+    private HomePageSource homePageSourceForCheckedId(int checkedId) {
+        if (checkedId == R.id.homepage_default_selection_now_popular) {
+            return HomePageSource.NOW_POPULAR;
+        }
+        if (checkedId == R.id.homepage_default_selection_favorites) {
+            return HomePageSource.FAVORITES;
+        }
+        if (checkedId == R.id.homepage_default_selection_local_stations) {
+            return HomePageSource.LOCAL_STATIONS;
+        }
+        return null;
+    }
+
     private boolean isStaleServerLoad(int requestId) {
         return requestId != serverLoadRequestId || !isAdded() || settingsRootView == null;
     }
 
-    @NonNull
-    private ColorStateList createRadioButtonTintList() {
-        int checkedColor = resolveThemeColor(androidx.appcompat.R.attr.colorPrimary);
-        int uncheckedColor = resolveThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant);
-        return new ColorStateList(
-                new int[][]{
-                        new int[]{android.R.attr.state_enabled, android.R.attr.state_checked},
-                        new int[]{android.R.attr.state_enabled, -android.R.attr.state_checked},
-                        new int[]{-android.R.attr.state_enabled}
-                },
-                new int[]{
-                        checkedColor,
-                        uncheckedColor,
-                        uncheckedColor
-                }
-        );
+    private interface ResetAction {
+        void run(@NonNull LibraryRepository.WriteCallback callback);
     }
 
     private int resolveThemeColor(@AttrRes int attrResId) {

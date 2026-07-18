@@ -9,7 +9,6 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.DiffUtil;
-import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.matijakljajic.freeairradio.R;
@@ -17,7 +16,11 @@ import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.ui.util.StationDisplayFormatter;
 import com.matijakljajic.freeairradio.ui.util.StationFaviconLoader;
 
-public class StationAdapter extends ListAdapter<Station, StationAdapter.StationViewHolder> {
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationViewHolder> {
 
     public interface OnStationInteractionListener {
         void onStationClick(Station station);
@@ -25,37 +28,45 @@ public class StationAdapter extends ListAdapter<Station, StationAdapter.StationV
         void onStationLongClick(Station station);
     }
 
-    private final OnStationInteractionListener onStationInteractionListener;
-
-    public StationAdapter(OnStationInteractionListener onStationInteractionListener) {
-        super(DIFF_CALLBACK);
-        this.onStationInteractionListener = onStationInteractionListener;
-        setHasStableIds(true);
+    public interface DragHandleListener {
+        boolean onFaviconLongClick(@NonNull Station station, @NonNull RecyclerView.ViewHolder viewHolder);
     }
 
-    private static final DiffUtil.ItemCallback<Station> DIFF_CALLBACK = new DiffUtil.ItemCallback<>() {
-        @Override
-        public boolean areItemsTheSame(@NonNull Station oldItem, @NonNull Station newItem) {
-            return oldItem.getId().equals(newItem.getId());
-        }
+    private final OnStationInteractionListener onStationInteractionListener;
+    @Nullable
+    private final DragHandleListener dragHandleListener;
+    @NonNull
+    private final List<Station> stations = new ArrayList<>();
+    @NonNull
+    private List<Station> dragStations = Collections.emptyList();
+    private boolean dragReordering;
 
-        @Override
-        public boolean areContentsTheSame(@NonNull Station oldItem, @NonNull Station newItem) {
-            return oldItem.equals(newItem);
-        }
-    };
+    public StationAdapter(OnStationInteractionListener onStationInteractionListener) {
+        this(onStationInteractionListener, null);
+    }
+
+    public StationAdapter(@NonNull OnStationInteractionListener onStationInteractionListener,
+                          @Nullable DragHandleListener dragHandleListener) {
+        this.onStationInteractionListener = onStationInteractionListener;
+        this.dragHandleListener = dragHandleListener;
+    }
 
     @NonNull
     @Override
     public StationViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_station, parent, false);
-        return new StationViewHolder(view, onStationInteractionListener);
+        return new StationViewHolder(view, onStationInteractionListener, dragHandleListener);
     }
 
     @Override
     public void onBindViewHolder(@NonNull StationViewHolder holder, int position) {
-        holder.bind(getItem(position));
+        Station station = getStationAt(position);
+        if (station == null) {
+            holder.clear();
+            return;
+        }
+        holder.bind(station);
         if (holder.itemView.isAttachedToWindow()) {
             holder.loadFavicon(position);
         }
@@ -80,8 +91,162 @@ public class StationAdapter extends ListAdapter<Station, StationAdapter.StationV
     }
 
     @Override
-    public long getItemId(int position) {
-        return getItem(position).getId().hashCode();
+    public int getItemCount() {
+        return getDisplayedStationsInternal().size();
+    }
+
+    public void submitList(@NonNull List<Station> newStations) {
+        submitList(newStations, null);
+    }
+
+    public void submitList(@NonNull List<Station> newStations,
+                           @Nullable Runnable onCommitted) {
+        List<Station> updatedStations = new ArrayList<>(newStations);
+        List<Station> previousStations = new ArrayList<>(stations);
+        if (previousStations.equals(updatedStations)) {
+            if (onCommitted != null) {
+                onCommitted.run();
+            }
+            return;
+        }
+
+        stations.clear();
+        stations.addAll(updatedStations);
+
+        if (dragReordering) {
+            if (onCommitted != null) {
+                onCommitted.run();
+            }
+            return;
+        }
+
+        DiffUtil.calculateDiff(new StationDiffCallback(previousStations, updatedStations))
+                .dispatchUpdatesTo(this);
+        if (onCommitted != null) {
+            onCommitted.run();
+        }
+    }
+
+    @NonNull
+    public List<Station> getCurrentList() {
+        return new ArrayList<>(stations);
+    }
+
+    public void beginDragReorder() {
+        if (dragReordering) {
+            return;
+        }
+        dragReordering = true;
+        dragStations = new ArrayList<>(stations);
+    }
+
+    public void moveDraggedStation(int fromPosition, int toPosition) {
+        if (fromPosition == toPosition
+                || fromPosition < 0
+                || toPosition < 0
+                || !dragReordering
+                || fromPosition >= dragStations.size()
+                || toPosition >= dragStations.size()) {
+            return;
+        }
+
+        if (fromPosition < toPosition) {
+            for (int position = fromPosition; position < toPosition; position++) {
+                Collections.swap(dragStations, position, position + 1);
+            }
+        } else {
+            for (int position = fromPosition; position > toPosition; position--) {
+                Collections.swap(dragStations, position, position - 1);
+            }
+        }
+        notifyItemMoved(fromPosition, toPosition);
+    }
+
+    @NonNull
+    public List<Station> getDragReorderSnapshot() {
+        return new ArrayList<>(getDisplayedStationsInternal());
+    }
+
+    public void clearDragReorderPreview() {
+        if (!dragReordering) {
+            return;
+        }
+        dragReordering = false;
+        dragStations = Collections.emptyList();
+        notifyDataSetChanged();
+    }
+
+    public void completeDragReorder(@NonNull List<Station> committedStations) {
+        List<Station> finalStations = new ArrayList<>(committedStations);
+        if (!dragReordering) {
+            submitList(finalStations);
+            return;
+        }
+
+        boolean changed = !stations.equals(finalStations);
+        stations.clear();
+        stations.addAll(finalStations);
+        boolean visibleOrderChanged = !dragStations.equals(finalStations);
+        dragReordering = false;
+        dragStations = Collections.emptyList();
+        if (changed || visibleOrderChanged) {
+            notifyDataSetChanged();
+        }
+    }
+
+    public boolean isDragReordering() {
+        return dragReordering;
+    }
+
+    @Nullable
+    private Station getStationAt(int position) {
+        List<Station> displayedStations = getDisplayedStationsInternal();
+        if (position < 0 || position >= displayedStations.size()) {
+            return null;
+        }
+        return displayedStations.get(position);
+    }
+
+    @NonNull
+    private List<Station> getDisplayedStationsInternal() {
+        if (dragReordering) {
+            return dragStations;
+        }
+        return stations;
+    }
+
+    private static final class StationDiffCallback extends DiffUtil.Callback {
+        @NonNull
+        private final List<Station> oldStations;
+        @NonNull
+        private final List<Station> newStations;
+
+        private StationDiffCallback(@NonNull List<Station> oldStations,
+                                    @NonNull List<Station> newStations) {
+            this.oldStations = oldStations;
+            this.newStations = newStations;
+        }
+
+        @Override
+        public int getOldListSize() {
+            return oldStations.size();
+        }
+
+        @Override
+        public int getNewListSize() {
+            return newStations.size();
+        }
+
+        @Override
+        public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+            return oldStations.get(oldItemPosition).getId()
+                    .equals(newStations.get(newItemPosition).getId());
+        }
+
+        @Override
+        public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+            return oldStations.get(oldItemPosition).equals(newStations.get(newItemPosition));
+        }
     }
 
     public static class StationViewHolder extends RecyclerView.ViewHolder {
@@ -93,7 +258,9 @@ public class StationAdapter extends ListAdapter<Station, StationAdapter.StationV
         @Nullable
         private String loadedFaviconStationId;
 
-        StationViewHolder(@NonNull View itemView, @NonNull OnStationInteractionListener listener) {
+        StationViewHolder(@NonNull View itemView,
+                          @NonNull OnStationInteractionListener listener,
+                          @Nullable DragHandleListener dragHandleListener) {
             super(itemView);
             faviconView = itemView.findViewById(R.id.station_item_favicon);
             nameText = itemView.findViewById(R.id.station_item_name);
@@ -109,6 +276,17 @@ public class StationAdapter extends ListAdapter<Station, StationAdapter.StationV
                 }
                 return true;
             });
+            faviconView.setOnLongClickListener(v -> {
+                if (boundStation == null) {
+                    return false;
+                }
+                if (dragHandleListener != null
+                        && dragHandleListener.onFaviconLongClick(boundStation, this)) {
+                    return true;
+                }
+                listener.onStationLongClick(boundStation);
+                return true;
+            });
         }
 
         void bind(@NonNull Station station) {
@@ -118,6 +296,13 @@ public class StationAdapter extends ListAdapter<Station, StationAdapter.StationV
             boundStation = station;
             nameText.setText(station.getName());
             detailsText.setText(StationDisplayFormatter.formatStationDetails(station));
+        }
+
+        void clear() {
+            clearFavicon();
+            boundStation = null;
+            nameText.setText(null);
+            detailsText.setText(null);
         }
 
         void loadFavicon(int initialRevealOrder) {

@@ -43,8 +43,9 @@ import com.matijakljajic.freeairradio.artwork.StationArtworkBitmapLoader;
 import com.matijakljajic.freeairradio.artwork.StationArtworkResolver;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
+import com.matijakljajic.freeairradio.data.model.StationOrigin;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.RadioBrowserRepository;
-import com.matijakljajic.freeairradio.data.repository.FavoriteStationsStore;
+import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
 import com.matijakljajic.freeairradio.data.repository.StationRepository;
 import com.matijakljajic.freeairradio.playback.metadata.CurrentPlaybackState;
 import com.matijakljajic.freeairradio.playback.metadata.NowPlaying;
@@ -73,6 +74,9 @@ public class RadioPlaybackService extends MediaSessionService {
     @NonNull
     private static final SessionCommand TOGGLE_FAVORITE_COMMAND =
             new SessionCommand(PlaybackSessionContract.COMMAND_TOGGLE_FAVORITE, Bundle.EMPTY);
+    private static final int[] FAVORITE_BUTTON_SLOTS = {
+            CommandButton.SLOT_OVERFLOW
+    };
     @NonNull
     private static final SessionCommands ACTIVE_SESSION_COMMANDS = new SessionCommands.Builder()
             .add(SessionCommand.COMMAND_CODE_SESSION_SET_RATING)
@@ -100,13 +104,17 @@ public class RadioPlaybackService extends MediaSessionService {
     @NonNull
     private final StreamResolutionEngine streamResolver = new StreamResolutionEngine();
     @NonNull
+    private final FavoriteStationNavigator favoriteStationNavigator = new FavoriteStationNavigator();
+    @NonNull
     private final CurrentPlaybackState currentPlaybackState = CurrentPlaybackState.getInstance();
     @Nullable
     private StationRepository stationRepository;
+    @Nullable
+    private LibraryRepository libraryRepository;
     @NonNull
     private final NowPlayingObserver nowPlayingObserver = new NowPlayingObserver(this::handleObservedNowPlayingChange);
     @NonNull
-    private final FavoriteStationsStore favoriteStationsStore = FavoriteStationsStore.getInstance();
+    private final LibraryRepository.FavoritesListener favoritesListener = this::refreshFavoritePresentation;
     @NonNull
     private final MediaSession.Callback mediaSessionCallback = new MediaSession.Callback() {
         @NonNull
@@ -235,6 +243,7 @@ public class RadioPlaybackService extends MediaSessionService {
                 .setSessionActivity(buildContentIntent())
                 .build();
         addSession(mediaSession);
+        setShowNotificationForIdlePlayer(SHOW_NOTIFICATION_FOR_IDLE_PLAYER_ALWAYS);
         setMediaNotificationProvider(new RadioPlaybackNotificationProvider(
                 this,
                 PLAYBACK_NOTIFICATION_ID,
@@ -242,6 +251,8 @@ public class RadioPlaybackService extends MediaSessionService {
                 R.string.playback_notification_channel_name
         ));
         stationRepository = new RadioBrowserRepository(getApplicationContext());
+        libraryRepository = LibraryRepository.getInstance(getApplicationContext());
+        libraryRepository.addFavoritesListener(favoritesListener);
         createPlaybackNotificationChannel();
         currentPlaybackState.addListener(servicePlaybackStateListener);
     }
@@ -256,17 +267,7 @@ public class RadioPlaybackService extends MediaSessionService {
     public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
         if (intent != null) {
-            String action = intent.getAction();
-            if (PlaybackSessionContract.ACTION_PLAY_STATION.equals(action)) {
-                Station station = readStation(intent);
-                if (station != null) {
-                    play(station);
-                }
-            } else if (PlaybackSessionContract.ACTION_RESUME_PLAYBACK.equals(action)) {
-                resume();
-            } else if (PlaybackSessionContract.ACTION_STOP_PLAYBACK.equals(action)) {
-                stop();
-            }
+            handlePlaybackIntent(intent);
         }
         return START_STICKY;
     }
@@ -277,24 +278,8 @@ public class RadioPlaybackService extends MediaSessionService {
         }
 
         int sequence = playSequence.incrementAndGet();
-        long previousGeneration = currentPlaybackGeneration;
-        currentPlaybackGeneration = 0L;
-        nowPlayingObserver.clearNowPlaying(previousGeneration);
-        nowPlayingObserver.stopObserving();
-        player.stop();
-        player.clearMediaItems();
-
-        currentStation = station;
-        currentResolutionResult = null;
-        currentCandidateIndex = 0;
-        reportedUsageGeneration = 0L;
-        currentPlaybackState.setCurrentStation(station);
-        StationArtworkResolver.resolve(station, resolvedUrls -> {
-            preloadArtworkIfNeeded(station, resolvedUrls);
-            refreshArtworkPresentation(station);
-        });
-        promoteToForeground(buildConnectingNotification(station));
-        playbackResolverExecutor.execute(() -> resolveAndPlayStation(station, sequence));
+        resetActivePlayback();
+        startStationPlayback(station, sequence);
     }
 
     public void stop() {
@@ -302,17 +287,9 @@ public class RadioPlaybackService extends MediaSessionService {
             return;
         }
 
-        long generation = currentPlaybackGeneration;
         playSequence.incrementAndGet();
-        nowPlayingObserver.clearNowPlaying(generation);
-        nowPlayingObserver.stopObserving();
-        player.stop();
-        player.clearMediaItems();
+        resetActivePlayback();
         currentStation = null;
-        currentResolutionResult = null;
-        currentCandidateIndex = 0;
-        currentPlaybackGeneration = 0L;
-        reportedUsageGeneration = 0L;
         stopForeground(STOP_FOREGROUND_REMOVE);
         currentPlaybackState.clear();
         stopSelf();
@@ -330,13 +307,14 @@ public class RadioPlaybackService extends MediaSessionService {
         currentPlaybackState.removeListener(servicePlaybackStateListener);
         if (player != null) {
             player.removeListener(playerListener);
-            if (currentPlaybackGeneration != 0L) {
-                nowPlayingObserver.clearNowPlaying(currentPlaybackGeneration);
-            }
-            nowPlayingObserver.stopObserving();
+            clearNowPlayingObservation(currentPlaybackGeneration);
         }
         currentPlaybackState.clear();
         stationRepository = null;
+        if (libraryRepository != null) {
+            libraryRepository.removeFavoritesListener(favoritesListener);
+            libraryRepository = null;
+        }
         if (mediaSession != null) {
             mediaSession.release();
             mediaSession = null;
@@ -357,6 +335,76 @@ public class RadioPlaybackService extends MediaSessionService {
             return null;
         }
         return BundleCompat.getSerializable(extras, PlaybackSessionContract.EXTRA_STATION, Station.class);
+    }
+
+    private void handlePlaybackIntent(@NonNull Intent intent) {
+        String action = intent.getAction();
+        if (PlaybackSessionContract.ACTION_PLAY_STATION.equals(action)) {
+            Station station = readStation(intent);
+            if (station != null) {
+                play(station);
+            }
+            return;
+        }
+
+        if (PlaybackSessionContract.ACTION_RESUME_PLAYBACK.equals(action)) {
+            resume();
+        } else if (PlaybackSessionContract.ACTION_STOP_PLAYBACK.equals(action)) {
+            stop();
+        }
+    }
+
+    private void startStationPlayback(@NonNull Station station, int sequence) {
+        currentStation = station;
+        setConnectingMediaPlaceholder(station);
+        currentPlaybackState.setCurrentStation(station);
+        resolveArtworkForStation(station);
+        promoteToForeground(buildConnectingNotification(station));
+        playbackResolverExecutor.execute(() -> resolveAndPlayStation(station, sequence));
+    }
+
+    private void resetActivePlayback() {
+        clearNowPlayingObservation(currentPlaybackGeneration);
+        currentPlaybackGeneration = 0L;
+        clearResolvedPlaybackState();
+        reportedUsageGeneration = 0L;
+        stopAndClearPlayer();
+    }
+
+    private void clearNowPlayingObservation(long generation) {
+        nowPlayingObserver.clearNowPlaying(generation);
+        nowPlayingObserver.stopObserving();
+    }
+
+    private void clearResolvedPlaybackState() {
+        currentResolutionResult = null;
+        currentCandidateIndex = 0;
+    }
+
+    private void stopAndClearPlayer() {
+        if (player == null) {
+            return;
+        }
+        player.stop();
+        player.clearMediaItems();
+    }
+
+    private void setConnectingMediaPlaceholder(@NonNull Station station) {
+        if (player == null) {
+            return;
+        }
+
+        player.setMediaItem(new MediaItem.Builder()
+                .setUri(Uri.parse(station.getPlayableStreamUrl()))
+                .setMediaMetadata(buildBaseMediaMetadata(station))
+                .build());
+    }
+
+    private void resolveArtworkForStation(@NonNull Station station) {
+        StationArtworkResolver.resolve(station, resolvedUrls -> {
+            preloadArtworkIfNeeded(station, resolvedUrls);
+            refreshArtworkPresentation(station);
+        });
     }
 
     private void resolveAndPlayStation(@NonNull Station station, int sequence) {
@@ -397,8 +445,7 @@ public class RadioPlaybackService extends MediaSessionService {
                 .setMediaMetadata(buildBaseMediaMetadata(station))
                 .build();
 
-        player.stop();
-        player.clearMediaItems();
+        stopAndClearPlayer();
         player.setMediaItem(mediaItem);
         currentPlaybackState.setPlaybackStatus(station, CurrentPlaybackState.PlaybackStatus.CONNECTING);
         player.prepare();
@@ -468,10 +515,10 @@ public class RadioPlaybackService extends MediaSessionService {
 
     @NonNull
     private Notification buildConnectingNotification(@NonNull Station station) {
+        String connectingText = getString(R.string.playback_notification_connecting_to, station.getName());
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, PLAYBACK_NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_media_play)
-                .setContentTitle(station.getName())
-                .setContentText(getString(R.string.playback_notification_connecting))
+                .setContentTitle(connectingText)
                 .setContentIntent(buildContentIntent())
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
@@ -540,13 +587,7 @@ public class RadioPlaybackService extends MediaSessionService {
                                                           @Nullable Station station) {
         Player.Commands.Builder commandsBuilder = session.getPlayer()
                 .getAvailableCommands()
-                .buildUpon()
-                .removeAll(
-                        Player.COMMAND_SEEK_TO_PREVIOUS,
-                        Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
-                        Player.COMMAND_SEEK_TO_NEXT,
-                        Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
-                );
+                .buildUpon();
         if (station == null) {
             commandsBuilder.remove(Player.COMMAND_STOP);
         }
@@ -560,20 +601,23 @@ public class RadioPlaybackService extends MediaSessionService {
             return Collections.emptyList();
         }
 
+        return Collections.singletonList(buildFavoriteMediaButton(station));
+    }
+
+    @NonNull
+    private CommandButton buildFavoriteMediaButton(@NonNull Station station) {
         boolean favorite = isFavorite(station);
-        List<CommandButton> buttons = new ArrayList<>(1);
-        buttons.add(
-                new CommandButton.Builder(favorite
-                        ? CommandButton.ICON_HEART_FILLED
-                        : CommandButton.ICON_HEART_UNFILLED)
-                        .setSessionCommand(TOGGLE_FAVORITE_COMMAND)
-                        .setDisplayName(getString(favorite
-                                ? R.string.player_unfavorite_button
-                                : R.string.player_favorite_button))
-                        .setSlots(CommandButton.SLOT_FORWARD)
-                        .build()
-        );
-        return buttons;
+        return new CommandButton.Builder(favorite
+                ? CommandButton.ICON_HEART_FILLED
+                : CommandButton.ICON_HEART_UNFILLED)
+                .setSessionCommand(TOGGLE_FAVORITE_COMMAND)
+                .setDisplayName(getString(favorite
+                        ? R.string.player_unfavorite_button
+                        : R.string.player_favorite_button))
+                // Keep transport slots free for previous/play-next; rating metadata carries the
+                // favorite semantic for controller surfaces such as Android Auto.
+                .setSlots(FAVORITE_BUTTON_SLOTS)
+                .build();
     }
 
     @NonNull
@@ -608,7 +652,12 @@ public class RadioPlaybackService extends MediaSessionService {
         }
 
         reportedUsageGeneration = currentPlaybackGeneration;
-        stationRepository.reportStationUsage(currentStation);
+        if (currentStation.getOrigin() == StationOrigin.RADIO_BROWSER) {
+            stationRepository.reportStationUsage(currentStation);
+        }
+        if (libraryRepository != null) {
+            libraryRepository.recordRecentlyPlayed(currentStation);
+        }
     }
 
     @NonNull
@@ -668,7 +717,19 @@ public class RadioPlaybackService extends MediaSessionService {
         if (mediaSession == null || player == null || player.getMediaItemCount() == 0) {
             return;
         }
+        if (shouldKeepConnectingNotification()) {
+            return;
+        }
         mainHandler.post(this::triggerNotificationUpdate);
+    }
+
+    private boolean shouldKeepConnectingNotification() {
+        if (player == null) {
+            return false;
+        }
+
+        return currentPlaybackState.getPlaybackStatus() == CurrentPlaybackState.PlaybackStatus.CONNECTING
+                && !player.isPlaying();
     }
 
     private void refreshArtworkPresentation(@NonNull Station station) {
@@ -707,11 +768,67 @@ public class RadioPlaybackService extends MediaSessionService {
     }
 
     private void setFavorite(@NonNull Station station, boolean favorite) {
-        favoriteStationsStore.setFavorite(station, favorite);
+        if (libraryRepository != null) {
+            libraryRepository.setFavorite(station, favorite);
+        }
     }
 
     private boolean isFavorite(@NonNull Station station) {
-        return favoriteStationsStore.isFavorite(station);
+        return libraryRepository != null && libraryRepository.isFavorite(station);
+    }
+
+    private boolean canNavigateFavoriteStations() {
+        return favoriteStationNavigator.canNavigate(currentStation, getFavoriteStationsSnapshot());
+    }
+
+    @NonNull
+    private List<Station> getFavoriteStationsSnapshot() {
+        return libraryRepository != null
+                ? libraryRepository.getFavoriteStationsSnapshot()
+                : Collections.emptyList();
+    }
+
+    private void navigateFavoriteStation(boolean moveForward) {
+        Station targetStation = getFavoriteNavigationTarget(moveForward);
+        if (targetStation != null) {
+            play(targetStation);
+        }
+    }
+
+    @Nullable
+    private Station getFavoriteNavigationTarget(boolean moveForward) {
+        List<Station> favoriteStations = getFavoriteStationsSnapshot();
+        return moveForward
+                ? favoriteStationNavigator.getNext(currentStation, favoriteStations)
+                : favoriteStationNavigator.getPrevious(currentStation, favoriteStations);
+    }
+
+    private void applyFavoriteNavigationCommands(@NonNull Player.Commands.Builder commandsBuilder) {
+        if (canNavigateFavoriteStations()) {
+            commandsBuilder
+                    .add(Player.COMMAND_SEEK_TO_PREVIOUS)
+                    .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                    .add(Player.COMMAND_SEEK_TO_NEXT)
+                    .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM);
+            return;
+        }
+
+        commandsBuilder.removeAll(
+                Player.COMMAND_SEEK_TO_PREVIOUS,
+                Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
+                Player.COMMAND_SEEK_TO_NEXT,
+                Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
+        );
+    }
+
+    private void applyStopCommand(@NonNull Player.Commands.Builder commandsBuilder) {
+        if (currentStation != null
+                && currentPlaybackState.getPlaybackStatus() != CurrentPlaybackState.PlaybackStatus.IDLE) {
+            commandsBuilder.add(Player.COMMAND_STOP);
+            return;
+        }
+
+        commandsBuilder.remove(Player.COMMAND_STOP);
     }
 
     private final class SessionPlayer extends ForwardingPlayer {
@@ -742,20 +859,9 @@ public class RadioPlaybackService extends MediaSessionService {
         @NonNull
         @Override
         public Commands getAvailableCommands() {
-            Commands.Builder commandsBuilder = super.getAvailableCommands()
-                    .buildUpon()
-                    .removeAll(
-                            Player.COMMAND_SEEK_TO_PREVIOUS,
-                            Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
-                            Player.COMMAND_SEEK_TO_NEXT,
-                            Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
-                    );
-            if (currentStation != null
-                    && currentPlaybackState.getPlaybackStatus() != CurrentPlaybackState.PlaybackStatus.IDLE) {
-                commandsBuilder.add(Player.COMMAND_STOP);
-            } else {
-                commandsBuilder.remove(Player.COMMAND_STOP);
-            }
+            Commands.Builder commandsBuilder = super.getAvailableCommands().buildUpon();
+            applyFavoriteNavigationCommands(commandsBuilder);
+            applyStopCommand(commandsBuilder);
             return commandsBuilder.build();
         }
 
@@ -768,6 +874,36 @@ public class RadioPlaybackService extends MediaSessionService {
                     currentPlaybackState.getCurrentNowPlaying(),
                     currentStation != null && isFavorite(currentStation)
             );
+        }
+
+        @Override
+        public boolean hasPreviousMediaItem() {
+            return canNavigateFavoriteStations();
+        }
+
+        @Override
+        public boolean hasNextMediaItem() {
+            return canNavigateFavoriteStations();
+        }
+
+        @Override
+        public void seekToPrevious() {
+            navigateFavoriteStation(false);
+        }
+
+        @Override
+        public void seekToPreviousMediaItem() {
+            navigateFavoriteStation(false);
+        }
+
+        @Override
+        public void seekToNext() {
+            navigateFavoriteStation(true);
+        }
+
+        @Override
+        public void seekToNextMediaItem() {
+            navigateFavoriteStation(true);
         }
 
         private void dispatchPresentedMetadataChanged() {

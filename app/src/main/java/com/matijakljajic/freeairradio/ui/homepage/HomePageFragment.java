@@ -12,15 +12,22 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.ConcatAdapter;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.matijakljajic.freeairradio.R;
-import com.matijakljajic.freeairradio.data.repository.FavoriteStationsStore;
+import com.matijakljajic.freeairradio.data.model.Station;
+import com.matijakljajic.freeairradio.data.model.StationOrigin;
+import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
+import com.matijakljajic.freeairradio.ui.localstations.LocalStationEditorFragment;
+import com.matijakljajic.freeairradio.ui.settings.HomePageSettings;
 import com.matijakljajic.freeairradio.ui.stations.StationAdapter;
 import com.matijakljajic.freeairradio.ui.stations.StationFeedFragment;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
 import java.util.List;
+
+import android.widget.Toast;
 
 @SuppressWarnings("unused")
 public class HomePageFragment extends StationFeedFragment {
@@ -28,9 +35,11 @@ public class HomePageFragment extends StationFeedFragment {
     private static final String STATE_SOURCE = "homepage_source";
 
     @NonNull
-    private final FavoriteStationsStore favoriteStationsStore = FavoriteStationsStore.getInstance();
+    private LibraryRepository libraryRepository;
     @NonNull
-    private final FavoriteStationsStore.Listener favoriteStationsListener = this::refreshFavoritesIfVisible;
+    private final LibraryRepository.FavoritesListener favoritesListener = this::refreshFavoritesIfVisible;
+    @NonNull
+    private HomePageSettings homePageSettings;
 
     @Nullable
     private RecyclerView homepageRecyclerView;
@@ -38,6 +47,12 @@ public class HomePageFragment extends StationFeedFragment {
     private PopupWindow sourcePopupWindow;
     @Nullable
     private HomePageHeaderAdapter headerAdapter;
+    @Nullable
+    private ItemTouchHelper favoritesReorderTouchHelper;
+    private boolean favoriteOrderDirty;
+    private boolean favoriteOrderPersisting;
+    @Nullable
+    private List<Station> pendingFavoriteOrder;
     @NonNull
     private HomePageSource currentSource = HomePageSource.NOW_POPULAR;
 
@@ -50,7 +65,14 @@ public class HomePageFragment extends StationFeedFragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        currentSource = HomePageSource.fromSavedState(savedInstanceState);
+        homePageSettings = new HomePageSettings(requireContext());
+        currentSource = resolveInitialSource(savedInstanceState);
+        libraryRepository = LibraryRepository.getInstance(requireContext());
+        getChildFragmentManager().setFragmentResultListener(
+                LocalStationEditorFragment.REQUEST_KEY,
+                getViewLifecycleOwner(),
+                (requestKey, result) -> onLocalStationEditorResult(result)
+        );
         headerAdapter = new HomePageHeaderAdapter(new HomePageHeaderAdapter.Listener() {
             @Override
             public void onSourceClicked(@NonNull View anchorView) {
@@ -62,7 +84,7 @@ public class HomePageFragment extends StationFeedFragment {
                 handleAddStationClick();
             }
         });
-        headerAdapter.setTitleResId(currentSource.titleResId);
+        headerAdapter.setTitleResId(currentSource.getTitleResId());
         bindStationFeed(
                 view,
                 R.id.station_feed_recycler_view,
@@ -78,8 +100,9 @@ public class HomePageFragment extends StationFeedFragment {
                 homepageRecyclerView,
                 UiDimensions.px(requireContext(), R.dimen.top_content_gap)
         );
+        bindFavoritesReorder();
         homepageRecyclerView.post(this::updateHeaderStateInset);
-        favoriteStationsStore.addListener(favoriteStationsListener);
+        libraryRepository.addFavoritesListener(favoritesListener);
 
         view.post(this::loadHomepageStations);
     }
@@ -92,12 +115,18 @@ public class HomePageFragment extends StationFeedFragment {
 
     @Override
     public void onDestroyView() {
-        favoriteStationsStore.removeListener(favoriteStationsListener);
+        libraryRepository.removeFavoritesListener(favoritesListener);
         dismissSourcePopup();
         if (homepageRecyclerView != null) {
             detachShellContentPadding(homepageRecyclerView);
         }
+        if (favoritesReorderTouchHelper != null && homepageRecyclerView != null) {
+            favoritesReorderTouchHelper.attachToRecyclerView(null);
+        }
         homepageRecyclerView = null;
+        favoritesReorderTouchHelper = null;
+        favoriteOrderDirty = false;
+        clearFavoriteReorderState();
         headerAdapter = null;
         setStateContainerTopInsetPx(0);
         clearStationFeed();
@@ -105,15 +134,32 @@ public class HomePageFragment extends StationFeedFragment {
     }
 
     private void loadHomepageStations() {
-        if (currentSource == HomePageSource.FAVORITES) {
-            displayStations(
-                    favoriteStationsStore.getFavorites(),
-                    R.string.station_list_empty_favorites
-            );
-            return;
+        switch (currentSource) {
+            case FAVORITES:
+                if (pendingFavoriteOrder != null) {
+                    displayStations(
+                            pendingFavoriteOrder,
+                            R.string.station_list_empty_favorites
+                    );
+                    return;
+                }
+                loadStations(
+                        (repository, callback) -> libraryRepository.loadFavoriteStations(callback),
+                        R.string.station_list_empty_favorites,
+                        R.string.station_list_error
+                );
+                return;
+            case LOCAL_STATIONS:
+                loadStations(
+                        (repository, callback) -> libraryRepository.loadLocalStations(callback),
+                        R.string.station_list_empty_local_stations,
+                        R.string.station_list_error
+                );
+                return;
+            case NOW_POPULAR:
+            default:
+                loadTopStations(R.string.station_list_empty, R.string.station_list_error);
         }
-
-        loadTopStations(R.string.station_list_empty, R.string.station_list_error);
     }
 
     private void showSourceMenu(@NonNull View anchorView) {
@@ -152,7 +198,7 @@ public class HomePageFragment extends StationFeedFragment {
                     false
             );
             TextView optionTextView = optionView.findViewById(R.id.homepage_source_option_text);
-            optionTextView.setText(source.titleResId);
+            optionTextView.setText(source.getTitleResId());
             optionView.setOnClickListener(v -> {
                 popupWindow.dismiss();
                 switchSource(source);
@@ -183,7 +229,7 @@ public class HomePageFragment extends StationFeedFragment {
                     false
             );
             TextView optionTextView = optionView.findViewById(R.id.homepage_source_option_text);
-            optionTextView.setText(source.titleResId);
+            optionTextView.setText(source.getTitleResId());
             optionView.measure(
                     View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
                     View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
@@ -198,11 +244,32 @@ public class HomePageFragment extends StationFeedFragment {
             return;
         }
 
+        if (source != HomePageSource.FAVORITES && getStationAdapter().isDragReordering()) {
+            getStationAdapter().clearDragReorderPreview();
+        }
         currentSource = source;
         if (headerAdapter != null) {
-            headerAdapter.setTitleResId(source.titleResId);
+            headerAdapter.setTitleResId(source.getTitleResId());
         }
         loadHomepageStations();
+    }
+
+    @NonNull
+    private HomePageSource resolveInitialSource(@Nullable Bundle savedInstanceState) {
+        if (savedInstanceState == null) {
+            return homePageSettings.getDefaultSource();
+        }
+
+        String sourceName = savedInstanceState.getString(STATE_SOURCE);
+        if (sourceName == null) {
+            return homePageSettings.getDefaultSource();
+        }
+
+        try {
+            return HomePageSource.valueOf(sourceName);
+        } catch (IllegalArgumentException exception) {
+            return homePageSettings.getDefaultSource();
+        }
     }
 
     @NonNull
@@ -232,15 +299,48 @@ public class HomePageFragment extends StationFeedFragment {
             if (!isAdded() || currentSource != HomePageSource.FAVORITES) {
                 return;
             }
+            if (!libraryRepository.hasLoadedFavorites()) {
+                return;
+            }
+            if (favoriteOrderPersisting) {
+                return;
+            }
             displayStations(
-                    favoriteStationsStore.getFavorites(),
+                    libraryRepository.getFavoriteStationsSnapshot(),
                     R.string.station_list_empty_favorites
             );
         });
     }
 
     private void handleAddStationClick() {
-        // TODO: Open local station creation when that slice is implemented.
+        LocalStationEditorFragment.newCreateInstance()
+                .show(getChildFragmentManager(), "local_station_editor");
+    }
+
+    @Override
+    public void onStationLongClick(Station station) {
+        if (station.getOrigin() == StationOrigin.LOCAL_USER) {
+            LocalStationEditorFragment.newEditInstance(station)
+                    .show(getChildFragmentManager(), "local_station_editor");
+            return;
+        }
+
+        super.onStationLongClick(station);
+    }
+
+    private void onLocalStationEditorResult(@NonNull Bundle result) {
+        if (result.getBoolean(LocalStationEditorFragment.RESULT_KEY_OPEN_LOCAL_SOURCE, false)) {
+            if (currentSource == HomePageSource.LOCAL_STATIONS) {
+                loadHomepageStations();
+                return;
+            }
+            switchSource(HomePageSource.LOCAL_STATIONS);
+            return;
+        }
+
+        if (currentSource == HomePageSource.LOCAL_STATIONS) {
+            loadHomepageStations();
+        }
     }
 
     @NonNull
@@ -252,9 +352,123 @@ public class HomePageFragment extends StationFeedFragment {
         return new ConcatAdapter(headerAdapter, stationAdapter);
     }
 
+    @Nullable
+    @Override
+    protected StationAdapter.DragHandleListener createStationDragHandleListener() {
+        return (station, viewHolder) -> {
+            if (currentSource != HomePageSource.FAVORITES || favoritesReorderTouchHelper == null) {
+                return false;
+            }
+            getStationAdapter().beginDragReorder();
+            favoritesReorderTouchHelper.startDrag(viewHolder);
+            return true;
+        };
+    }
+
     @Override
     protected boolean keepsRecyclerVisibleDuringStateViews() {
         return true;
+    }
+
+    @Override
+    protected boolean shouldCrossfadeStationListUpdates() {
+        return false;
+    }
+
+    private void bindFavoritesReorder() {
+        if (homepageRecyclerView == null) {
+            return;
+        }
+
+        favoritesReorderTouchHelper = new ItemTouchHelper(new ItemTouchHelper.Callback() {
+            @Override
+            public int getMovementFlags(@NonNull RecyclerView recyclerView,
+                                        @NonNull RecyclerView.ViewHolder viewHolder) {
+                if (currentSource != HomePageSource.FAVORITES
+                        || !(viewHolder instanceof StationAdapter.StationViewHolder)) {
+                    return 0;
+                }
+                return makeMovementFlags(ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0);
+            }
+
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView,
+                                  @NonNull RecyclerView.ViewHolder viewHolder,
+                                  @NonNull RecyclerView.ViewHolder target) {
+                if (!(target instanceof StationAdapter.StationViewHolder)) {
+                    return false;
+                }
+
+                int fromPosition = viewHolder.getBindingAdapterPosition();
+                int toPosition = target.getBindingAdapterPosition();
+                if (fromPosition == RecyclerView.NO_POSITION || toPosition == RecyclerView.NO_POSITION) {
+                    return false;
+                }
+
+                getStationAdapter().moveDraggedStation(fromPosition, toPosition);
+                favoriteOrderDirty = true;
+                return true;
+            }
+
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+            }
+
+            @Override
+            public boolean isLongPressDragEnabled() {
+                return false;
+            }
+
+            @Override
+            public void clearView(@NonNull RecyclerView recyclerView,
+                                  @NonNull RecyclerView.ViewHolder viewHolder) {
+                super.clearView(recyclerView, viewHolder);
+                if (!favoriteOrderDirty || currentSource != HomePageSource.FAVORITES) {
+                    return;
+                }
+
+                favoriteOrderDirty = false;
+                persistFavoriteOrder();
+            }
+        });
+        favoritesReorderTouchHelper.attachToRecyclerView(homepageRecyclerView);
+    }
+
+    private void persistFavoriteOrder() {
+        List<Station> orderedFavorites = getStationAdapter().getDragReorderSnapshot();
+        favoriteOrderPersisting = true;
+        pendingFavoriteOrder = orderedFavorites;
+        libraryRepository.reorderFavoriteStations(
+                orderedFavorites,
+                new LibraryRepository.WriteCallback() {
+                    @Override
+                    public void onSuccess() {
+                        clearFavoriteReorderState();
+                        if (getView() == null) {
+                            return;
+                        }
+                        getStationAdapter().completeDragReorder(orderedFavorites);
+                    }
+
+                    @Override
+                    public void onError(@NonNull Throwable throwable) {
+                        clearFavoriteReorderState();
+                        if (getView() != null) {
+                            getStationAdapter().clearDragReorderPreview();
+                        }
+                        if (!isAdded()) {
+                            return;
+                        }
+                        Toast.makeText(requireContext(), R.string.favorite_reorder_failed, Toast.LENGTH_SHORT).show();
+                        loadHomepageStations();
+                    }
+                }
+        );
+    }
+
+    private void clearFavoriteReorderState() {
+        favoriteOrderPersisting = false;
+        pendingFavoriteOrder = null;
     }
 
     private void updateHeaderStateInset() {
@@ -285,32 +499,4 @@ public class HomePageFragment extends StationFeedFragment {
         setStateContainerTopInsetPx(topInsetPx);
     }
 
-    private enum HomePageSource {
-        NOW_POPULAR(R.string.station_list_title_now_popular),
-        FAVORITES(R.string.station_list_title_favorites);
-
-        private final int titleResId;
-
-        HomePageSource(int titleResId) {
-            this.titleResId = titleResId;
-        }
-
-        @NonNull
-        private static HomePageSource fromSavedState(@Nullable Bundle savedInstanceState) {
-            if (savedInstanceState == null) {
-                return NOW_POPULAR;
-            }
-
-            String sourceName = savedInstanceState.getString(STATE_SOURCE);
-            if (sourceName == null) {
-                return NOW_POPULAR;
-            }
-
-            try {
-                return HomePageSource.valueOf(sourceName);
-            } catch (IllegalArgumentException exception) {
-                return NOW_POPULAR;
-            }
-        }
-    }
 }
