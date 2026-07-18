@@ -1,4 +1,5 @@
 package com.matijakljajic.freeairradio.artwork;
+
 import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
@@ -21,7 +22,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -68,9 +68,11 @@ public final class StationArtworkResolver {
         }
 
         String cacheKey = buildCacheKey(station);
-        List<String> resolvedUrls = RESOLVED_URL_CACHE.get(cacheKey);
-        return prependWorkingUrl(cacheKey, Objects.requireNonNullElseGet(resolvedUrls, () -> buildFallbackUrls(station)));
-
+        List<String> artworkUrls = RESOLVED_URL_CACHE.get(cacheKey);
+        if (artworkUrls == null) {
+            artworkUrls = buildFallbackUrls(station);
+        }
+        return prependWorkingUrl(cacheKey, artworkUrls);
     }
 
     @Nullable
