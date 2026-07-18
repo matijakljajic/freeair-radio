@@ -23,20 +23,22 @@ public final class PlaybackSessionContract {
 
     @NonNull
     public static Intent createPlayIntent(@NonNull Context context, @NonNull Station station) {
-        return new Intent(context, RadioPlaybackService.class)
-                .setAction(ACTION_PLAY_STATION)
+        return createServiceIntent(context, ACTION_PLAY_STATION)
                 .putExtra(EXTRA_STATION, station);
     }
 
     @NonNull
     public static Intent createStopIntent(@NonNull Context context) {
-        return new Intent(context, RadioPlaybackService.class)
-                .setAction(ACTION_STOP_PLAYBACK);
+        return createServiceIntent(context, ACTION_STOP_PLAYBACK);
     }
 
     @NonNull
     public static Intent createResumeIntent(@NonNull Context context) {
-        return new Intent(context, RadioPlaybackService.class)
-                .setAction(ACTION_RESUME_PLAYBACK);
+        return createServiceIntent(context, ACTION_RESUME_PLAYBACK);
+    }
+
+    @NonNull
+    private static Intent createServiceIntent(@NonNull Context context, @NonNull String action) {
+        return new Intent(context, RadioPlaybackService.class).setAction(action);
     }
 }

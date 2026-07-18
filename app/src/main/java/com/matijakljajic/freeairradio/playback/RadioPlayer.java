@@ -17,17 +17,22 @@ public final class RadioPlayer {
     }
 
     public void play(@NonNull Station station) {
-        ContextCompat.startForegroundService(
-                appContext,
-                PlaybackSessionContract.createPlayIntent(appContext, station)
-        );
+        startService(PlaybackSessionContract.createPlayIntent(appContext, station), true);
     }
 
     public void stop() {
-        appContext.startService(PlaybackSessionContract.createStopIntent(appContext));
+        startService(PlaybackSessionContract.createStopIntent(appContext), false);
     }
 
     public void resume() {
-        appContext.startService(PlaybackSessionContract.createResumeIntent(appContext));
+        startService(PlaybackSessionContract.createResumeIntent(appContext), false);
+    }
+
+    private void startService(@NonNull android.content.Intent intent, boolean foreground) {
+        if (foreground) {
+            ContextCompat.startForegroundService(appContext, intent);
+            return;
+        }
+        appContext.startService(intent);
     }
 }
