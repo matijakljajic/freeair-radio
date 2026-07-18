@@ -6,6 +6,6 @@
     android:clipChildren="false"
     android:clipToPadding="false">
 
-    <include layout="@layout/fragment_station_feed_content" />
+    <include layout="@layout/view_station_feed_content" />
 
 </FrameLayout>

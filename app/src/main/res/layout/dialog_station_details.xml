@@ -2,43 +2,35 @@
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Widget.FreeAirRadio.DialogCard"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    app:cardBackgroundColor="?attr/colorSurface"
-    app:cardCornerRadius="20dp"
-    app:cardElevation="0dp"
-    app:strokeColor="?attr/colorOutline"
-    app:strokeWidth="1dp">
+    android:layout_height="wrap_content">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:padding="@dimen/dialog_content_padding">
 
         <TextView
             android:id="@+id/station_details_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="8dp"
+            android:layout_marginHorizontal="@dimen/dialog_title_horizontal_margin"
             android:breakStrategy="balanced"
             android:ellipsize="end"
             android:gravity="center"
             android:hyphenationFrequency="normal"
             android:maxLines="3"
             android:textAlignment="center"
-            android:textAppearance="?attr/textAppearanceHeadlineSmall"
-            android:textStyle="bold"
+            android:textAppearance="@style/TextAppearance.FreeAirRadio.DialogTitle"
             tools:ignore="VisualLintSystemUi" />
 
         <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.FreeAirRadio.DialogSectionCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp"
-            app:strokeColor="?attr/colorOutline"
-            app:strokeWidth="1dp">
+            android:layout_marginTop="@dimen/dialog_section_margin_top">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -80,18 +72,11 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/station_details_ok_button"
+            style="@style/Widget.FreeAirRadio.DialogPrimaryButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:insetBottom="0dp"
-            android:insetLeft="0dp"
-            android:insetRight="0dp"
-            android:insetTop="0dp"
-            android:text="@string/station_details_close"
-            android:textColor="?attr/colorOnPrimary"
-            app:backgroundTint="?attr/colorPrimary"
-            app:cornerRadius="999dp"
-            app:rippleColor="?attr/colorOnPrimary" />
+            android:layout_marginTop="@dimen/dialog_primary_button_margin_top"
+            android:text="@string/station_details_close" />
 
     </LinearLayout>
 

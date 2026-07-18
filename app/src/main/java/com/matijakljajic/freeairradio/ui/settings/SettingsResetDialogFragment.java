@@ -1,13 +1,8 @@
 package com.matijakljajic.freeairradio.ui.settings;
 
 import android.app.Dialog;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.view.Gravity;
 import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -17,6 +12,7 @@ import androidx.fragment.app.DialogFragment;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.matijakljajic.freeairradio.R;
+import com.matijakljajic.freeairradio.ui.util.DialogWindowHelper;
 
 public class SettingsResetDialogFragment extends DialogFragment {
 
@@ -47,7 +43,7 @@ public class SettingsResetDialogFragment extends DialogFragment {
     @NonNull
     @Override
     public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
-        View contentView = getLayoutInflater().inflate(R.layout.fragment_settings_reset_dialog, null, false);
+        View contentView = getLayoutInflater().inflate(R.layout.dialog_settings_reset, null, false);
         bindContent(contentView);
         return new MaterialAlertDialogBuilder(requireContext())
                 .setView(contentView)
@@ -57,17 +53,7 @@ public class SettingsResetDialogFragment extends DialogFragment {
     @Override
     public void onStart() {
         super.onStart();
-        Dialog dialog = getDialog();
-        if (dialog == null) {
-            return;
-        }
-
-        Window window = dialog.getWindow();
-        if (window != null) {
-            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            window.setGravity(Gravity.CENTER_HORIZONTAL);
-            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
-        }
+        DialogWindowHelper.applyWideCenteredLayout(getDialog());
     }
 
     private void bindContent(@NonNull View contentView) {

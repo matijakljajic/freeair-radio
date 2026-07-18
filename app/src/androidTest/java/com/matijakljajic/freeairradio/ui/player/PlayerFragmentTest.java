@@ -9,7 +9,7 @@ import com.google.android.material.button.MaterialButton;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
-import com.matijakljajic.freeairradio.playback.CurrentPlaybackState;
+import com.matijakljajic.freeairradio.playback.metadata.CurrentPlaybackState;
 
 import org.junit.After;
 import org.junit.Test;

@@ -7,6 +7,7 @@ import androidx.test.espresso.Espresso;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.matijakljajic.freeairradio.R;
+import com.matijakljajic.freeairradio.ui.shell.ShellChromeController;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

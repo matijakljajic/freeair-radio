@@ -2,13 +2,8 @@ package com.matijakljajic.freeairradio.ui.stations;
 
 import android.app.Dialog;
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
-import android.graphics.drawable.ColorDrawable;
-import android.view.Gravity;
 import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -19,6 +14,7 @@ import androidx.fragment.app.DialogFragment;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
+import com.matijakljajic.freeairradio.ui.util.DialogWindowHelper;
 import com.matijakljajic.freeairradio.ui.util.StationDisplayFormatter;
 
 @SuppressWarnings("unused")
@@ -39,7 +35,7 @@ public class StationDetailsFragment extends DialogFragment {
     public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
         Station station = requireStation();
         View contentView = getLayoutInflater()
-                .inflate(R.layout.fragment_station_details, null, false);
+                .inflate(R.layout.dialog_station_details, null, false);
         bindContent(contentView, station);
         contentView.findViewById(R.id.station_details_ok_button).setOnClickListener(v -> dismiss());
 
@@ -51,17 +47,7 @@ public class StationDetailsFragment extends DialogFragment {
     @Override
     public void onStart() {
         super.onStart();
-        Dialog dialog = getDialog();
-        if (dialog == null) {
-            return;
-        }
-
-        Window window = dialog.getWindow();
-        if (window != null) {
-            window.setBackgroundDrawable(new ColorDrawable(android.graphics.Color.TRANSPARENT));
-            window.setGravity(Gravity.CENTER_HORIZONTAL);
-            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
-        }
+        DialogWindowHelper.applyWideCenteredLayout(getDialog());
     }
 
     @NonNull
@@ -76,33 +62,34 @@ public class StationDetailsFragment extends DialogFragment {
 
     private void bindContent(@NonNull View contentView, @NonNull Station station) {
         ((TextView) contentView.findViewById(R.id.station_details_name)).setText(station.getName());
-        bindCompactTextRow(contentView, R.id.row_country, R.string.station_details_country, station.getCountry());
-        bindCompactTextRow(contentView, R.id.row_language, R.string.station_details_language, station.getLanguage());
-        bindCompactTextRow(contentView, R.id.row_codec, R.string.station_details_codec, station.getCodec());
-        bindBitrateRow(contentView, station);
-        bindTallTextRow(contentView, R.id.row_tags, R.string.station_details_tags,
-                StationDisplayFormatter.formatTags(station));
+        row(contentView, R.id.row_country)
+                .bindCompactText(R.string.station_details_country, station.getCountry());
+        row(contentView, R.id.row_language)
+                .bindCompactText(R.string.station_details_language, station.getLanguage());
+        row(contentView, R.id.row_codec)
+                .bindCompactText(R.string.station_details_codec, station.getCodec());
+        row(contentView, R.id.row_bitrate)
+                .bindCompactBitrate(R.string.station_details_bitrate, station.getBitrate());
+        row(contentView, R.id.row_tags)
+                .bindTallText(R.string.station_details_tags, StationDisplayFormatter.formatTags(station));
         bindLinkRow(contentView, R.id.row_homepage, R.string.station_details_homepage, station.getHomepage());
         bindLinkRow(contentView, R.id.row_stream_url, R.string.station_details_stream_url, station.getStreamUrl());
     }
 
-    private void bindCompactTextRow(@NonNull View contentView, int rowId, int labelStringId, @NonNull String value) {
-        StationDetailRowView row = contentView.findViewById(rowId);
-        row.bindCompactText(labelStringId, value);
-    }
-
-    private void bindTallTextRow(@NonNull View contentView, int rowId, int labelStringId, @NonNull String value) {
-        StationDetailRowView row = contentView.findViewById(rowId);
-        row.bindTallText(labelStringId, value);
-    }
-
-    private void bindBitrateRow(@NonNull View contentView, @NonNull Station station) {
-        StationDetailRowView row = contentView.findViewById(R.id.row_bitrate);
-        row.bindCompactBitrate(R.string.station_details_bitrate, station.getBitrate());
-    }
-
     private void bindLinkRow(@NonNull View contentView, int rowId, int labelStringId, @Nullable String value) {
-        StationDetailRowView row = contentView.findViewById(rowId);
-        row.bindTallLink(labelStringId, value, value == null ? null : v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(value))));
+        row(contentView, rowId).bindTallLink(
+                labelStringId,
+                value,
+                value == null ? null : v -> openUrl(value)
+        );
+    }
+
+    @NonNull
+    private StationDetailRowView row(@NonNull View contentView, int rowId) {
+        return contentView.findViewById(rowId);
+    }
+
+    private void openUrl(@NonNull String value) {
+        startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(value)));
     }
 }

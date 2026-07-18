@@ -17,7 +17,7 @@ public class MainActivityTest {
 
     @Test
     public void tabsOpenExpectedFragmentRoots() {
-        assertVisible(R.id.station_list_root);
+        assertVisible(R.id.homepage_root);
 
         Espresso.onView(withId(R.id.nav_search_button)).perform(androidx.test.espresso.action.ViewActions.click());
         assertVisible(R.id.station_search_root);
@@ -26,7 +26,7 @@ public class MainActivityTest {
         assertVisible(R.id.settings_root);
 
         Espresso.onView(withId(R.id.nav_home_button)).perform(androidx.test.espresso.action.ViewActions.click());
-        assertVisible(R.id.station_list_root);
+        assertVisible(R.id.homepage_root);
 
     }
 

@@ -533,7 +533,7 @@ public class HomePageFragment extends StationFeedFragment {
         }
 
         View headerView = LayoutInflater.from(requireContext())
-                .inflate(R.layout.item_homepage_header, homepageRecyclerView, false);
+                .inflate(R.layout.view_homepage_header, homepageRecyclerView, false);
         headerView.measure(
                 View.MeasureSpec.makeMeasureSpec(availableWidth, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)

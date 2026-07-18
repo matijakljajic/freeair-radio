@@ -71,33 +71,39 @@ public class StationDetailRowView extends LinearLayout {
     }
 
     public void useCompactStyle() {
-        contentContainer.removeAllViews();
-        contentContainer.setOrientation(HORIZONTAL);
-        contentContainer.setGravity(Gravity.CENTER_VERTICAL);
-        contentContainer.setPadding(
-                UiDimensions.px(getContext(), R.dimen.detail_row_horizontal_padding),
-                UiDimensions.px(getContext(), R.dimen.detail_row_vertical_padding),
-                UiDimensions.px(getContext(), R.dimen.detail_row_horizontal_padding),
-                UiDimensions.px(getContext(), R.dimen.detail_row_vertical_padding));
-
-        LayoutParams labelParams = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-        labelParams.rightMargin = UiDimensions.px(getContext(), R.dimen.detail_row_label_value_spacing);
-        contentContainer.addView(labelView, labelParams);
-        contentContainer.addView(valueView, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
+        applyStyle(true);
     }
 
     public void useTallStyle() {
+        applyStyle(false);
+    }
+
+    private void applyStyle(boolean compact) {
         contentContainer.removeAllViews();
-        contentContainer.setOrientation(VERTICAL);
+        contentContainer.setOrientation(compact ? HORIZONTAL : VERTICAL);
+        contentContainer.setGravity(compact ? Gravity.CENTER_VERTICAL : Gravity.NO_GRAVITY);
         contentContainer.setPadding(
                 UiDimensions.px(getContext(), R.dimen.detail_row_horizontal_padding),
                 UiDimensions.px(getContext(), R.dimen.detail_row_vertical_padding),
                 UiDimensions.px(getContext(), R.dimen.detail_row_horizontal_padding),
-                UiDimensions.px(getContext(), R.dimen.detail_row_vertical_padding_tall_bottom));
+                UiDimensions.px(getContext(), compact
+                        ? R.dimen.detail_row_vertical_padding
+                        : R.dimen.detail_row_vertical_padding_tall_bottom));
 
-        LayoutParams labelParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        LayoutParams valueParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        valueParams.topMargin = UiDimensions.px(getContext(), R.dimen.detail_row_tall_value_spacing);
+        LayoutParams labelParams = new LayoutParams(
+                compact ? LayoutParams.WRAP_CONTENT : LayoutParams.MATCH_PARENT,
+                LayoutParams.WRAP_CONTENT
+        );
+        LayoutParams valueParams = new LayoutParams(
+                compact ? 0 : LayoutParams.MATCH_PARENT,
+                LayoutParams.WRAP_CONTENT,
+                compact ? 1f : 0f
+        );
+        if (compact) {
+            labelParams.rightMargin = UiDimensions.px(getContext(), R.dimen.detail_row_label_value_spacing);
+        } else {
+            valueParams.topMargin = UiDimensions.px(getContext(), R.dimen.detail_row_tall_value_spacing);
+        }
         contentContainer.addView(labelView, labelParams);
         contentContainer.addView(valueView, valueParams);
     }

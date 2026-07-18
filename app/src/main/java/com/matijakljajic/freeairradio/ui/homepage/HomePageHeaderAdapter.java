@@ -47,7 +47,7 @@ final class HomePageHeaderAdapter extends RecyclerView.Adapter<HomePageHeaderAda
     @Override
     public HeaderViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_homepage_header, parent, false);
+                .inflate(R.layout.view_homepage_header, parent, false);
         return new HeaderViewHolder(view);
     }
 
