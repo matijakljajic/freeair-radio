@@ -29,6 +29,7 @@
     <string name="station_details_close">Close</string>
     <string name="playback_notification_channel_name">Radio playback</string>
     <string name="playback_notification_connecting">Connecting…</string>
+    <string name="playback_notification_connecting_to">Connecting to %1$s...</string>
     <string name="settings_server_section_title">Radio Browser server</string>
     <string name="settings_server_section_summary">Choose the mirror used for loading stations. Automatic uses the Radio Browser discovery list.</string>
     <string name="settings_server_status_loading">Discovering servers…</string>

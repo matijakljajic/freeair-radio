@@ -15,7 +15,7 @@ import androidx.recyclerview.widget.ConcatAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.matijakljajic.freeairradio.R;
-import com.matijakljajic.freeairradio.data.repository.FavoriteStationsStore;
+import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
 import com.matijakljajic.freeairradio.ui.stations.StationAdapter;
 import com.matijakljajic.freeairradio.ui.stations.StationFeedFragment;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
@@ -28,9 +28,9 @@ public class HomePageFragment extends StationFeedFragment {
     private static final String STATE_SOURCE = "homepage_source";
 
     @NonNull
-    private final FavoriteStationsStore favoriteStationsStore = FavoriteStationsStore.getInstance();
+    private LibraryRepository libraryRepository;
     @NonNull
-    private final FavoriteStationsStore.Listener favoriteStationsListener = this::refreshFavoritesIfVisible;
+    private final LibraryRepository.FavoritesListener favoritesListener = this::refreshFavoritesIfVisible;
 
     @Nullable
     private RecyclerView homepageRecyclerView;
@@ -51,6 +51,7 @@ public class HomePageFragment extends StationFeedFragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         currentSource = HomePageSource.fromSavedState(savedInstanceState);
+        libraryRepository = LibraryRepository.getInstance(requireContext());
         headerAdapter = new HomePageHeaderAdapter(new HomePageHeaderAdapter.Listener() {
             @Override
             public void onSourceClicked(@NonNull View anchorView) {
@@ -79,7 +80,7 @@ public class HomePageFragment extends StationFeedFragment {
                 UiDimensions.px(requireContext(), R.dimen.top_content_gap)
         );
         homepageRecyclerView.post(this::updateHeaderStateInset);
-        favoriteStationsStore.addListener(favoriteStationsListener);
+        libraryRepository.addFavoritesListener(favoritesListener);
 
         view.post(this::loadHomepageStations);
     }
@@ -92,7 +93,7 @@ public class HomePageFragment extends StationFeedFragment {
 
     @Override
     public void onDestroyView() {
-        favoriteStationsStore.removeListener(favoriteStationsListener);
+        libraryRepository.removeFavoritesListener(favoritesListener);
         dismissSourcePopup();
         if (homepageRecyclerView != null) {
             detachShellContentPadding(homepageRecyclerView);
@@ -106,9 +107,10 @@ public class HomePageFragment extends StationFeedFragment {
 
     private void loadHomepageStations() {
         if (currentSource == HomePageSource.FAVORITES) {
-            displayStations(
-                    favoriteStationsStore.getFavorites(),
-                    R.string.station_list_empty_favorites
+            loadStations(
+                    (repository, callback) -> libraryRepository.loadFavoriteStations(callback),
+                    R.string.station_list_empty_favorites,
+                    R.string.station_list_error
             );
             return;
         }
@@ -232,8 +234,11 @@ public class HomePageFragment extends StationFeedFragment {
             if (!isAdded() || currentSource != HomePageSource.FAVORITES) {
                 return;
             }
+            if (!libraryRepository.hasLoadedFavorites()) {
+                return;
+            }
             displayStations(
-                    favoriteStationsStore.getFavorites(),
+                    libraryRepository.getFavoriteStationsSnapshot(),
                     R.string.station_list_empty_favorites
             );
         });
