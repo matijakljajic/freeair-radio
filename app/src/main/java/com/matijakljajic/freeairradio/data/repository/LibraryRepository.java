@@ -100,12 +100,7 @@ public final class LibraryRepository {
     public void loadFavoriteStations(@NonNull StationRepository.LoadCallback callback) {
         ioExecutor.execute(() -> {
             try {
-                List<Station> favorites = loadFavoriteStationsFromDatabase();
-                boolean changed = replaceFavoriteCache(favorites);
-                favoritesLoaded = true;
-                if (changed) {
-                    notifyFavoritesListeners();
-                }
+                List<Station> favorites = refreshFavoriteStationsFromDatabase(true);
                 postStationsLoaded(callback, favorites);
             } catch (Throwable throwable) {
                 Log.w(TAG, "Could not load favorite stations", throwable);
@@ -140,25 +135,15 @@ public final class LibraryRepository {
     }
 
     public void setFavorite(@NonNull Station station, boolean favorite) {
-        boolean changed = updateFavoriteCache(station, favorite);
+        boolean changed = applyOptimisticFavoriteChange(station, favorite);
         if (changed) {
             notifyFavoritesListeners();
         }
 
         ioExecutor.execute(() -> {
             try {
-                if (favorite) {
-                    upsertFavoriteStation(station);
-                } else {
-                    favoriteStationDao.deleteById(station.getId());
-                }
-
-                List<Station> refreshedFavorites = loadFavoriteStationsFromDatabase();
-                boolean refreshedChanged = replaceFavoriteCache(refreshedFavorites);
-                favoritesLoaded = true;
-                if (refreshedChanged) {
-                    notifyFavoritesListeners();
-                }
+                persistFavoriteState(station, favorite);
+                refreshFavoriteStationsFromDatabase(true);
             } catch (Throwable throwable) {
                 Log.w(TAG, "Could not update favorite station state", throwable);
                 refreshFavoriteStationsAsync();
@@ -170,27 +155,9 @@ public final class LibraryRepository {
         ioExecutor.execute(() -> {
             try {
                 long now = System.currentTimeMillis();
-                LocalStationEntity existingEntity = localStationDao.findById(station.getId());
-                localStationDao.upsert(StationMapper.toLocalStationEntity(
-                        station,
-                        existingEntity,
-                        now
-                ));
-                FavoriteStationEntity favoriteEntity = favoriteStationDao.findById(station.getId());
-                if (favoriteEntity != null) {
-                    favoriteStationDao.upsert(StationMapper.toFavoriteStationEntity(
-                            station,
-                            favoriteEntity,
-                            favoriteEntity.displayOrder,
-                            now
-                    ));
-                }
-                List<Station> refreshedFavorites = loadFavoriteStationsFromDatabase();
-                boolean favoritesChanged = replaceFavoriteCache(refreshedFavorites);
-                favoritesLoaded = true;
-                if (favoritesChanged) {
-                    notifyFavoritesListeners();
-                }
+                persistLocalStation(station, now);
+                updateFavoriteSnapshotForLocalStation(station, now);
+                refreshFavoriteStationsFromDatabase(true);
                 postWriteSuccess(callback);
             } catch (Throwable throwable) {
                 Log.w(TAG, "Could not save local station", throwable);
@@ -202,15 +169,8 @@ public final class LibraryRepository {
     public void deleteLocalStation(@NonNull String stationId, @Nullable WriteCallback callback) {
         ioExecutor.execute(() -> {
             try {
-                localStationDao.deleteById(stationId);
-                favoriteStationDao.deleteById(stationId);
-                recentlyPlayedDao.deleteById(stationId);
-                List<Station> refreshedFavorites = loadFavoriteStationsFromDatabase();
-                boolean favoritesChanged = replaceFavoriteCache(refreshedFavorites);
-                favoritesLoaded = true;
-                if (favoritesChanged) {
-                    notifyFavoritesListeners();
-                }
+                deleteLocalStationFromTables(stationId);
+                refreshFavoriteStationsFromDatabase(true);
                 postWriteSuccess(callback);
             } catch (Throwable throwable) {
                 Log.w(TAG, "Could not delete local station", throwable);
@@ -223,8 +183,7 @@ public final class LibraryRepository {
         ioExecutor.execute(() -> {
             try {
                 favoriteStationDao.clearAll();
-                boolean favoritesChanged = replaceFavoriteCache(new ArrayList<>());
-                favoritesLoaded = true;
+                boolean favoritesChanged = applyFavoriteStations(new ArrayList<>());
                 if (favoritesChanged) {
                     notifyFavoritesListeners();
                 }
@@ -241,21 +200,8 @@ public final class LibraryRepository {
         List<Station> reorderedFavorites = new ArrayList<>(orderedStations);
         ioExecutor.execute(() -> {
             try {
-                long updatedAt = System.currentTimeMillis();
-                for (int index = 0; index < reorderedFavorites.size(); index++) {
-                    favoriteStationDao.updateOrder(
-                            reorderedFavorites.get(index).getId(),
-                            index,
-                            updatedAt
-                    );
-                }
-
-                List<Station> refreshedFavorites = loadFavoriteStationsFromDatabase();
-                boolean favoritesChanged = replaceFavoriteCache(refreshedFavorites);
-                favoritesLoaded = true;
-                if (favoritesChanged) {
-                    notifyFavoritesListeners();
-                }
+                persistFavoriteOrder(reorderedFavorites);
+                refreshFavoriteStationsFromDatabase(true);
                 postWriteSuccess(callback);
             } catch (Throwable throwable) {
                 Log.w(TAG, "Could not reorder favorite stations", throwable);
@@ -315,12 +261,7 @@ public final class LibraryRepository {
     private void refreshFavoriteStationsAsync() {
         ioExecutor.execute(() -> {
             try {
-                List<Station> favorites = loadFavoriteStationsFromDatabase();
-                boolean changed = replaceFavoriteCache(favorites);
-                favoritesLoaded = true;
-                if (changed) {
-                    notifyFavoritesListeners();
-                }
+                refreshFavoriteStationsFromDatabase(true);
             } catch (Throwable throwable) {
                 Log.w(TAG, "Could not refresh favorite stations", throwable);
             }
@@ -328,8 +269,26 @@ public final class LibraryRepository {
     }
 
     @NonNull
+    private List<Station> refreshFavoriteStationsFromDatabase(boolean notifyListeners) {
+        List<Station> favoriteStations = loadFavoriteStationsFromDatabase();
+        boolean changed = applyFavoriteStations(favoriteStations);
+        if (notifyListeners && changed) {
+            notifyFavoritesListeners();
+        }
+        return favoriteStations;
+    }
+
+    @NonNull
     private List<Station> loadFavoriteStationsFromDatabase() {
         return StationMapper.toFavoriteStations(favoriteStationDao.getAll());
+    }
+
+    private void persistFavoriteState(@NonNull Station station, boolean favorite) {
+        if (favorite) {
+            upsertFavoriteStation(station);
+            return;
+        }
+        favoriteStationDao.deleteById(station.getId());
     }
 
     private void upsertFavoriteStation(@NonNull Station station) {
@@ -344,6 +303,47 @@ public final class LibraryRepository {
                 displayOrder,
                 now
         ));
+    }
+
+    private void persistLocalStation(@NonNull Station station, long now) {
+        LocalStationEntity existingEntity = localStationDao.findById(station.getId());
+        localStationDao.upsert(StationMapper.toLocalStationEntity(station, existingEntity, now));
+    }
+
+    private void updateFavoriteSnapshotForLocalStation(@NonNull Station station, long now) {
+        FavoriteStationEntity favoriteEntity = favoriteStationDao.findById(station.getId());
+        if (favoriteEntity == null) {
+            return;
+        }
+
+        favoriteStationDao.upsert(StationMapper.toFavoriteStationEntity(
+                station,
+                favoriteEntity,
+                favoriteEntity.displayOrder,
+                now
+        ));
+    }
+
+    private void deleteLocalStationFromTables(@NonNull String stationId) {
+        localStationDao.deleteById(stationId);
+        favoriteStationDao.deleteById(stationId);
+        recentlyPlayedDao.deleteById(stationId);
+    }
+
+    private void persistFavoriteOrder(@NonNull List<Station> orderedStations) {
+        long updatedAt = System.currentTimeMillis();
+        for (int index = 0; index < orderedStations.size(); index++) {
+            favoriteStationDao.updateOrder(
+                    orderedStations.get(index).getId(),
+                    index,
+                    updatedAt
+            );
+        }
+    }
+
+    private boolean applyFavoriteStations(@NonNull List<Station> favoriteStations) {
+        favoritesLoaded = true;
+        return replaceFavoriteCache(favoriteStations);
     }
 
     private boolean replaceFavoriteCache(@NonNull List<Station> favoriteStations) {
@@ -361,7 +361,7 @@ public final class LibraryRepository {
         }
     }
 
-    private boolean updateFavoriteCache(@NonNull Station station, boolean favorite) {
+    private boolean applyOptimisticFavoriteChange(@NonNull Station station, boolean favorite) {
         synchronized (favoriteStationsCache) {
             if (favorite) {
                 Station existingStation = favoriteStationsCache.get(station.getId());

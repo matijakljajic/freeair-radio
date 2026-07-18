@@ -154,27 +154,25 @@ public final class StationMapper {
 
     @NonNull
     public static List<Station> toFavoriteStations(@NonNull List<FavoriteStationEntity> entities) {
-        List<Station> stations = new ArrayList<>(entities.size());
-        for (FavoriteStationEntity entity : entities) {
-            stations.add(toStation(entity));
-        }
-        return stations;
+        return toStations(entities, StationMapper::toStation);
     }
 
     @NonNull
     public static List<Station> toLocalStations(@NonNull List<LocalStationEntity> entities) {
-        List<Station> stations = new ArrayList<>(entities.size());
-        for (LocalStationEntity entity : entities) {
-            stations.add(toStation(entity));
-        }
-        return stations;
+        return toStations(entities, StationMapper::toStation);
     }
 
     @NonNull
     public static List<Station> toRecentlyPlayedStations(@NonNull List<RecentlyPlayedStationEntity> entities) {
+        return toStations(entities, StationMapper::toStation);
+    }
+
+    @NonNull
+    private static <T> List<Station> toStations(@NonNull List<T> entities,
+                                                @NonNull EntityStationMapper<T> mapper) {
         List<Station> stations = new ArrayList<>(entities.size());
-        for (RecentlyPlayedStationEntity entity : entities) {
-            stations.add(toStation(entity));
+        for (T entity : entities) {
+            stations.add(mapper.map(entity));
         }
         return stations;
     }
@@ -222,5 +220,10 @@ public final class StationMapper {
         return stationId.startsWith("LOCAL:")
                 ? StationOrigin.LOCAL_USER
                 : StationOrigin.RADIO_BROWSER;
+    }
+
+    private interface EntityStationMapper<T> {
+        @NonNull
+        Station map(@NonNull T entity);
     }
 }
