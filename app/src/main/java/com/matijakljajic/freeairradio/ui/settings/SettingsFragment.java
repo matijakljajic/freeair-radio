@@ -23,6 +23,7 @@ import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerDirectory;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerSettings;
 import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
+import com.matijakljajic.freeairradio.playback.AudioInterruptionSettings;
 import com.matijakljajic.freeairradio.ui.homepage.HomePageSource;
 import com.matijakljajic.freeairradio.ui.shell.ShellChromeAwareFragment;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
@@ -45,11 +46,15 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     @Nullable
     private HomePageSettings homePageSettings;
     @Nullable
+    private AudioInterruptionSettings audioInterruptionSettings;
+    @Nullable
     private RadioGroup serverSelectionGroup;
     @Nullable
     private RadioGroup themeSelectionGroup;
     @Nullable
     private RadioGroup homePageDefaultSelectionGroup;
+    @Nullable
+    private RadioGroup audioInterruptionSelectionGroup;
     @Nullable
     private TextView serverStatusText;
     @Nullable
@@ -76,6 +81,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         bindViews(view);
         bindResetDialogResults();
         bindThemeSection();
+        bindPlaybackSection();
         bindHomePageSection();
         bindServerSection();
         bindResetSection();
@@ -111,6 +117,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         libraryRepository = LibraryRepository.getInstance(requireContext());
         appThemeSettings = new AppThemeSettings(requireContext());
         homePageSettings = new HomePageSettings(requireContext());
+        audioInterruptionSettings = new AudioInterruptionSettings(requireContext());
     }
 
     private void bindViews(@NonNull View view) {
@@ -118,6 +125,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         serverSelectionGroup = view.findViewById(R.id.server_selection_group);
         themeSelectionGroup = view.findViewById(R.id.theme_selection_group);
         homePageDefaultSelectionGroup = view.findViewById(R.id.homepage_default_selection_group);
+        audioInterruptionSelectionGroup = view.findViewById(R.id.audio_interruption_selection_group);
         resetButton = view.findViewById(R.id.server_reset_button);
         clearFavoritesButton = view.findViewById(R.id.settings_clear_favorites_button);
         clearLocalStationsButton = view.findViewById(R.id.settings_clear_local_stations_button);
@@ -142,6 +150,9 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         if (homePageDefaultSelectionGroup != null) {
             homePageDefaultSelectionGroup.setOnCheckedChangeListener(null);
         }
+        if (audioInterruptionSelectionGroup != null) {
+            audioInterruptionSelectionGroup.setOnCheckedChangeListener(null);
+        }
         if (resetButton != null) {
             resetButton.setOnClickListener(null);
         }
@@ -161,9 +172,11 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         libraryRepository = null;
         appThemeSettings = null;
         homePageSettings = null;
+        audioInterruptionSettings = null;
         serverSelectionGroup = null;
         themeSelectionGroup = null;
         homePageDefaultSelectionGroup = null;
+        audioInterruptionSelectionGroup = null;
         serverStatusText = null;
         resetButton = null;
         clearFavoritesButton = null;
@@ -174,6 +187,10 @@ public class SettingsFragment extends ShellChromeAwareFragment {
 
     private void bindThemeSection() {
         bindThemeSelection();
+    }
+
+    private void bindPlaybackSection() {
+        bindAudioInterruptionSelection();
     }
 
     private void bindHomePageSection() {
@@ -224,6 +241,29 @@ public class SettingsFragment extends ShellChromeAwareFragment {
             }
 
             homePageSettings.setDefaultSource(source);
+        });
+    }
+
+    private void bindAudioInterruptionSelection() {
+        if (audioInterruptionSelectionGroup == null || audioInterruptionSettings == null) {
+            return;
+        }
+
+        audioInterruptionSelectionGroup.setOnCheckedChangeListener(null);
+        syncSelectedAudioInterruptionMode();
+        audioInterruptionSelectionGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            if (audioInterruptionSettings == null) {
+                return;
+            }
+
+            Boolean respectAudioInterruptions = respectAudioInterruptionsForCheckedId(checkedId);
+            if (respectAudioInterruptions == null
+                    || audioInterruptionSettings.shouldRespectAudioInterruptions()
+                    == respectAudioInterruptions) {
+                return;
+            }
+
+            audioInterruptionSettings.setRespectAudioInterruptions(respectAudioInterruptions);
         });
     }
 
@@ -289,6 +329,16 @@ public class SettingsFragment extends ShellChromeAwareFragment {
                 homePageDefaultSelectionGroup.check(R.id.homepage_default_selection_now_popular);
                 break;
         }
+    }
+
+    private void syncSelectedAudioInterruptionMode() {
+        if (audioInterruptionSelectionGroup == null || audioInterruptionSettings == null) {
+            return;
+        }
+
+        audioInterruptionSelectionGroup.check(audioInterruptionSettings.shouldRespectAudioInterruptions()
+                ? R.id.audio_interruption_selection_respect
+                : R.id.audio_interruption_selection_keep_playing);
     }
 
     private void loadServerChoices() {
@@ -527,6 +577,17 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         }
         if (checkedId == R.id.homepage_default_selection_local_stations) {
             return HomePageSource.LOCAL_STATIONS;
+        }
+        return null;
+    }
+
+    @Nullable
+    private Boolean respectAudioInterruptionsForCheckedId(int checkedId) {
+        if (checkedId == R.id.audio_interruption_selection_respect) {
+            return Boolean.TRUE;
+        }
+        if (checkedId == R.id.audio_interruption_selection_keep_playing) {
+            return Boolean.FALSE;
         }
         return null;
     }

@@ -6,11 +6,11 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.net.Uri;
-import android.os.Build;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -18,6 +18,8 @@ import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.ServiceCompat;
 import androidx.core.os.BundleCompat;
+import androidx.media3.common.AudioAttributes;
+import androidx.media3.common.C;
 import androidx.media3.common.ForwardingPlayer;
 import androidx.media3.common.HeartRating;
 import androidx.media3.common.MediaItem;
@@ -111,6 +113,8 @@ public class RadioPlaybackService extends MediaSessionService {
     private StationRepository stationRepository;
     @Nullable
     private LibraryRepository libraryRepository;
+    @Nullable
+    private AudioInterruptionSettings audioInterruptionSettings;
     @NonNull
     private final NowPlayingObserver nowPlayingObserver = new NowPlayingObserver(this::handleObservedNowPlayingChange);
     @NonNull
@@ -174,6 +178,12 @@ public class RadioPlaybackService extends MediaSessionService {
             };
     @NonNull
     private final AtomicInteger playSequence = new AtomicInteger();
+    @Nullable
+    private AudioFocusHandler audioFocusHandler;
+    @NonNull
+    private final HeadphoneUnplugReceiver headphoneUnplugReceiver =
+            new HeadphoneUnplugReceiver(this::handleAudioOutputBecameNoisy);
+    private boolean resumeAfterTemporaryFocusLoss;
     @NonNull
     private final Player.Listener playerListener = new Player.Listener() {
         @Override
@@ -229,10 +239,27 @@ public class RadioPlaybackService extends MediaSessionService {
     @Override
     public void onCreate() {
         super.onCreate();
+        audioFocusHandler = new AudioFocusHandler(this, new AudioFocusHandler.Listener() {
+            @Override
+            public void onAudioFocusGained() {
+                handleAudioFocusGained();
+            }
+
+            @Override
+            public void onAudioFocusLostTemporarily() {
+                handleTemporaryAudioFocusLoss();
+            }
+
+            @Override
+            public void onAudioFocusLostPermanently() {
+                handlePermanentAudioFocusLoss();
+            }
+        });
         createPlayerAndSession();
         configureMediaNotification();
         bindRepositories();
         createPlaybackNotificationChannel();
+        headphoneUnplugReceiver.register(this);
         currentPlaybackState.addListener(servicePlaybackStateListener);
     }
 
@@ -255,7 +282,13 @@ public class RadioPlaybackService extends MediaSessionService {
         if (player == null) {
             return;
         }
+        if (audioFocusHandler == null || !audioFocusHandler.requestFocus()) {
+            Log.w(TAG, "Audio focus denied for " + station.getName());
+            handleDeniedPlaybackStart();
+            return;
+        }
 
+        clearTemporaryFocusLossState();
         int sequence = beginPlaybackSequence();
         prepareStationPlayback(station);
         resolvePlaybackAsync(station, sequence);
@@ -266,8 +299,12 @@ public class RadioPlaybackService extends MediaSessionService {
             return;
         }
 
+        clearTemporaryFocusLossState();
         cancelCurrentPlayback();
         currentStation = null;
+        if (audioFocusHandler != null) {
+            audioFocusHandler.abandonFocus();
+        }
         stopForeground(STOP_FOREGROUND_REMOVE);
         currentPlaybackState.clear();
         stopSelf();
@@ -277,18 +314,30 @@ public class RadioPlaybackService extends MediaSessionService {
         if (player == null || currentStation == null) {
             return;
         }
+        if (audioFocusHandler == null || !audioFocusHandler.requestFocus()) {
+            Log.w(TAG, "Audio focus denied while resuming " + currentStation.getName());
+            return;
+        }
+
+        clearTemporaryFocusLossState();
         player.play();
     }
 
     @Override
     public void onDestroy() {
         currentPlaybackState.removeListener(servicePlaybackStateListener);
+        headphoneUnplugReceiver.unregister(this);
+        if (audioFocusHandler != null) {
+            audioFocusHandler.abandonFocus();
+            audioFocusHandler = null;
+        }
         if (player != null) {
             player.removeListener(playerListener);
             clearNowPlayingObservation(currentPlaybackGeneration);
         }
         currentPlaybackState.clear();
         stationRepository = null;
+        audioInterruptionSettings = null;
         if (libraryRepository != null) {
             libraryRepository.removeFavoritesListener(favoritesListener);
             libraryRepository = null;
@@ -303,6 +352,7 @@ public class RadioPlaybackService extends MediaSessionService {
         player = new ExoPlayer.Builder(this)
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(createDataSourceFactory()))
                 .build();
+        player.setAudioAttributes(buildPlayerAudioAttributes(), false);
         player.addListener(playerListener);
         sessionPlayer = new SessionPlayer(player);
         mediaSession = new MediaSession.Builder(this, sessionPlayer)
@@ -310,6 +360,14 @@ public class RadioPlaybackService extends MediaSessionService {
                 .setSessionActivity(buildContentIntent())
                 .build();
         addSession(mediaSession);
+    }
+
+    @NonNull
+    private AudioAttributes buildPlayerAudioAttributes() {
+        return new AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .build();
     }
 
     @NonNull
@@ -333,6 +391,7 @@ public class RadioPlaybackService extends MediaSessionService {
     private void bindRepositories() {
         stationRepository = new RadioBrowserRepository(getApplicationContext());
         libraryRepository = LibraryRepository.getInstance(getApplicationContext());
+        audioInterruptionSettings = new AudioInterruptionSettings(getApplicationContext());
         libraryRepository.addFavoritesListener(favoritesListener);
     }
 
@@ -405,6 +464,7 @@ public class RadioPlaybackService extends MediaSessionService {
         currentPlaybackGeneration = 0L;
         clearResolvedPlaybackState();
         reportedUsageGeneration = 0L;
+        clearTemporaryFocusLossState();
         stopAndClearPlayer();
     }
 
@@ -424,6 +484,90 @@ public class RadioPlaybackService extends MediaSessionService {
         }
         player.stop();
         player.clearMediaItems();
+    }
+
+    private void handleDeniedPlaybackStart() {
+        if (currentStation == null
+                && currentPlaybackState.getPlaybackStatus() == CurrentPlaybackState.PlaybackStatus.IDLE) {
+            stopSelf();
+        }
+    }
+
+    private void handleAudioFocusGained() {
+        if (!resumeAfterTemporaryFocusLoss || player == null || currentStation == null) {
+            resumeAfterTemporaryFocusLoss = false;
+            return;
+        }
+
+        resumeAfterTemporaryFocusLoss = false;
+        player.play();
+    }
+
+    private void handleTemporaryAudioFocusLoss() {
+        if (!shouldRespectAudioInterruptions()) {
+            return;
+        }
+        if (player == null || currentStation == null) {
+            resumeAfterTemporaryFocusLoss = false;
+            return;
+        }
+
+        resumeAfterTemporaryFocusLoss = shouldResumeAfterTemporaryFocusLoss();
+        if (!resumeAfterTemporaryFocusLoss) {
+            return;
+        }
+
+        player.pause();
+        currentPlaybackState.setPlaybackStatus(
+                currentStation,
+                CurrentPlaybackState.PlaybackStatus.PAUSED
+        );
+    }
+
+    private void handlePermanentAudioFocusLoss() {
+        if (!shouldRespectAudioInterruptions()) {
+            return;
+        }
+        if (!hasInterruptiblePlayback()) {
+            return;
+        }
+
+        Log.d(TAG, "Stopping playback after permanent audio focus loss");
+        stop();
+    }
+
+    private void handleAudioOutputBecameNoisy() {
+        if (!hasInterruptiblePlayback()) {
+            return;
+        }
+
+        Log.d(TAG, "Stopping playback because audio output became noisy");
+        stop();
+    }
+
+    private boolean shouldResumeAfterTemporaryFocusLoss() {
+        return currentPlaybackState.getPlaybackStatus() == CurrentPlaybackState.PlaybackStatus.CONNECTING
+                || currentPlaybackState.getPlaybackStatus() == CurrentPlaybackState.PlaybackStatus.PLAYING;
+    }
+
+    private boolean hasInterruptiblePlayback() {
+        if (currentStation == null) {
+            return false;
+        }
+
+        CurrentPlaybackState.PlaybackStatus playbackStatus = currentPlaybackState.getPlaybackStatus();
+        return playbackStatus == CurrentPlaybackState.PlaybackStatus.CONNECTING
+                || playbackStatus == CurrentPlaybackState.PlaybackStatus.PLAYING
+                || resumeAfterTemporaryFocusLoss;
+    }
+
+    private void clearTemporaryFocusLossState() {
+        resumeAfterTemporaryFocusLoss = false;
+    }
+
+    private boolean shouldRespectAudioInterruptions() {
+        return audioInterruptionSettings == null
+                || audioInterruptionSettings.shouldRespectAudioInterruptions();
     }
 
     private void setConnectingMediaPlaceholder(@NonNull Station station) {
