@@ -22,20 +22,25 @@ public final class NowPlaying {
     static NowPlaying fromMetadata(@Nullable String stationName,
                                    @Nullable String artist,
                                    @Nullable String title) {
-        String normalizedArtist = normalizeValue(artist);
-        ParsedTrack parsedTrack = parseTrackTitle(title);
-        if (normalizedArtist == null && parsedTrack != null) {
-            normalizedArtist = parsedTrack.artist;
-        }
-        String normalizedTitle = parsedTrack != null
-                ? parsedTrack.title
-                : normalizeValue(title);
-
-        NowPlaying nowPlaying = new NowPlaying(normalizedArtist, normalizedTitle);
+        ParsedTrack parsedTrack = buildParsedTrack(artist, title);
+        NowPlaying nowPlaying = new NowPlaying(parsedTrack.artist, parsedTrack.title);
         if (!nowPlaying.hasTrackInfo() || nowPlaying.matchesStationNameOnly(stationName)) {
             return null;
         }
         return nowPlaying;
+    }
+
+    @NonNull
+    private static ParsedTrack buildParsedTrack(@Nullable String artist, @Nullable String title) {
+        String normalizedArtist = normalizeValue(artist);
+        ParsedTrack parsedTrack = parseTrackTitle(title);
+        if (parsedTrack == null) {
+            return new ParsedTrack(normalizedArtist, normalizeValue(title));
+        }
+        return new ParsedTrack(
+                normalizedArtist != null ? normalizedArtist : parsedTrack.artist,
+                parsedTrack.title
+        );
     }
 
     @Nullable
@@ -50,10 +55,10 @@ public final class NowPlaying {
 
     @Nullable
     public String buildDisplayText() {
-        if (title != null) {
-            return artist == null ? title : artist + " - " + title;
+        if (title == null) {
+            return artist;
         }
-        return artist;
+        return artist == null ? title : artist + " - " + title;
     }
 
     boolean hasTrackInfo() {
@@ -75,25 +80,34 @@ public final class NowPlaying {
 
         String[] separators = {" - ", " – ", " — "};
         for (String separator : separators) {
-            int firstSeparator = normalizedTitle.indexOf(separator);
-            if (firstSeparator <= 0) {
-                continue;
+            ParsedTrack parsedTrack = parseTrackTitleWithSeparator(normalizedTitle, separator);
+            if (parsedTrack != null) {
+                return parsedTrack;
             }
-            int secondSeparator = normalizedTitle.indexOf(separator, firstSeparator + separator.length());
-            if (secondSeparator >= 0) {
-                continue;
-            }
-
-            String left = normalizeValue(normalizedTitle.substring(0, firstSeparator));
-            String right = normalizeValue(normalizedTitle.substring(firstSeparator + separator.length()));
-            if (left == null || right == null) {
-                continue;
-            }
-
-            return new ParsedTrack(left, right);
         }
 
         return new ParsedTrack(null, normalizedTitle);
+    }
+
+    @Nullable
+    private static ParsedTrack parseTrackTitleWithSeparator(@NonNull String normalizedTitle,
+                                                            @NonNull String separator) {
+        int firstSeparator = normalizedTitle.indexOf(separator);
+        if (firstSeparator <= 0) {
+            return null;
+        }
+
+        int secondSeparator = normalizedTitle.indexOf(separator, firstSeparator + separator.length());
+        if (secondSeparator >= 0) {
+            return null;
+        }
+
+        String left = normalizeValue(normalizedTitle.substring(0, firstSeparator));
+        String right = normalizeValue(normalizedTitle.substring(firstSeparator + separator.length()));
+        if (left == null || right == null) {
+            return null;
+        }
+        return new ParsedTrack(left, right);
     }
 
     @Nullable
