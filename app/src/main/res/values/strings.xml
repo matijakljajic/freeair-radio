@@ -60,6 +60,10 @@
     <string name="settings_theme_auto">Automatic</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
+    <string name="settings_audio_interruption_section_title">Audio interruptions</string>
+    <string name="settings_audio_interruption_section_summary">Choose what happens when another app starts playing audio while the radio is already playing.</string>
+    <string name="settings_audio_interruption_respect">Pause radio for other app audio</string>
+    <string name="settings_audio_interruption_keep_playing">Keep radio playing over other app audio</string>
     <string name="settings_homepage_default_section_title">Homepage default</string>
     <string name="settings_homepage_default_section_summary">Choose which list opens first on the homepage.</string>
     <string name="settings_reset_section_title">Reset stored lists</string>
