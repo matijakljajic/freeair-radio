@@ -21,6 +21,7 @@ public final class StationMapper {
     @NonNull
     public static FavoriteStationEntity toFavoriteStationEntity(@NonNull Station station,
                                                                 @Nullable FavoriteStationEntity existingEntity,
+                                                                long displayOrder,
                                                                 long now) {
         long addedAt = existingEntity != null ? existingEntity.addedAt : now;
         return new FavoriteStationEntity(
@@ -38,6 +39,7 @@ public final class StationMapper {
                 station.getBitrate(),
                 station.getHls(),
                 station.getOrigin().name(),
+                displayOrder,
                 addedAt,
                 now
         );

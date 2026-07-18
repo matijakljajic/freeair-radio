@@ -15,7 +15,7 @@ import java.util.List;
 public interface FavoriteStationDao {
 
     @NonNull
-    @Query("SELECT * FROM favorite_stations ORDER BY added_at ASC")
+    @Query("SELECT * FROM favorite_stations ORDER BY display_order ASC, added_at ASC")
     List<FavoriteStationEntity> getAll();
 
     @Nullable
@@ -27,6 +27,12 @@ public interface FavoriteStationDao {
 
     @Query("DELETE FROM favorite_stations WHERE id = :stationId")
     void deleteById(@NonNull String stationId);
+
+    @Query("SELECT COALESCE(MAX(display_order), -1) + 1 FROM favorite_stations")
+    long getNextDisplayOrder();
+
+    @Query("UPDATE favorite_stations SET display_order = :displayOrder, updated_at = :updatedAt WHERE id = :stationId")
+    void updateOrder(@NonNull String stationId, long displayOrder, long updatedAt);
 
     @Query("DELETE FROM favorite_stations")
     void clearAll();

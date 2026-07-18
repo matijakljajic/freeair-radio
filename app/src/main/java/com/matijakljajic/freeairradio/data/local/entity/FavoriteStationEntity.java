@@ -40,6 +40,8 @@ public class FavoriteStationEntity {
     public final Boolean hls;
     @NonNull
     public final String origin;
+    @ColumnInfo(name = "display_order")
+    public final long displayOrder;
     @ColumnInfo(name = "added_at")
     public final long addedAt;
     @ColumnInfo(name = "updated_at")
@@ -59,6 +61,7 @@ public class FavoriteStationEntity {
                                  int bitrate,
                                  @Nullable Boolean hls,
                                  @NonNull String origin,
+                                 long displayOrder,
                                  long addedAt,
                                  long updatedAt) {
         this.id = id;
@@ -75,6 +78,7 @@ public class FavoriteStationEntity {
         this.bitrate = bitrate;
         this.hls = hls;
         this.origin = origin;
+        this.displayOrder = displayOrder;
         this.addedAt = addedAt;
         this.updatedAt = updatedAt;
     }

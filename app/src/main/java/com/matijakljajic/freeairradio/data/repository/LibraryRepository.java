@@ -178,7 +178,12 @@ public final class LibraryRepository {
                 ));
                 FavoriteStationEntity favoriteEntity = favoriteStationDao.findById(station.getId());
                 if (favoriteEntity != null) {
-                    favoriteStationDao.upsert(StationMapper.toFavoriteStationEntity(station, favoriteEntity, now));
+                    favoriteStationDao.upsert(StationMapper.toFavoriteStationEntity(
+                            station,
+                            favoriteEntity,
+                            favoriteEntity.displayOrder,
+                            now
+                    ));
                 }
                 List<Station> refreshedFavorites = loadFavoriteStationsFromDatabase();
                 boolean favoritesChanged = replaceFavoriteCache(refreshedFavorites);
@@ -226,6 +231,35 @@ public final class LibraryRepository {
                 postWriteSuccess(callback);
             } catch (Throwable throwable) {
                 Log.w(TAG, "Could not clear favorite stations", throwable);
+                postWriteError(callback, throwable);
+            }
+        });
+    }
+
+    public void reorderFavoriteStations(@NonNull List<Station> orderedStations,
+                                        @Nullable WriteCallback callback) {
+        List<Station> reorderedFavorites = new ArrayList<>(orderedStations);
+        ioExecutor.execute(() -> {
+            try {
+                long updatedAt = System.currentTimeMillis();
+                for (int index = 0; index < reorderedFavorites.size(); index++) {
+                    favoriteStationDao.updateOrder(
+                            reorderedFavorites.get(index).getId(),
+                            index,
+                            updatedAt
+                    );
+                }
+
+                List<Station> refreshedFavorites = loadFavoriteStationsFromDatabase();
+                boolean favoritesChanged = replaceFavoriteCache(refreshedFavorites);
+                favoritesLoaded = true;
+                if (favoritesChanged) {
+                    notifyFavoritesListeners();
+                }
+                postWriteSuccess(callback);
+            } catch (Throwable throwable) {
+                Log.w(TAG, "Could not reorder favorite stations", throwable);
+                refreshFavoriteStationsAsync();
                 postWriteError(callback, throwable);
             }
         });
@@ -301,7 +335,15 @@ public final class LibraryRepository {
     private void upsertFavoriteStation(@NonNull Station station) {
         long now = System.currentTimeMillis();
         FavoriteStationEntity existingEntity = favoriteStationDao.findById(station.getId());
-        favoriteStationDao.upsert(StationMapper.toFavoriteStationEntity(station, existingEntity, now));
+        long displayOrder = existingEntity != null
+                ? existingEntity.displayOrder
+                : favoriteStationDao.getNextDisplayOrder();
+        favoriteStationDao.upsert(StationMapper.toFavoriteStationEntity(
+                station,
+                existingEntity,
+                displayOrder,
+                now
+        ));
     }
 
     private boolean replaceFavoriteCache(@NonNull List<Station> favoriteStations) {

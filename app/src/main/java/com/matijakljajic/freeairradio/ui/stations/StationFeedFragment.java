@@ -74,7 +74,7 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
         retryButton.setOnClickListener(v -> retryAction.run());
 
         if (recyclerView != null) {
-            stationAdapter = new StationAdapter(this);
+            stationAdapter = new StationAdapter(this, createStationDragHandleListener());
             recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
             recyclerView.setAdapter(createRecyclerAdapter(stationAdapter));
             if (recyclerView.getItemAnimator() instanceof SimpleItemAnimator) {
@@ -188,6 +188,11 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
     @NonNull
     protected RecyclerView.Adapter<?> createRecyclerAdapter(@NonNull StationAdapter stationAdapter) {
         return stationAdapter;
+    }
+
+    @Nullable
+    protected StationAdapter.DragHandleListener createStationDragHandleListener() {
+        return null;
     }
 
     protected boolean keepsRecyclerVisibleDuringStateViews() {

@@ -20,6 +20,7 @@
     <string name="station_list_empty_local_stations">No local stations yet.</string>
     <string name="station_list_error">Could not load stations.</string>
     <string name="station_list_retry">Retry</string>
+    <string name="favorite_reorder_failed">Could not reorder favorites.</string>
     <string name="local_station_add_title">Add local station</string>
     <string name="local_station_edit_title">Edit local station</string>
     <string name="local_station_save">Save</string>

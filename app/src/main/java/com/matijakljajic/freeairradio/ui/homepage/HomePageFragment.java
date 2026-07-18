@@ -12,6 +12,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.ConcatAdapter;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.matijakljajic.freeairradio.R;
@@ -25,6 +26,8 @@ import com.matijakljajic.freeairradio.ui.stations.StationFeedFragment;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
 import java.util.List;
+
+import android.widget.Toast;
 
 @SuppressWarnings("unused")
 public class HomePageFragment extends StationFeedFragment {
@@ -44,6 +47,12 @@ public class HomePageFragment extends StationFeedFragment {
     private PopupWindow sourcePopupWindow;
     @Nullable
     private HomePageHeaderAdapter headerAdapter;
+    @Nullable
+    private ItemTouchHelper favoritesReorderTouchHelper;
+    private boolean favoriteOrderDirty;
+    private boolean favoriteOrderPersisting;
+    @Nullable
+    private List<Station> pendingFavoriteOrder;
     @NonNull
     private HomePageSource currentSource = HomePageSource.NOW_POPULAR;
 
@@ -91,6 +100,7 @@ public class HomePageFragment extends StationFeedFragment {
                 homepageRecyclerView,
                 UiDimensions.px(requireContext(), R.dimen.top_content_gap)
         );
+        bindFavoritesReorder();
         homepageRecyclerView.post(this::updateHeaderStateInset);
         libraryRepository.addFavoritesListener(favoritesListener);
 
@@ -110,7 +120,13 @@ public class HomePageFragment extends StationFeedFragment {
         if (homepageRecyclerView != null) {
             detachShellContentPadding(homepageRecyclerView);
         }
+        if (favoritesReorderTouchHelper != null && homepageRecyclerView != null) {
+            favoritesReorderTouchHelper.attachToRecyclerView(null);
+        }
         homepageRecyclerView = null;
+        favoritesReorderTouchHelper = null;
+        favoriteOrderDirty = false;
+        clearFavoriteReorderState();
         headerAdapter = null;
         setStateContainerTopInsetPx(0);
         clearStationFeed();
@@ -120,6 +136,13 @@ public class HomePageFragment extends StationFeedFragment {
     private void loadHomepageStations() {
         switch (currentSource) {
             case FAVORITES:
+                if (pendingFavoriteOrder != null) {
+                    displayStations(
+                            pendingFavoriteOrder,
+                            R.string.station_list_empty_favorites
+                    );
+                    return;
+                }
                 loadStations(
                         (repository, callback) -> libraryRepository.loadFavoriteStations(callback),
                         R.string.station_list_empty_favorites,
@@ -221,6 +244,9 @@ public class HomePageFragment extends StationFeedFragment {
             return;
         }
 
+        if (source != HomePageSource.FAVORITES && getStationAdapter().isDragReordering()) {
+            getStationAdapter().clearDragReorderPreview();
+        }
         currentSource = source;
         if (headerAdapter != null) {
             headerAdapter.setTitleResId(source.getTitleResId());
@@ -276,6 +302,9 @@ public class HomePageFragment extends StationFeedFragment {
             if (!libraryRepository.hasLoadedFavorites()) {
                 return;
             }
+            if (favoriteOrderPersisting) {
+                return;
+            }
             displayStations(
                     libraryRepository.getFavoriteStationsSnapshot(),
                     R.string.station_list_empty_favorites
@@ -323,6 +352,19 @@ public class HomePageFragment extends StationFeedFragment {
         return new ConcatAdapter(headerAdapter, stationAdapter);
     }
 
+    @Nullable
+    @Override
+    protected StationAdapter.DragHandleListener createStationDragHandleListener() {
+        return (station, viewHolder) -> {
+            if (currentSource != HomePageSource.FAVORITES || favoritesReorderTouchHelper == null) {
+                return false;
+            }
+            getStationAdapter().beginDragReorder();
+            favoritesReorderTouchHelper.startDrag(viewHolder);
+            return true;
+        };
+    }
+
     @Override
     protected boolean keepsRecyclerVisibleDuringStateViews() {
         return true;
@@ -331,6 +373,102 @@ public class HomePageFragment extends StationFeedFragment {
     @Override
     protected boolean shouldCrossfadeStationListUpdates() {
         return false;
+    }
+
+    private void bindFavoritesReorder() {
+        if (homepageRecyclerView == null) {
+            return;
+        }
+
+        favoritesReorderTouchHelper = new ItemTouchHelper(new ItemTouchHelper.Callback() {
+            @Override
+            public int getMovementFlags(@NonNull RecyclerView recyclerView,
+                                        @NonNull RecyclerView.ViewHolder viewHolder) {
+                if (currentSource != HomePageSource.FAVORITES
+                        || !(viewHolder instanceof StationAdapter.StationViewHolder)) {
+                    return 0;
+                }
+                return makeMovementFlags(ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0);
+            }
+
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView,
+                                  @NonNull RecyclerView.ViewHolder viewHolder,
+                                  @NonNull RecyclerView.ViewHolder target) {
+                if (!(target instanceof StationAdapter.StationViewHolder)) {
+                    return false;
+                }
+
+                int fromPosition = viewHolder.getBindingAdapterPosition();
+                int toPosition = target.getBindingAdapterPosition();
+                if (fromPosition == RecyclerView.NO_POSITION || toPosition == RecyclerView.NO_POSITION) {
+                    return false;
+                }
+
+                getStationAdapter().moveDraggedStation(fromPosition, toPosition);
+                favoriteOrderDirty = true;
+                return true;
+            }
+
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+            }
+
+            @Override
+            public boolean isLongPressDragEnabled() {
+                return false;
+            }
+
+            @Override
+            public void clearView(@NonNull RecyclerView recyclerView,
+                                  @NonNull RecyclerView.ViewHolder viewHolder) {
+                super.clearView(recyclerView, viewHolder);
+                if (!favoriteOrderDirty || currentSource != HomePageSource.FAVORITES) {
+                    return;
+                }
+
+                favoriteOrderDirty = false;
+                persistFavoriteOrder();
+            }
+        });
+        favoritesReorderTouchHelper.attachToRecyclerView(homepageRecyclerView);
+    }
+
+    private void persistFavoriteOrder() {
+        List<Station> orderedFavorites = getStationAdapter().getDragReorderSnapshot();
+        favoriteOrderPersisting = true;
+        pendingFavoriteOrder = orderedFavorites;
+        libraryRepository.reorderFavoriteStations(
+                orderedFavorites,
+                new LibraryRepository.WriteCallback() {
+                    @Override
+                    public void onSuccess() {
+                        clearFavoriteReorderState();
+                        if (getView() == null) {
+                            return;
+                        }
+                        getStationAdapter().completeDragReorder(orderedFavorites);
+                    }
+
+                    @Override
+                    public void onError(@NonNull Throwable throwable) {
+                        clearFavoriteReorderState();
+                        if (getView() != null) {
+                            getStationAdapter().clearDragReorderPreview();
+                        }
+                        if (!isAdded()) {
+                            return;
+                        }
+                        Toast.makeText(requireContext(), R.string.favorite_reorder_failed, Toast.LENGTH_SHORT).show();
+                        loadHomepageStations();
+                    }
+                }
+        );
+    }
+
+    private void clearFavoriteReorderState() {
+        favoriteOrderPersisting = false;
+        pendingFavoriteOrder = null;
     }
 
     private void updateHeaderStateInset() {
