@@ -73,17 +73,15 @@ public final class NowPlayingObserver implements Player.Listener {
 
     @Override
     public void onMetadata(@NonNull Metadata metadata) {
-        long generationSnapshot = playbackGeneration;
-        NowPlaying nowPlaying = parseMetadata(metadata);
-        if (nowPlaying != null) {
-            emitIfChanged(nowPlaying, generationSnapshot);
-        }
+        emitParsedNowPlaying(parseNowPlaying(metadata), playbackGeneration);
     }
 
     @Override
     public void onMediaMetadataChanged(@NonNull MediaMetadata mediaMetadata) {
-        long generationSnapshot = playbackGeneration;
-        NowPlaying nowPlaying = parseMediaMetadata(mediaMetadata);
+        emitParsedNowPlaying(parseNowPlaying(mediaMetadata), playbackGeneration);
+    }
+
+    private void emitParsedNowPlaying(@Nullable NowPlaying nowPlaying, long generationSnapshot) {
         if (nowPlaying != null) {
             emitIfChanged(nowPlaying, generationSnapshot);
         }
@@ -103,39 +101,26 @@ public final class NowPlayingObserver implements Player.Listener {
     }
 
     @Nullable
-    private NowPlaying parseMetadata(@NonNull Metadata metadata) {
+    private NowPlaying parseNowPlaying(@NonNull Metadata metadata) {
         if (station == null) {
             return null;
         }
 
-        String icyTitle = null;
-        String artist = null;
-        String title = null;
+        ParsedMetadata parsedMetadata = new ParsedMetadata();
 
         for (int i = 0; i < metadata.length(); i++) {
-            Metadata.Entry entry = metadata.get(i);
-            if (entry instanceof IcyInfo) {
-                IcyInfo icyInfo = (IcyInfo) entry;
-                icyTitle = normalizeNullable(icyInfo.title);
-            } else if (entry instanceof TextInformationFrame) {
-                TextInformationFrame frame = (TextInformationFrame) entry;
-                String frameValue = getFirstFrameValue(frame);
-                if (frameValue == null) {
-                    continue;
-                }
-                if (isArtistFrame(frame.id)) {
-                    artist = pickFirst(artist, frameValue);
-                } else if (isTitleFrame(frame.id)) {
-                    title = pickFirst(title, frameValue);
-                }
-            }
+            consumeMetadataEntry(metadata.get(i), parsedMetadata);
         }
 
-        return NowPlaying.fromMetadata(station.getName(), artist, pickFirst(icyTitle, title));
+        return NowPlaying.fromMetadata(
+                station.getName(),
+                parsedMetadata.artist,
+                firstNonNull(parsedMetadata.icyTitle, parsedMetadata.title)
+        );
     }
 
     @Nullable
-    private NowPlaying parseMediaMetadata(@NonNull MediaMetadata mediaMetadata) {
+    private NowPlaying parseNowPlaying(@NonNull MediaMetadata mediaMetadata) {
         if (station == null) {
             return null;
         }
@@ -147,6 +132,30 @@ public final class NowPlayingObserver implements Player.Listener {
         );
     }
 
+    private static void consumeMetadataEntry(@NonNull Metadata.Entry entry,
+                                             @NonNull ParsedMetadata parsedMetadata) {
+        if (entry instanceof IcyInfo) {
+            parsedMetadata.icyTitle = normalizeNullable(((IcyInfo) entry).title);
+            return;
+        }
+
+        if (!(entry instanceof TextInformationFrame)) {
+            return;
+        }
+
+        TextInformationFrame frame = (TextInformationFrame) entry;
+        String frameValue = getFirstFrameValue(frame);
+        if (frameValue == null) {
+            return;
+        }
+
+        if (isArtistFrame(frame.id)) {
+            parsedMetadata.artist = firstNonNull(parsedMetadata.artist, frameValue);
+        } else if (isTitleFrame(frame.id)) {
+            parsedMetadata.title = firstNonNull(parsedMetadata.title, frameValue);
+        }
+    }
+
     @Nullable
     private static String getFirstFrameValue(@NonNull TextInformationFrame frame) {
         if (frame.values.isEmpty()) {
@@ -156,7 +165,7 @@ public final class NowPlayingObserver implements Player.Listener {
     }
 
     @Nullable
-    private static String pickFirst(@Nullable String first, @Nullable String second) {
+    private static String firstNonNull(@Nullable String first, @Nullable String second) {
         return first != null ? first : second;
     }
 
@@ -184,5 +193,14 @@ public final class NowPlayingObserver implements Player.Listener {
 
     private static boolean isTitleFrame(@NonNull String id) {
         return "TIT2".equals(id.toUpperCase(Locale.ROOT));
+    }
+
+    private static final class ParsedMetadata {
+        @Nullable
+        private String icyTitle;
+        @Nullable
+        private String artist;
+        @Nullable
+        private String title;
     }
 }

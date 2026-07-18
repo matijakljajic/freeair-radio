@@ -206,16 +206,7 @@ public final class StreamResolutionEngine {
             return new ResolutionResult(originalUrl, null, new ArrayList<>(), new ArrayList<>(), ResolutionStatus.FAILURE, "INVALID_URL");
         }
 
-        Queue<ProbeState> queue = new ArrayDeque<>();
-        for (String seedUrl : seedUrls) {
-            for (String candidateSeedUrl : buildCandidates(seedUrl)) {
-                String normalizedSeedUrl = normalizeCandidateUrl(candidateSeedUrl);
-                if (normalizedSeedUrl != null) {
-                    queue.add(new ProbeState(normalizedSeedUrl, new ArrayList<>(), 0));
-                }
-            }
-        }
-
+        Queue<ProbeState> queue = createInitialProbeQueue(seedUrls);
         Set<String> visited = new LinkedHashSet<>();
         Map<String, CandidateTrace> tracesByUrl = new LinkedHashMap<>();
         String failureReason = null;
@@ -235,30 +226,72 @@ public final class StreamResolutionEngine {
                 continue;
             }
 
-            if (outcome.candidate != null) {
-                CandidateTrace existing = tracesByUrl.get(outcome.candidate.getUrl());
-                if (existing == null || outcome.candidate.getPreferenceScore() > existing.candidate.getPreferenceScore()) {
-                    tracesByUrl.put(outcome.candidate.getUrl(), new CandidateTrace(outcome.candidate, outcome.chain));
-                }
-            }
-
-            for (String nextUrl : outcome.nextUrls) {
-                if (state.depth + 1 > MAX_DEPTH) {
-                    failureReason = "DEPTH_EXCEEDED";
-                    continue;
-                }
-                for (String candidateNextUrl : buildCandidates(nextUrl)) {
-                    String normalizedNextUrl = normalizeCandidateUrl(candidateNextUrl);
-                    if (normalizedNextUrl == null || visited.contains(normalizedNextUrl)) {
-                        continue;
-                    }
-                    List<String> nextChain = new ArrayList<>(outcome.chain);
-                    queue.add(new ProbeState(normalizedNextUrl, nextChain, state.depth + 1));
-                }
-            }
+            recordCandidateTrace(tracesByUrl, outcome.candidate, outcome.chain);
+            failureReason = enqueueNextProbeStates(queue, visited, outcome, state.depth, failureReason);
         }
 
         return buildResult(originalUrl, tracesByUrl, failureReason, tracesByUrl.isEmpty() ? ResolutionStatus.FAILURE : ResolutionStatus.SUCCESS);
+    }
+
+    @NonNull
+    private static Queue<ProbeState> createInitialProbeQueue(@NonNull List<String> seedUrls) {
+        Queue<ProbeState> queue = new ArrayDeque<>();
+        for (String seedUrl : seedUrls) {
+            enqueueCandidateVariants(queue, seedUrl, new ArrayList<>(), 0, null);
+        }
+        return queue;
+    }
+
+    private static void recordCandidateTrace(@NonNull Map<String, CandidateTrace> tracesByUrl,
+                                             @Nullable ResolvedStreamCandidate candidate,
+                                             @NonNull List<String> chain) {
+        if (candidate == null) {
+            return;
+        }
+
+        CandidateTrace existing = tracesByUrl.get(candidate.getUrl());
+        if (existing == null || candidate.getPreferenceScore() > existing.candidate.getPreferenceScore()) {
+            tracesByUrl.put(candidate.getUrl(), new CandidateTrace(candidate, chain));
+        }
+    }
+
+    @Nullable
+    private static String enqueueNextProbeStates(@NonNull Queue<ProbeState> queue,
+                                                 @NonNull Set<String> visited,
+                                                 @NonNull ProbeOutcome outcome,
+                                                 int currentDepth,
+                                                 @Nullable String failureReason) {
+        for (String nextUrl : outcome.nextUrls) {
+            if (currentDepth + 1 > MAX_DEPTH) {
+                failureReason = "DEPTH_EXCEEDED";
+                continue;
+            }
+            enqueueCandidateVariants(
+                    queue,
+                    nextUrl,
+                    new ArrayList<>(outcome.chain),
+                    currentDepth + 1,
+                    visited
+            );
+        }
+        return failureReason;
+    }
+
+    private static void enqueueCandidateVariants(@NonNull Queue<ProbeState> queue,
+                                                 @NonNull String sourceUrl,
+                                                 @NonNull List<String> chain,
+                                                 int depth,
+                                                 @Nullable Set<String> visited) {
+        for (String candidateUrl : buildCandidates(sourceUrl)) {
+            String normalizedUrl = normalizeCandidateUrl(candidateUrl);
+            if (normalizedUrl == null) {
+                continue;
+            }
+            if (visited != null && visited.contains(normalizedUrl)) {
+                continue;
+            }
+            queue.add(new ProbeState(normalizedUrl, chain, depth));
+        }
     }
 
     @Nullable
@@ -300,21 +333,7 @@ public final class StreamResolutionEngine {
             }
 
             if (isPlaylistResponse(finalUrl, contentType, body)) {
-                List<String> targets = extractPlaylistTargets(body, finalUrl);
-                String bestTarget = selectBestPlaylistTarget(targets);
-                List<String> nextUrls = new ArrayList<>();
-                if (bestTarget != null) {
-                    nextUrls.add(bestTarget);
-                }
-                for (String target : targets) {
-                    if (target.equals(bestTarget)) {
-                        continue;
-                    }
-                    if (!isAllowedScheme(target)) {
-                        continue;
-                    }
-                    nextUrls.add(target);
-                }
+                List<String> nextUrls = buildPlaylistNextUrls(body, finalUrl);
                 if (nextUrls.isEmpty()) {
                     return new ProbeOutcome(null, chain, new ArrayList<>());
                 }
@@ -339,6 +358,23 @@ public final class StreamResolutionEngine {
         }
 
         return null;
+    }
+
+    @NonNull
+    private static List<String> buildPlaylistNextUrls(@NonNull String body, @NonNull String finalUrl) {
+        List<String> targets = extractPlaylistTargets(body, finalUrl);
+        String preferredTarget = selectBestPlaylistTarget(targets);
+        List<String> nextUrls = new ArrayList<>();
+        if (preferredTarget != null) {
+            nextUrls.add(preferredTarget);
+        }
+        for (String target : targets) {
+            if (target.equals(preferredTarget) || !isAllowedScheme(target)) {
+                continue;
+            }
+            nextUrls.add(target);
+        }
+        return nextUrls;
     }
 
     @NonNull
@@ -447,14 +483,8 @@ public final class StreamResolutionEngine {
                                                  @NonNull String body,
                                                  @NonNull Response response) {
         String normalizedContentType = normalizeNullable(contentType);
-        if (normalizedContentType != null) {
-            if (normalizedContentType.startsWith("audio/")
-                    || normalizedContentType.contains("application/ogg")
-                    || normalizedContentType.contains("application/aac")
-                    || normalizedContentType.contains("application/mp4")
-                    || normalizedContentType.contains("video/mp2t")) {
-                return true;
-            }
+        if (isAudioContentType(normalizedContentType)) {
+            return true;
         }
 
         if (response.header("icy-metaint") != null) {
@@ -572,17 +602,28 @@ public final class StreamResolutionEngine {
             return MetadataCapability.CONFIRMED_ICY;
         }
 
-        String normalizedContentType = normalizeNullable(contentType);
-        if (normalizedContentType != null) {
-            if (normalizedContentType.contains("audio/")
-                    || normalizedContentType.contains("application/ogg")
-                    || normalizedContentType.contains("application/aac")
-                    || normalizedContentType.contains("application/mp4")) {
-                return MetadataCapability.POSSIBLE_IN_STREAM_METADATA;
-            }
+        if (isAudioMetadataCapableContentType(normalizeNullable(contentType))) {
+            return MetadataCapability.POSSIBLE_IN_STREAM_METADATA;
         }
 
         return MetadataCapability.NO_METADATA_DETECTED;
+    }
+
+    private static boolean isAudioContentType(@Nullable String normalizedContentType) {
+        return normalizedContentType != null
+                && (normalizedContentType.startsWith("audio/")
+                || normalizedContentType.contains("application/ogg")
+                || normalizedContentType.contains("application/aac")
+                || normalizedContentType.contains("application/mp4")
+                || normalizedContentType.contains("video/mp2t"));
+    }
+
+    private static boolean isAudioMetadataCapableContentType(@Nullable String normalizedContentType) {
+        return normalizedContentType != null
+                && (normalizedContentType.startsWith("audio/")
+                || normalizedContentType.contains("application/ogg")
+                || normalizedContentType.contains("application/aac")
+                || normalizedContentType.contains("application/mp4"));
     }
 
     private static boolean hasUsefulStationHeaders(@NonNull Response response) {
