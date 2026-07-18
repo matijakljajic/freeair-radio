@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -37,8 +38,6 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
 
     @Nullable
     private Station selectedStation;
-    @Nullable
-    private AppThemeSettings appThemeSettings;
     @NonNull
     private Tab currentTab = Tab.HOME;
     @Nullable
@@ -51,53 +50,18 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        appThemeSettings = new AppThemeSettings(this);
-        appThemeSettings.applyNightMode();
+        new AppThemeSettings(this).applyNightMode();
 
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_main);
-        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
-                .setAppearanceLightStatusBars(false);
-
-        if (savedInstanceState != null) {
-            selectedStation = BundleCompat.getSerializable(savedInstanceState, STATE_SELECTED_STATION, Station.class);
-            String savedTabName = savedInstanceState.getString(STATE_CURRENT_TAB, Tab.HOME.name());
-            currentTab = Tab.valueOf(savedTabName);
-        }
-
-        navToggleGroup = findViewById(R.id.main_nav_toggle_group);
-        radioPlayer = new RadioPlayer(this);
-        shellChromeController = new ShellChromeController(
-                findViewById(R.id.main),
-                findViewById(R.id.status_bar_filter),
-                findViewById(R.id.bottom_content_filter),
-                findViewById(R.id.player_shell_container),
-                findViewById(R.id.search_shell_overlay_container)
-        );
-        if (navToggleGroup != null) {
-            navToggleGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
-                if (!isChecked || suppressNavCallbacks) {
-                    return;
-                }
-                Tab tab = Tab.fromButtonId(checkedId);
-                if (tab != null) {
-                    selectTab(tab);
-                }
-            });
-        }
-        if (shellChromeController != null) {
-            shellChromeController.attach();
-        }
+        configureWindow();
+        restoreState(savedInstanceState);
+        bindViews();
+        bindNavigation();
+        attachShellChrome();
         requestNotificationPermissionIfNeeded();
-
-        new Thread(
-                RadioBrowserServerDirectory::refresh,
-                "RadioBrowserServerRefresh"
-        ).start();
-
+        refreshRadioBrowserServers();
         selectTab(currentTab, true);
-        syncPlayerFragment();
+        showSelectedStation();
     }
 
     @Override
@@ -106,7 +70,7 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
         if (radioPlayer != null) {
             radioPlayer.play(station);
         }
-        syncPlayerFragment();
+        showSelectedStation();
     }
 
     @Override
@@ -116,20 +80,94 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
         outState.putString(STATE_CURRENT_TAB, currentTab.name());
     }
 
-    private void syncPlayerFragment() {
-        PlayerFragment fragment = (PlayerFragment) getSupportFragmentManager().findFragmentById(R.id.player_fragment_container);
+    private void configureWindow() {
+        EdgeToEdge.enable(this);
+        setContentView(R.layout.activity_main);
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
+                .setAppearanceLightStatusBars(false);
+    }
+
+    private void restoreState(@Nullable Bundle savedInstanceState) {
+        if (savedInstanceState == null) {
+            return;
+        }
+
+        selectedStation = BundleCompat.getSerializable(savedInstanceState, STATE_SELECTED_STATION, Station.class);
+        currentTab = Tab.fromName(savedInstanceState.getString(STATE_CURRENT_TAB));
+    }
+
+    private void bindViews() {
+        navToggleGroup = findViewById(R.id.main_nav_toggle_group);
+        radioPlayer = new RadioPlayer(this);
+        shellChromeController = new ShellChromeController(
+                findViewById(R.id.main),
+                findViewById(R.id.status_bar_filter),
+                findViewById(R.id.bottom_content_filter),
+                findViewById(R.id.player_shell_container),
+                findViewById(R.id.search_shell_overlay_container)
+        );
+    }
+
+    private void bindNavigation() {
+        if (navToggleGroup == null) {
+            return;
+        }
+
+        navToggleGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+            if (!isChecked || suppressNavCallbacks) {
+                return;
+            }
+            onNavButtonChecked(checkedId);
+        });
+    }
+
+    private void onNavButtonChecked(int checkedId) {
+        Tab tab = Tab.fromButtonId(checkedId);
+        if (tab != null) {
+            selectTab(tab);
+        }
+    }
+
+    private void attachShellChrome() {
+        if (shellChromeController != null) {
+            shellChromeController.attach();
+        }
+    }
+
+    private void refreshRadioBrowserServers() {
+        new Thread(
+                RadioBrowserServerDirectory::refresh,
+                "RadioBrowserServerRefresh"
+        ).start();
+    }
+
+    private void showSelectedStation() {
+        PlayerFragment fragment = findPlayerFragment();
         if (fragment != null) {
             fragment.showStation(selectedStation);
         }
     }
 
+    @Nullable
+    private PlayerFragment findPlayerFragment() {
+        Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.player_fragment_container);
+        if (fragment instanceof PlayerFragment) {
+            return (PlayerFragment) fragment;
+        }
+        return null;
+    }
+
     @Override
     protected void onDestroy() {
+        detachShellChrome();
+        radioPlayer = null;
+        super.onDestroy();
+    }
+
+    private void detachShellChrome() {
         if (shellChromeController != null) {
             shellChromeController.detach();
         }
-        radioPlayer = null;
-        super.onDestroy();
     }
 
     @Nullable
@@ -142,21 +180,35 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
     }
 
     private void selectTab(@NonNull Tab tab, boolean forceReplace) {
-        if (!forceReplace && tab == currentTab) {
+        if (!shouldReplaceTab(tab, forceReplace)) {
             syncNavSelection();
             return;
         }
         currentTab = tab;
+        replaceMainFragment(tab);
+        syncNavSelection();
+    }
+
+    private boolean shouldReplaceTab(@NonNull Tab tab, boolean forceReplace) {
+        return forceReplace || tab != currentTab;
+    }
+
+    private void replaceMainFragment(@NonNull Tab tab) {
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.main_content_fragment_container, tab.createFragment())
                 .setTransition(ShellChromeController.DEFAULT_SHELL_TRANSITION_TYPE)
-                .runOnCommit(() -> {
-                    if (shellChromeController != null) {
-                        shellChromeController.setFloaterShellVisible(tab == Tab.SEARCH, ShellChromeController.DEFAULT_SHELL_TRANSITION_TYPE, 0L);
-                    }
-                })
+                .runOnCommit(() -> applyTabShellState(tab))
                 .commit();
-        syncNavSelection();
+    }
+
+    private void applyTabShellState(@NonNull Tab tab) {
+        if (shellChromeController != null) {
+            shellChromeController.setFloaterShellVisible(
+                    tab.showsFloaterShell,
+                    ShellChromeController.DEFAULT_SHELL_TRANSITION_TYPE,
+                    0L
+            );
+        }
     }
 
     private void syncNavSelection() {
@@ -190,21 +242,21 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
     }
 
     private enum Tab {
-        HOME(R.id.nav_home_button) {
+        HOME(R.id.nav_home_button, false) {
             @NonNull
             @Override
             Fragment createFragment() {
                 return new HomePageFragment();
             }
         },
-        SEARCH(R.id.nav_search_button) {
+        SEARCH(R.id.nav_search_button, true) {
             @NonNull
             @Override
             Fragment createFragment() {
                 return new StationSearchFragment();
             }
         },
-        SETTINGS(R.id.nav_settings_button) {
+        SETTINGS(R.id.nav_settings_button, false) {
             @NonNull
             @Override
             Fragment createFragment() {
@@ -213,9 +265,11 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
         };
 
         final int buttonId;
+        final boolean showsFloaterShell;
 
-        Tab(int buttonId) {
+        Tab(int buttonId, boolean showsFloaterShell) {
             this.buttonId = buttonId;
+            this.showsFloaterShell = showsFloaterShell;
         }
 
         @Nullable
@@ -226,6 +280,19 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
                 }
             }
             return null;
+        }
+
+        @NonNull
+        static Tab fromName(@Nullable String tabName) {
+            if (tabName == null) {
+                return HOME;
+            }
+
+            try {
+                return Tab.valueOf(tabName);
+            } catch (IllegalArgumentException ignored) {
+                return HOME;
+            }
         }
 
         @NonNull
