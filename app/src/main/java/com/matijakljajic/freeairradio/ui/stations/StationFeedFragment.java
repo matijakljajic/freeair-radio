@@ -63,25 +63,8 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
                                          int emptyViewId,
                                          int retryButtonId,
                                          @NonNull Runnable retryAction) {
-        loadingView = rootView.findViewById(loadingViewId);
-        stateContainerView = rootView.findViewById(R.id.station_feed_state_container);
-        errorContainerView = rootView.findViewById(errorContainerViewId);
-        errorTextView = rootView.findViewById(errorTextViewId);
-        emptyView = rootView.findViewById(emptyViewId);
-        recyclerView = rootView.findViewById(recyclerViewId);
-
-        Button retryButton = rootView.findViewById(retryButtonId);
-        retryButton.setOnClickListener(v -> retryAction.run());
-
-        if (recyclerView != null) {
-            stationAdapter = new StationAdapter(this, createStationDragHandleListener());
-            recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-            recyclerView.setAdapter(createRecyclerAdapter(stationAdapter));
-            if (recyclerView.getItemAnimator() instanceof SimpleItemAnimator) {
-                ((SimpleItemAnimator) recyclerView.getItemAnimator()).setSupportsChangeAnimations(false);
-            }
-            recyclerView.setClipToPadding(false);
-        }
+        bindStateViews(rootView, loadingViewId, errorContainerViewId, errorTextViewId, emptyViewId, retryButtonId, retryAction);
+        bindRecyclerView(rootView, recyclerViewId);
     }
 
     protected final void clearStationFeed() {
@@ -112,7 +95,7 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
                 if (isStaleRequest(requestId)) {
                     return;
                 }
-                showStations(loadedStations, emptyMessageResId);
+                renderStations(loadedStations, emptyMessageResId);
             }
 
             @Override
@@ -153,7 +136,7 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
     protected final void displayStations(@NonNull List<Station> stations,
                                          @StringRes int emptyMessageResId) {
         requestSequence++;
-        showStations(stations, emptyMessageResId);
+        renderStations(stations, emptyMessageResId);
     }
 
     @NonNull
@@ -229,77 +212,42 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
         return requestId != requestSequence || !isAdded();
     }
 
-    private void showStations(@NonNull List<Station> loadedStations, @StringRes int emptyMessageResId) {
+    private void renderStations(@NonNull List<Station> loadedStations, @StringRes int emptyMessageResId) {
         List<Station> stations = new ArrayList<>(loadedStations);
         boolean hadVisibleContent = hasVisibleStationContent();
 
         if (loadedStations.isEmpty()) {
-            hasRenderedContent = false;
-            submitStationList(stations, () -> renderState(ListUiState.EMPTY, emptyMessageResId));
+            renderEmptyStations(stations, emptyMessageResId);
             return;
         }
 
         hasRenderedContent = true;
         if (hadVisibleContent && shouldCrossfadeStationListUpdates()) {
-            crossfadeStationList(stations, () -> renderState(ListUiState.CONTENT, 0));
+            crossfadeStationList(stations, this::showContentState);
             return;
         }
 
         submitStationList(stations, () -> {
-            if (!hadVisibleContent && recyclerView != null) {
-                recyclerView.animate().cancel();
-                recyclerView.setAlpha(0f);
-            }
-            renderState(ListUiState.CONTENT, 0);
-            if (!hadVisibleContent && recyclerView != null) {
-                recyclerView.animate()
-                        .alpha(1f)
-                        .setDuration(CONTENT_FADE_IN_DURATION_MS)
-                        .start();
-            }
+            prepareRecyclerFadeIn(hadVisibleContent);
+            showContentState();
+            animateRecyclerFadeInIfNeeded(hadVisibleContent);
         });
     }
 
     private void renderState(@NonNull ListUiState state, @StringRes int messageResId) {
-        boolean keepCurrentStationsVisible = state == ListUiState.LOADING && hasRenderedContent;
-        boolean keepRecyclerVisible = keepCurrentStationsVisible
-                || (state != ListUiState.CONTENT && keepsRecyclerVisibleDuringStateViews());
+        boolean keepCurrentStationsVisible = shouldKeepCurrentStationsVisible(state);
+        boolean keepRecyclerVisible = shouldKeepRecyclerVisible(state, keepCurrentStationsVisible);
 
         if (state != ListUiState.LOADING && state != ListUiState.CONTENT) {
             hasRenderedContent = false;
         }
 
-        if (stationAdapter != null && state != ListUiState.CONTENT && !keepCurrentStationsVisible) {
-            stationAdapter.submitList(Collections.emptyList());
-        }
-        if (loadingView != null) {
-            loadingView.setVisibility(state == ListUiState.LOADING && !keepCurrentStationsVisible
-                    ? View.VISIBLE
-                    : View.GONE);
-        }
-        if (stateContainerView != null) {
-            applyStateContainerTopInset();
-            stateContainerView.setVisibility(state == ListUiState.CONTENT || keepCurrentStationsVisible
-                    ? View.GONE
-                    : View.VISIBLE);
-        }
-        if (errorContainerView != null) {
-            errorContainerView.setVisibility(state == ListUiState.ERROR ? View.VISIBLE : View.GONE);
-        }
-        if (emptyView != null) {
-            emptyView.setVisibility(state == ListUiState.EMPTY || state == ListUiState.IDLE ? View.VISIBLE : View.GONE);
-            if (state == ListUiState.EMPTY || state == ListUiState.IDLE) {
-                emptyView.setText(messageResId);
-            }
-        }
-        if (errorTextView != null && state == ListUiState.ERROR) {
-            errorTextView.setText(messageResId);
-        }
-        if (recyclerView != null) {
-            recyclerView.setVisibility(state == ListUiState.CONTENT || keepRecyclerVisible
-                    ? View.VISIBLE
-                    : View.GONE);
-        }
+        clearStationListForState(state, keepCurrentStationsVisible);
+        updateLoadingVisibility(state, keepCurrentStationsVisible);
+        updateStateContainerVisibility(state, keepCurrentStationsVisible);
+        updateErrorState(state, messageResId);
+        updateEmptyState(state, messageResId);
+        updateRecyclerVisibility(state, keepRecyclerVisible);
     }
 
     private void crossfadeStationList(@NonNull List<Station> stations, @NonNull Runnable onCommitted) {
@@ -342,6 +290,128 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
             return;
         }
         stationAdapter.submitList(stations, onCommitted);
+    }
+
+    private void bindStateViews(@NonNull View rootView,
+                                int loadingViewId,
+                                int errorContainerViewId,
+                                int errorTextViewId,
+                                int emptyViewId,
+                                int retryButtonId,
+                                @NonNull Runnable retryAction) {
+        loadingView = rootView.findViewById(loadingViewId);
+        stateContainerView = rootView.findViewById(R.id.station_feed_state_container);
+        errorContainerView = rootView.findViewById(errorContainerViewId);
+        errorTextView = rootView.findViewById(errorTextViewId);
+        emptyView = rootView.findViewById(emptyViewId);
+
+        Button retryButton = rootView.findViewById(retryButtonId);
+        retryButton.setOnClickListener(v -> retryAction.run());
+    }
+
+    private void bindRecyclerView(@NonNull View rootView, int recyclerViewId) {
+        recyclerView = rootView.findViewById(recyclerViewId);
+        if (recyclerView == null) {
+            return;
+        }
+
+        stationAdapter = new StationAdapter(this, createStationDragHandleListener());
+        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        recyclerView.setAdapter(createRecyclerAdapter(stationAdapter));
+        if (recyclerView.getItemAnimator() instanceof SimpleItemAnimator) {
+            ((SimpleItemAnimator) recyclerView.getItemAnimator()).setSupportsChangeAnimations(false);
+        }
+        recyclerView.setClipToPadding(false);
+    }
+
+    private void renderEmptyStations(@NonNull List<Station> stations, @StringRes int emptyMessageResId) {
+        hasRenderedContent = false;
+        submitStationList(stations, () -> renderState(ListUiState.EMPTY, emptyMessageResId));
+    }
+
+    private void showContentState() {
+        renderState(ListUiState.CONTENT, 0);
+    }
+
+    private void prepareRecyclerFadeIn(boolean hadVisibleContent) {
+        if (hadVisibleContent || recyclerView == null) {
+            return;
+        }
+        recyclerView.animate().cancel();
+        recyclerView.setAlpha(0f);
+    }
+
+    private void animateRecyclerFadeInIfNeeded(boolean hadVisibleContent) {
+        if (hadVisibleContent || recyclerView == null) {
+            return;
+        }
+        recyclerView.animate()
+                .alpha(1f)
+                .setDuration(CONTENT_FADE_IN_DURATION_MS)
+                .start();
+    }
+
+    private boolean shouldKeepCurrentStationsVisible(@NonNull ListUiState state) {
+        return state == ListUiState.LOADING && hasRenderedContent;
+    }
+
+    private boolean shouldKeepRecyclerVisible(@NonNull ListUiState state, boolean keepCurrentStationsVisible) {
+        return keepCurrentStationsVisible
+                || (state != ListUiState.CONTENT && keepsRecyclerVisibleDuringStateViews());
+    }
+
+    private void clearStationListForState(@NonNull ListUiState state, boolean keepCurrentStationsVisible) {
+        if (stationAdapter != null && state != ListUiState.CONTENT && !keepCurrentStationsVisible) {
+            stationAdapter.submitList(Collections.emptyList());
+        }
+    }
+
+    private void updateLoadingVisibility(@NonNull ListUiState state, boolean keepCurrentStationsVisible) {
+        if (loadingView == null) {
+            return;
+        }
+        loadingView.setVisibility(state == ListUiState.LOADING && !keepCurrentStationsVisible
+                ? View.VISIBLE
+                : View.GONE);
+    }
+
+    private void updateStateContainerVisibility(@NonNull ListUiState state, boolean keepCurrentStationsVisible) {
+        if (stateContainerView == null) {
+            return;
+        }
+        applyStateContainerTopInset();
+        stateContainerView.setVisibility(state == ListUiState.CONTENT || keepCurrentStationsVisible
+                ? View.GONE
+                : View.VISIBLE);
+    }
+
+    private void updateErrorState(@NonNull ListUiState state, @StringRes int messageResId) {
+        if (errorContainerView != null) {
+            errorContainerView.setVisibility(state == ListUiState.ERROR ? View.VISIBLE : View.GONE);
+        }
+        if (errorTextView != null && state == ListUiState.ERROR) {
+            errorTextView.setText(messageResId);
+        }
+    }
+
+    private void updateEmptyState(@NonNull ListUiState state, @StringRes int messageResId) {
+        if (emptyView == null) {
+            return;
+        }
+        boolean showEmpty = state == ListUiState.EMPTY || state == ListUiState.IDLE;
+        emptyView.setVisibility(showEmpty ? View.VISIBLE : View.GONE);
+        if (showEmpty) {
+            emptyView.setText(messageResId);
+        }
+    }
+
+    private void updateRecyclerVisibility(@NonNull ListUiState state, boolean keepRecyclerVisible) {
+        if (recyclerView == null) {
+            return;
+        }
+        recyclerView.setVisibility(state == ListUiState.CONTENT || keepRecyclerVisible
+                ? View.VISIBLE
+                : View.GONE);
     }
 
     private boolean hasVisibleStationContent() {
