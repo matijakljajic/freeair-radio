@@ -41,44 +41,45 @@ public final class StationFaviconLoader {
     public static void loadInto(@NonNull ImageView imageView,
                                 @Nullable Station station,
                                 int initialRevealOrder) {
-        loadIntoListItem(imageView, station, initialRevealOrder);
-    }
-
-    private static void loadIntoListItem(@NonNull ImageView imageView,
-                                         @Nullable Station station,
-                                         int initialRevealOrder) {
         loadIntoInternal(imageView, station, initialRevealOrder);
     }
 
     private static void loadIntoInternal(@NonNull ImageView imageView,
                                          @Nullable Station station,
                                          int initialRevealOrder) {
-        imageView.animate().cancel();
-        imageView.setAlpha(1f);
-
+        resetImageView(imageView);
         if (station == null) {
             clear(imageView);
             return;
         }
 
-        List<String> artworkUrls = StationArtworkResolver.getBestAvailableUrls(station);
         String requestTag = buildRequestTag(station);
+        prepareViewForLoad(imageView, requestTag);
+        loadResolvedCandidateUrls(
+                imageView,
+                station,
+                StationArtworkResolver.getBestAvailableUrls(station),
+                requestTag,
+                initialRevealOrder
+        );
+        if (!hasDirectArtworkUrl(station)
+                && !requestDeepResolution(imageView, station, requestTag, initialRevealOrder)) {
+            showDefaultIcon(imageView);
+        }
+    }
+
+    private static void resetImageView(@NonNull ImageView imageView) {
+        imageView.animate().cancel();
+        imageView.setAlpha(1f);
+    }
+
+    private static void prepareViewForLoad(@NonNull ImageView imageView,
+                                           @NonNull String requestTag) {
         if (!TextUtils.equals(requestTag, (String) imageView.getTag(R.id.station_favicon_request_tag))) {
             showDefaultIcon(imageView);
         }
         imageView.setTag(R.id.station_favicon_request_tag, requestTag);
         imageView.setTag(R.id.station_favicon_deep_resolve_tag, null);
-        loadCandidateUrlsInto(
-                imageView,
-                station,
-                artworkUrls,
-                requestTag,
-                initialRevealOrder
-        );
-        if (!hasImmediateFavicon(station)
-                && !requestDeepResolution(imageView, station, requestTag, initialRevealOrder)) {
-            showDefaultIcon(imageView);
-        }
     }
 
     public static void clear(@NonNull ImageView imageView) {
@@ -92,11 +93,11 @@ public final class StationFaviconLoader {
         imageView.setTag(R.id.station_favicon_displayed_url_tag, null);
     }
 
-    private static void loadCandidateUrlsInto(@NonNull ImageView imageView,
-                                              @NonNull Station station,
-                                              @NonNull List<String> artworkUrls,
-                                              @NonNull String requestTag,
-                                              int initialRevealOrder) {
+    private static void loadResolvedCandidateUrls(@NonNull ImageView imageView,
+                                                  @NonNull Station station,
+                                                  @NonNull List<String> artworkUrls,
+                                                  @NonNull String requestTag,
+                                                  int initialRevealOrder) {
         String signature = buildSignature(artworkUrls);
         if (TextUtils.isEmpty(signature)) {
             showDefaultIcon(imageView);
@@ -166,17 +167,31 @@ public final class StationFaviconLoader {
             return;
         }
 
+        loadRasterCandidateUrlInto(
+                imageView,
+                station,
+                artworkUrls,
+                candidateIndex,
+                requestTag,
+                signature,
+                urlToLoad,
+                initialRevealOrder
+        );
+    }
+
+    private static void loadRasterCandidateUrlInto(@NonNull ImageView imageView,
+                                                   @NonNull Station station,
+                                                   @NonNull List<String> artworkUrls,
+                                                   int candidateIndex,
+                                                   @NonNull String requestTag,
+                                                   @NonNull String signature,
+                                                   @NonNull String urlToLoad,
+                                                   int initialRevealOrder) {
         RequestBuilder<Bitmap> requestBuilder = Glide.with(imageView)
                 .asBitmap()
                 .load(urlToLoad)
                 .transform(TRANSPARENT_BORDER_TRIM_TRANSFORMATION);
-        Drawable currentDrawable = imageView.getDrawable();
-        if (currentDrawable != null) {
-            requestBuilder = requestBuilder.placeholder(currentDrawable).error(currentDrawable);
-        } else {
-            requestBuilder = requestBuilder.placeholder(R.drawable.ic_station_favicon_default)
-                    .error(R.drawable.ic_station_favicon_default);
-        }
+        requestBuilder = applyCurrentPlaceholder(requestBuilder, imageView.getDrawable());
 
         requestBuilder.listener(new RequestListener<>() {
             @Override
@@ -187,23 +202,15 @@ public final class StationFaviconLoader {
                 if (!isCurrentLoad(imageView, requestTag, signature)) {
                     return true;
                 }
-                if (candidateIndex + 1 < artworkUrls.size()) {
-                    imageView.post(() -> loadCandidateUrlInto(
-                            imageView,
-                            station,
-                            artworkUrls,
-                            candidateIndex + 1,
-                            requestTag,
-                            signature,
-                            initialRevealOrder
-                    ));
-                    return true;
-                }
-
-                if (requestDeepResolution(imageView, station, requestTag, initialRevealOrder)) {
-                    return true;
-                }
-                showDefaultIcon(imageView);
+                advanceCandidateOrResolve(
+                        imageView,
+                        station,
+                        artworkUrls,
+                        candidateIndex,
+                        requestTag,
+                        signature,
+                        initialRevealOrder
+                );
                 return true;
             }
 
@@ -235,6 +242,16 @@ public final class StationFaviconLoader {
         }).into(imageView);
     }
 
+    @NonNull
+    private static RequestBuilder<Bitmap> applyCurrentPlaceholder(@NonNull RequestBuilder<Bitmap> requestBuilder,
+                                                                  @Nullable Drawable currentDrawable) {
+        if (currentDrawable != null) {
+            return requestBuilder.placeholder(currentDrawable).error(currentDrawable);
+        }
+        return requestBuilder.placeholder(R.drawable.ic_station_favicon_default)
+                .error(R.drawable.ic_station_favicon_default);
+    }
+
     private static void loadSvgCandidateUrlInto(@NonNull ImageView imageView,
                                                 @NonNull Station station,
                                                 @NonNull List<String> artworkUrls,
@@ -252,21 +269,15 @@ public final class StationFaviconLoader {
                 return;
             }
             if (bitmap == null) {
-                if (candidateIndex + 1 < artworkUrls.size()) {
-                    imageView.post(() -> loadCandidateUrlInto(
-                            imageView,
-                            station,
-                            artworkUrls,
-                            candidateIndex + 1,
-                            requestTag,
-                            signature,
-                            initialRevealOrder
-                    ));
-                } else {
-                    if (!requestDeepResolution(imageView, station, requestTag, initialRevealOrder)) {
-                        showDefaultIcon(imageView);
-                    }
-                }
+                advanceCandidateOrResolve(
+                        imageView,
+                        station,
+                        artworkUrls,
+                        candidateIndex,
+                        requestTag,
+                        signature,
+                        initialRevealOrder
+                );
                 return;
             }
 
@@ -480,16 +491,6 @@ public final class StationFaviconLoader {
         return Math.max(0, initialRevealOrder) * (long) INITIAL_ITEM_REVEAL_STAGGER_STEP_MS;
     }
 
-    @Nullable
-    private static String findCachedArtworkUrl(@NonNull List<String> artworkUrls) {
-        for (String artworkUrl : artworkUrls) {
-            if (StationArtworkBitmapLoader.getCachedBitmap(artworkUrl) != null) {
-                return artworkUrl;
-            }
-        }
-        return null;
-    }
-
     private static void applyAdaptiveScaleType(@NonNull ImageView imageView,
                                                @NonNull Bitmap bitmap) {
         int width = bitmap.getWidth();
@@ -520,12 +521,37 @@ public final class StationFaviconLoader {
             if (!isSameRequest(imageView, requestTag)) {
                 return;
             }
-            loadCandidateUrlsInto(imageView, station, artworkUrls, requestTag, initialRevealOrder);
+            loadResolvedCandidateUrls(imageView, station, artworkUrls, requestTag, initialRevealOrder);
         });
         return true;
     }
 
-    private static boolean hasImmediateFavicon(@NonNull Station station) {
+    private static void advanceCandidateOrResolve(@NonNull ImageView imageView,
+                                                  @NonNull Station station,
+                                                  @NonNull List<String> artworkUrls,
+                                                  int candidateIndex,
+                                                  @NonNull String requestTag,
+                                                  @NonNull String signature,
+                                                  int initialRevealOrder) {
+        if (candidateIndex + 1 < artworkUrls.size()) {
+            imageView.post(() -> loadCandidateUrlInto(
+                    imageView,
+                    station,
+                    artworkUrls,
+                    candidateIndex + 1,
+                    requestTag,
+                    signature,
+                    initialRevealOrder
+            ));
+            return;
+        }
+
+        if (!requestDeepResolution(imageView, station, requestTag, initialRevealOrder)) {
+            showDefaultIcon(imageView);
+        }
+    }
+
+    private static boolean hasDirectArtworkUrl(@NonNull Station station) {
         if (StationArtworkResolver.hasResolvedCandidates(station)) {
             return true;
         }
