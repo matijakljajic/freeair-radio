@@ -46,8 +46,8 @@ public class StationSearchFragment extends ShellChromeAwareFragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        ensureStationListFragment();
-        bindSearchControls();
+        bindStationListFragment();
+        bindSearchShell();
     }
 
     @Override
@@ -74,7 +74,21 @@ public class StationSearchFragment extends ShellChromeAwareFragment {
         super.onDestroyView();
     }
 
-    private void ensureStationListFragment() {
+    private void bindStationListFragment() {
+        stationListFragment = findOrCreateStationListFragment();
+        if (stationListFragment == null) {
+            return;
+        }
+
+        ShellChromeController shellChromeController = getShellChromeController();
+        if (shellChromeController != null) {
+            shellChromeController.setFloaterStationListFragment(stationListFragment);
+        }
+        submitCurrentQueryIfNeeded();
+    }
+
+    @Nullable
+    private StationListFragment findOrCreateStationListFragment() {
         FragmentManager childFragmentManager = getChildFragmentManager();
         Fragment fragment = childFragmentManager.findFragmentById(R.id.station_search_list_container);
         if (fragment == null) {
@@ -85,23 +99,21 @@ public class StationSearchFragment extends ShellChromeAwareFragment {
         }
 
         if (fragment instanceof StationListFragment) {
-            stationListFragment = (StationListFragment) fragment;
-            ShellChromeController shellChromeController = getShellChromeController();
-            if (shellChromeController != null) {
-                shellChromeController.setFloaterStationListFragment(stationListFragment);
-            }
-            if (!currentQuery.isEmpty()) {
-                stationListFragment.submitQuery(currentQuery);
-            }
+            return (StationListFragment) fragment;
         }
+        return null;
     }
 
     private void submitSearch() {
         currentQuery = getSearchQuery();
+        submitCurrentQueryIfNeeded();
+        closeKeyboard();
+    }
+
+    private void submitCurrentQueryIfNeeded() {
         if (stationListFragment != null) {
             stationListFragment.submitQuery(currentQuery);
         }
-        closeKeyboard();
     }
 
     private void closeKeyboard() {
@@ -125,7 +137,7 @@ public class StationSearchFragment extends ShellChromeAwareFragment {
         return searchInput.getText().toString().trim();
     }
 
-    private void bindSearchControls() {
+    private void bindSearchShell() {
         ShellChromeController shellChromeController = getShellChromeController();
         if (shellChromeController == null) {
             return;
@@ -133,19 +145,26 @@ public class StationSearchFragment extends ShellChromeAwareFragment {
 
         searchInput = shellChromeController.getSearchInput();
         searchButton = shellChromeController.getSearchButton();
+        bindSearchInput();
+        bindSearchButton();
+    }
 
-        if (searchInput != null) {
-            searchInput.setText(currentQuery);
-            searchInput.setSelection(searchInput.getText() != null ? searchInput.getText().length() : 0);
-            searchInput.setOnEditorActionListener((textView, actionId, event) -> {
-                if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
-                    submitSearch();
-                    return true;
-                }
-                return false;
-            });
+    private void bindSearchInput() {
+        if (searchInput == null) {
+            return;
         }
+        searchInput.setText(currentQuery);
+        searchInput.setSelection(searchInput.getText() != null ? searchInput.getText().length() : 0);
+        searchInput.setOnEditorActionListener((textView, actionId, event) -> {
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                submitSearch();
+                return true;
+            }
+            return false;
+        });
+    }
 
+    private void bindSearchButton() {
         if (searchButton != null) {
             searchButton.setOnClickListener(v -> submitSearch());
         }

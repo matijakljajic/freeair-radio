@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.PopupWindow;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -25,13 +26,13 @@ import com.matijakljajic.freeairradio.ui.stations.StationAdapter;
 import com.matijakljajic.freeairradio.ui.stations.StationFeedFragment;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
+import java.util.ArrayList;
 import java.util.List;
-
-import android.widget.Toast;
 
 @SuppressWarnings("unused")
 public class HomePageFragment extends StationFeedFragment {
 
+    private static final String LOCAL_STATION_EDITOR_TAG = "local_station_editor";
     private static final String STATE_SOURCE = "homepage_source";
 
     @NonNull
@@ -68,23 +69,8 @@ public class HomePageFragment extends StationFeedFragment {
         homePageSettings = new HomePageSettings(requireContext());
         currentSource = resolveInitialSource(savedInstanceState);
         libraryRepository = LibraryRepository.getInstance(requireContext());
-        getChildFragmentManager().setFragmentResultListener(
-                LocalStationEditorFragment.REQUEST_KEY,
-                getViewLifecycleOwner(),
-                (requestKey, result) -> onLocalStationEditorResult(result)
-        );
-        headerAdapter = new HomePageHeaderAdapter(new HomePageHeaderAdapter.Listener() {
-            @Override
-            public void onSourceClicked(@NonNull View anchorView) {
-                showSourceMenu(anchorView);
-            }
-
-            @Override
-            public void onAddStationClicked() {
-                handleAddStationClick();
-            }
-        });
-        headerAdapter.setTitleResId(currentSource.getTitleResId());
+        bindLocalStationEditorResults();
+        bindHeaderAdapter();
         bindStationFeed(
                 view,
                 R.id.station_feed_recycler_view,
@@ -93,18 +79,17 @@ public class HomePageFragment extends StationFeedFragment {
                 R.id.station_feed_error_text,
                 R.id.station_feed_empty_view,
                 R.id.station_feed_retry_button,
-                this::loadHomepageStations
+                this::refreshCurrentSource
         );
         homepageRecyclerView = getRecyclerView();
-        attachShellContentPadding(
-                homepageRecyclerView,
-                UiDimensions.px(requireContext(), R.dimen.top_content_gap)
-        );
+        attachRecyclerChrome();
         bindFavoritesReorder();
-        homepageRecyclerView.post(this::updateHeaderStateInset);
+        if (homepageRecyclerView != null) {
+            homepageRecyclerView.post(this::updateHeaderStateInset);
+        }
         libraryRepository.addFavoritesListener(favoritesListener);
 
-        view.post(this::loadHomepageStations);
+        view.post(this::refreshCurrentSource);
     }
 
     @Override
@@ -117,14 +102,9 @@ public class HomePageFragment extends StationFeedFragment {
     public void onDestroyView() {
         libraryRepository.removeFavoritesListener(favoritesListener);
         dismissSourcePopup();
-        if (homepageRecyclerView != null) {
-            detachShellContentPadding(homepageRecyclerView);
-        }
-        if (favoritesReorderTouchHelper != null && homepageRecyclerView != null) {
-            favoritesReorderTouchHelper.attachToRecyclerView(null);
-        }
+        detachRecyclerChrome();
+        detachFavoritesReorder();
         homepageRecyclerView = null;
-        favoritesReorderTouchHelper = null;
         favoriteOrderDirty = false;
         clearFavoriteReorderState();
         headerAdapter = null;
@@ -133,33 +113,91 @@ public class HomePageFragment extends StationFeedFragment {
         super.onDestroyView();
     }
 
-    private void loadHomepageStations() {
+    private void refreshCurrentSource() {
         switch (currentSource) {
             case FAVORITES:
-                if (pendingFavoriteOrder != null) {
-                    displayStations(
-                            pendingFavoriteOrder,
-                            R.string.station_list_empty_favorites
-                    );
-                    return;
-                }
-                loadStations(
-                        (repository, callback) -> libraryRepository.loadFavoriteStations(callback),
-                        R.string.station_list_empty_favorites,
-                        R.string.station_list_error
-                );
+                loadFavoriteStations();
                 return;
             case LOCAL_STATIONS:
-                loadStations(
-                        (repository, callback) -> libraryRepository.loadLocalStations(callback),
-                        R.string.station_list_empty_local_stations,
-                        R.string.station_list_error
-                );
+                loadLocalStations();
                 return;
             case NOW_POPULAR:
             default:
-                loadTopStations(R.string.station_list_empty, R.string.station_list_error);
+                loadPopularStations();
         }
+    }
+
+    private void loadFavoriteStations() {
+        if (pendingFavoriteOrder != null) {
+            displayStations(
+                    pendingFavoriteOrder,
+                    R.string.station_list_empty_favorites
+            );
+            return;
+        }
+        loadStations(
+                (repository, callback) -> libraryRepository.loadFavoriteStations(callback),
+                R.string.station_list_empty_favorites,
+                R.string.station_list_error
+        );
+    }
+
+    private void loadLocalStations() {
+        loadStations(
+                (repository, callback) -> libraryRepository.loadLocalStations(callback),
+                R.string.station_list_empty_local_stations,
+                R.string.station_list_error
+        );
+    }
+
+    private void loadPopularStations() {
+        loadTopStations(R.string.station_list_empty, R.string.station_list_error);
+    }
+
+    private void bindLocalStationEditorResults() {
+        getChildFragmentManager().setFragmentResultListener(
+                LocalStationEditorFragment.REQUEST_KEY,
+                getViewLifecycleOwner(),
+                (requestKey, result) -> onLocalStationEditorResult(result)
+        );
+    }
+
+    private void bindHeaderAdapter() {
+        headerAdapter = new HomePageHeaderAdapter(new HomePageHeaderAdapter.Listener() {
+            @Override
+            public void onSourceClicked(@NonNull View anchorView) {
+                showSourceMenu(anchorView);
+            }
+
+            @Override
+            public void onAddStationClicked() {
+                openCreateLocalStationEditor();
+            }
+        });
+        updateHeaderTitle();
+    }
+
+    private void attachRecyclerChrome() {
+        if (homepageRecyclerView == null) {
+            return;
+        }
+        attachShellContentPadding(
+                homepageRecyclerView,
+                UiDimensions.px(requireContext(), R.dimen.top_content_gap)
+        );
+    }
+
+    private void detachRecyclerChrome() {
+        if (homepageRecyclerView != null) {
+            detachShellContentPadding(homepageRecyclerView);
+        }
+    }
+
+    private void detachFavoritesReorder() {
+        if (favoritesReorderTouchHelper != null && homepageRecyclerView != null) {
+            favoritesReorderTouchHelper.attachToRecyclerView(null);
+        }
+        favoritesReorderTouchHelper = null;
     }
 
     private void showSourceMenu(@NonNull View anchorView) {
@@ -244,14 +282,14 @@ public class HomePageFragment extends StationFeedFragment {
             return;
         }
 
-        if (source != HomePageSource.FAVORITES && getStationAdapter().isDragReordering()) {
+        if (currentSource == HomePageSource.FAVORITES
+                && source != HomePageSource.FAVORITES
+                && getStationAdapter().isDragReordering()) {
             getStationAdapter().clearDragReorderPreview();
         }
         currentSource = source;
-        if (headerAdapter != null) {
-            headerAdapter.setTitleResId(source.getTitleResId());
-        }
-        loadHomepageStations();
+        updateHeaderTitle();
+        refreshCurrentSource();
     }
 
     @NonNull
@@ -274,7 +312,7 @@ public class HomePageFragment extends StationFeedFragment {
 
     @NonNull
     private List<HomePageSource> getSelectableSources() {
-        List<HomePageSource> selectableSources = new java.util.ArrayList<>();
+        List<HomePageSource> selectableSources = new ArrayList<>();
         for (HomePageSource source : HomePageSource.values()) {
             if (source != currentSource) {
                 selectableSources.add(source);
@@ -312,16 +350,20 @@ public class HomePageFragment extends StationFeedFragment {
         });
     }
 
-    private void handleAddStationClick() {
+    private void openCreateLocalStationEditor() {
         LocalStationEditorFragment.newCreateInstance()
-                .show(getChildFragmentManager(), "local_station_editor");
+                .show(getChildFragmentManager(), LOCAL_STATION_EDITOR_TAG);
+    }
+
+    private void openEditLocalStationEditor(@NonNull Station station) {
+        LocalStationEditorFragment.newEditInstance(station)
+                .show(getChildFragmentManager(), LOCAL_STATION_EDITOR_TAG);
     }
 
     @Override
     public void onStationLongClick(Station station) {
         if (station.getOrigin() == StationOrigin.LOCAL_USER) {
-            LocalStationEditorFragment.newEditInstance(station)
-                    .show(getChildFragmentManager(), "local_station_editor");
+            openEditLocalStationEditor(station);
             return;
         }
 
@@ -331,7 +373,7 @@ public class HomePageFragment extends StationFeedFragment {
     private void onLocalStationEditorResult(@NonNull Bundle result) {
         if (result.getBoolean(LocalStationEditorFragment.RESULT_KEY_OPEN_LOCAL_SOURCE, false)) {
             if (currentSource == HomePageSource.LOCAL_STATIONS) {
-                loadHomepageStations();
+                refreshCurrentSource();
                 return;
             }
             switchSource(HomePageSource.LOCAL_STATIONS);
@@ -339,7 +381,7 @@ public class HomePageFragment extends StationFeedFragment {
         }
 
         if (currentSource == HomePageSource.LOCAL_STATIONS) {
-            loadHomepageStations();
+            refreshCurrentSource();
         }
     }
 
@@ -460,7 +502,7 @@ public class HomePageFragment extends StationFeedFragment {
                             return;
                         }
                         Toast.makeText(requireContext(), R.string.favorite_reorder_failed, Toast.LENGTH_SHORT).show();
-                        loadHomepageStations();
+                        refreshCurrentSource();
                     }
                 }
         );
@@ -469,6 +511,12 @@ public class HomePageFragment extends StationFeedFragment {
     private void clearFavoriteReorderState() {
         favoriteOrderPersisting = false;
         pendingFavoriteOrder = null;
+    }
+
+    private void updateHeaderTitle() {
+        if (headerAdapter != null) {
+            headerAdapter.setTitleResId(currentSource.getTitleResId());
+        }
     }
 
     private void updateHeaderStateInset() {

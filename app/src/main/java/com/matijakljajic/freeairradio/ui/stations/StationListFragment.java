@@ -25,7 +25,8 @@ public class StationListFragment extends StationFeedFragment {
     private String currentQuery = "";
     private int searchTopPaddingPx;
     private int bottomRecyclerGapPx;
-    private final View.OnLayoutChangeListener playerShellLayoutChangeListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateRecyclerPadding();
+    private final View.OnLayoutChangeListener playerShellLayoutChangeListener =
+            (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateRecyclerPadding();
 
     public void setSearchTopPaddingPx(int searchTopPaddingPx) {
         int sanitizedPaddingPx = Math.max(0, searchTopPaddingPx);
@@ -71,17 +72,12 @@ public class StationListFragment extends StationFeedFragment {
                 R.id.station_feed_error_text,
                 R.id.station_feed_empty_view,
                 R.id.station_feed_retry_button,
-                this::refreshForCurrentQuery
+                this::refreshCurrentQuery
         );
         stationRecyclerView = getRecyclerView();
-
-        playerShellView = requireActivity().findViewById(R.id.player_shell_container);
-        if (playerShellView != null) {
-            playerShellView.addOnLayoutChangeListener(playerShellLayoutChangeListener);
-        }
-
+        bindPlayerShellObserver();
         updateRecyclerPadding();
-        view.post(this::refreshForCurrentQuery);
+        view.post(this::refreshCurrentQuery);
     }
 
     @Override
@@ -93,22 +89,33 @@ public class StationListFragment extends StationFeedFragment {
     public void submitQuery(@Nullable String query) {
         currentQuery = normalizeQuery(query);
         if (isAdded()) {
-            refreshForCurrentQuery();
+            refreshCurrentQuery();
         }
     }
 
     @Override
     public void onDestroyView() {
-        if (playerShellView != null) {
-            playerShellView.removeOnLayoutChangeListener(playerShellLayoutChangeListener);
-            playerShellView = null;
-        }
+        unbindPlayerShellObserver();
         stationRecyclerView = null;
         clearStationFeed();
         super.onDestroyView();
     }
 
-    private void refreshForCurrentQuery() {
+    private void bindPlayerShellObserver() {
+        playerShellView = requireActivity().findViewById(R.id.player_shell_container);
+        if (playerShellView != null) {
+            playerShellView.addOnLayoutChangeListener(playerShellLayoutChangeListener);
+        }
+    }
+
+    private void unbindPlayerShellObserver() {
+        if (playerShellView != null) {
+            playerShellView.removeOnLayoutChangeListener(playerShellLayoutChangeListener);
+            playerShellView = null;
+        }
+    }
+
+    private void refreshCurrentQuery() {
         if (currentQuery.isEmpty()) {
             showIdle(R.string.station_search_idle);
             return;
@@ -122,11 +129,18 @@ public class StationListFragment extends StationFeedFragment {
         }
 
         setStateContainerTopInsetPx(searchTopPaddingPx);
+        applyRecyclerPadding(searchTopPaddingPx, resolveBottomRecyclerPaddingPx());
+    }
+
+    private void applyRecyclerPadding(int topPaddingPx, int bottomPaddingPx) {
+        if (stationRecyclerView == null) {
+            return;
+        }
         stationRecyclerView.setPadding(
                 stationRecyclerView.getPaddingLeft(),
-                searchTopPaddingPx,
+                topPaddingPx,
                 stationRecyclerView.getPaddingRight(),
-                resolveBottomRecyclerPaddingPx()
+                bottomPaddingPx
         );
     }
 
