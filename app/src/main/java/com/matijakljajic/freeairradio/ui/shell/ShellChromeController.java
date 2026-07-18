@@ -39,9 +39,7 @@ public final class ShellChromeController {
     private final View playerShellContainerView;
     @Nullable
     private final ViewGroup floaterShellOverlayContainer;
-    @Nullable
     private final View.OnLayoutChangeListener playerShellLayoutChangeListener;
-    @Nullable
     private final View.OnLayoutChangeListener floaterShellLayoutChangeListener;
     @Nullable
     private MaterialCardView floaterShellView;
@@ -78,19 +76,9 @@ public final class ShellChromeController {
     }
 
     public void attach() {
-        if (playerShellContainerView != null && playerShellLayoutChangeListener != null) {
-            playerShellContainerView.addOnLayoutChangeListener(playerShellLayoutChangeListener);
-        }
+        attachPlayerShellListener();
         ensureFloaterShell();
-        ViewCompat.setOnApplyWindowInsetsListener(rootView, (view, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            statusBarInsetPx = systemBars.top;
-            updateTopContentFilter();
-            updateContentPadding();
-            applyFloaterShellTopMargin();
-            return insets;
-        });
-        ViewCompat.requestApplyInsets(rootView);
+        installWindowInsetsListener();
         updateTopContentFilter();
         updateBottomContentFilter();
         applyFloaterShellVisibility(false, DEFAULT_SHELL_TRANSITION_TYPE, 0L);
@@ -98,21 +86,10 @@ public final class ShellChromeController {
     }
 
     public void detach() {
-        if (playerShellContainerView != null && playerShellLayoutChangeListener != null) {
-            playerShellContainerView.removeOnLayoutChangeListener(playerShellLayoutChangeListener);
-        }
-        if (floaterShellView != null && floaterShellLayoutChangeListener != null) {
-            floaterShellView.removeOnLayoutChangeListener(floaterShellLayoutChangeListener);
-        }
-        if (floaterShellOverlayContainer != null && floaterShellView != null) {
-            floaterShellOverlayContainer.removeView(floaterShellView);
-        }
+        detachPlayerShellListener();
+        removeFloaterShellView();
         ViewCompat.setOnApplyWindowInsetsListener(rootView, null);
-        floaterShellView = null;
-        searchInput = null;
-        searchButton = null;
-        floaterStationListFragment = null;
-        contentPaddingView = null;
+        clearAttachedReferences();
     }
 
     public void setFloaterShellVisible(boolean visible, int transitionType, long transitionDelayMs) {
@@ -290,19 +267,12 @@ public final class ShellChromeController {
             return;
         }
 
-        int desiredTopPaddingPx = contentPaddingBaseTopPx + statusBarInsetPx + contentPaddingTopGapPx;
-        int desiredBottomPaddingPx = contentPaddingBaseBottomPx + bottomContentFilterHeightPx;
-        if (contentPaddingView.getPaddingLeft() != contentPaddingBaseLeftPx
-                || contentPaddingView.getPaddingTop() != desiredTopPaddingPx
-                || contentPaddingView.getPaddingRight() != contentPaddingBaseRightPx
-                || contentPaddingView.getPaddingBottom() != desiredBottomPaddingPx) {
-            contentPaddingView.setPadding(
-                    contentPaddingBaseLeftPx,
-                    desiredTopPaddingPx,
-                    contentPaddingBaseRightPx,
-                    desiredBottomPaddingPx
-            );
-        }
+        applyContentPaddingIfChanged(
+                contentPaddingBaseLeftPx,
+                resolveTopContentPaddingPx(),
+                contentPaddingBaseRightPx,
+                resolveBottomContentPaddingPx()
+        );
     }
 
     private int getPlayerShellBottomMarginPx() {
@@ -345,5 +315,68 @@ public final class ShellChromeController {
         layoutParams.height = desiredHeight;
         filterView.setLayoutParams(layoutParams);
         filterView.setVisibility(desiredHeight > 0 ? View.VISIBLE : View.GONE);
+    }
+
+    private void attachPlayerShellListener() {
+        if (playerShellContainerView != null) {
+            playerShellContainerView.addOnLayoutChangeListener(playerShellLayoutChangeListener);
+        }
+    }
+
+    private void detachPlayerShellListener() {
+        if (playerShellContainerView != null) {
+            playerShellContainerView.removeOnLayoutChangeListener(playerShellLayoutChangeListener);
+        }
+    }
+
+    private void installWindowInsetsListener() {
+        ViewCompat.setOnApplyWindowInsetsListener(rootView, (view, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            statusBarInsetPx = systemBars.top;
+            updateTopContentFilter();
+            updateContentPadding();
+            applyFloaterShellTopMargin();
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(rootView);
+    }
+
+    private void removeFloaterShellView() {
+        if (floaterShellView == null) {
+            return;
+        }
+        floaterShellView.removeOnLayoutChangeListener(floaterShellLayoutChangeListener);
+        if (floaterShellOverlayContainer != null) {
+            floaterShellOverlayContainer.removeView(floaterShellView);
+        }
+    }
+
+    private void clearAttachedReferences() {
+        floaterShellView = null;
+        searchInput = null;
+        searchButton = null;
+        floaterStationListFragment = null;
+        contentPaddingView = null;
+    }
+
+    private int resolveTopContentPaddingPx() {
+        return contentPaddingBaseTopPx + statusBarInsetPx + contentPaddingTopGapPx;
+    }
+
+    private int resolveBottomContentPaddingPx() {
+        return contentPaddingBaseBottomPx + bottomContentFilterHeightPx;
+    }
+
+    private void applyContentPaddingIfChanged(int left, int top, int right, int bottom) {
+        if (contentPaddingView == null) {
+            return;
+        }
+        if (contentPaddingView.getPaddingLeft() == left
+                && contentPaddingView.getPaddingTop() == top
+                && contentPaddingView.getPaddingRight() == right
+                && contentPaddingView.getPaddingBottom() == bottom) {
+            return;
+        }
+        contentPaddingView.setPadding(left, top, right, bottom);
     }
 }
