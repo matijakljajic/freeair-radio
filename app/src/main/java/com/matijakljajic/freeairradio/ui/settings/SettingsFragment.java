@@ -32,6 +32,8 @@ import java.util.List;
 @SuppressWarnings("unused")
 public class SettingsFragment extends ShellChromeAwareFragment {
 
+    private static final String SETTINGS_RESET_DIALOG_TAG = "settings_reset_dialog";
+
     @Nullable
     private View settingsRootView;
     @Nullable
@@ -69,6 +71,26 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        bindRootPadding(view);
+        initDependencies();
+        bindViews(view);
+        bindResetDialogResults();
+        bindThemeSection();
+        bindHomePageSection();
+        bindServerSection();
+        bindResetSection();
+    }
+
+    @Override
+    public void onDestroyView() {
+        serverLoadRequestId++;
+        detachRootPadding();
+        clearListeners();
+        clearReferences();
+        super.onDestroyView();
+    }
+
+    private void bindRootPadding(@NonNull View view) {
         settingsRootView = view.findViewById(R.id.settings_root);
         if (settingsRootView != null) {
             attachShellContentPadding(
@@ -76,10 +98,22 @@ public class SettingsFragment extends ShellChromeAwareFragment {
                     UiDimensions.px(requireContext(), R.dimen.top_content_gap)
             );
         }
+    }
+
+    private void detachRootPadding() {
+        if (settingsRootView != null) {
+            detachShellContentPadding(settingsRootView);
+        }
+    }
+
+    private void initDependencies() {
         serverSettings = new RadioBrowserServerSettings(requireContext());
         libraryRepository = LibraryRepository.getInstance(requireContext());
         appThemeSettings = new AppThemeSettings(requireContext());
         homePageSettings = new HomePageSettings(requireContext());
+    }
+
+    private void bindViews(@NonNull View view) {
         serverStatusText = view.findViewById(R.id.server_status_text);
         serverSelectionGroup = view.findViewById(R.id.server_selection_group);
         themeSelectionGroup = view.findViewById(R.id.theme_selection_group);
@@ -88,24 +122,17 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         clearFavoritesButton = view.findViewById(R.id.settings_clear_favorites_button);
         clearLocalStationsButton = view.findViewById(R.id.settings_clear_local_stations_button);
         clearRecentlyPlayedButton = view.findViewById(R.id.settings_clear_recently_played_button);
+    }
+
+    private void bindResetDialogResults() {
         getChildFragmentManager().setFragmentResultListener(
                 SettingsResetDialogFragment.REQUEST_KEY,
                 getViewLifecycleOwner(),
                 (requestKey, result) -> onResetConfirmed(result.getString(SettingsResetDialogFragment.RESULT_KEY_ACTION))
         );
-        bindResetButton();
-        bindThemeSelection();
-        bindHomePageDefaultSelection();
-        bindLibraryResetButtons();
-        loadServerChoices();
     }
 
-    @Override
-    public void onDestroyView() {
-        serverLoadRequestId++;
-        if (settingsRootView != null) {
-            detachShellContentPadding(settingsRootView);
-        }
+    private void clearListeners() {
         if (serverSelectionGroup != null) {
             serverSelectionGroup.setOnCheckedChangeListener(null);
         }
@@ -127,6 +154,9 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         if (clearRecentlyPlayedButton != null) {
             clearRecentlyPlayedButton.setOnClickListener(null);
         }
+    }
+
+    private void clearReferences() {
         serverSettings = null;
         libraryRepository = null;
         appThemeSettings = null;
@@ -140,10 +170,22 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         clearLocalStationsButton = null;
         clearRecentlyPlayedButton = null;
         settingsRootView = null;
-        super.onDestroyView();
     }
 
-    private void bindLibraryResetButtons() {
+    private void bindThemeSection() {
+        bindThemeSelection();
+    }
+
+    private void bindHomePageSection() {
+        bindHomePageDefaultSelection();
+    }
+
+    private void bindServerSection() {
+        bindServerResetButton();
+        loadServerChoices();
+    }
+
+    private void bindResetSection() {
         bindLibraryResetButton(
                 clearFavoritesButton,
                 SettingsResetDialogFragment.ACTION_CLEAR_FAVORITES,
@@ -330,7 +372,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         syncSelectedServer();
     }
 
-    private void bindResetButton() {
+    private void bindServerResetButton() {
         if (resetButton == null) {
             return;
         }
@@ -354,7 +396,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
 
         button.setOnClickListener(v -> SettingsResetDialogFragment
                 .newInstance(action, titleResId, messageResId)
-                .show(getChildFragmentManager(), "settings_reset_dialog"));
+                .show(getChildFragmentManager(), SETTINGS_RESET_DIALOG_TAG));
     }
 
     private void onResetConfirmed(@Nullable String action) {
@@ -397,7 +439,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
                 if (!isAdded()) {
                     return;
                 }
-                Toast.makeText(requireContext(), successResId, Toast.LENGTH_SHORT).show();
+                showToast(successResId);
             }
 
             @Override
@@ -405,7 +447,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
                 if (!isAdded()) {
                     return;
                 }
-                Toast.makeText(requireContext(), failureResId, Toast.LENGTH_SHORT).show();
+                showToast(failureResId);
             }
         });
     }
@@ -500,6 +542,10 @@ public class SettingsFragment extends ShellChromeAwareFragment {
 
     private interface ResetAction {
         void run(@NonNull LibraryRepository.WriteCallback callback);
+    }
+
+    private void showToast(@StringRes int messageResId) {
+        Toast.makeText(requireContext(), messageResId, Toast.LENGTH_SHORT).show();
     }
 
     private int resolveThemeColor(@AttrRes int attrResId) {
