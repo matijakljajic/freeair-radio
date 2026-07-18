@@ -27,4 +27,7 @@ public interface FavoriteStationDao {
 
     @Query("DELETE FROM favorite_stations WHERE id = :stationId")
     void deleteById(@NonNull String stationId);
+
+    @Query("DELETE FROM favorite_stations")
+    void clearAll();
 }

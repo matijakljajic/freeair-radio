@@ -15,7 +15,11 @@ import androidx.recyclerview.widget.ConcatAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.matijakljajic.freeairradio.R;
+import com.matijakljajic.freeairradio.data.model.Station;
+import com.matijakljajic.freeairradio.data.model.StationOrigin;
 import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
+import com.matijakljajic.freeairradio.ui.localstations.LocalStationEditorFragment;
+import com.matijakljajic.freeairradio.ui.settings.HomePageSettings;
 import com.matijakljajic.freeairradio.ui.stations.StationAdapter;
 import com.matijakljajic.freeairradio.ui.stations.StationFeedFragment;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
@@ -31,6 +35,8 @@ public class HomePageFragment extends StationFeedFragment {
     private LibraryRepository libraryRepository;
     @NonNull
     private final LibraryRepository.FavoritesListener favoritesListener = this::refreshFavoritesIfVisible;
+    @NonNull
+    private HomePageSettings homePageSettings;
 
     @Nullable
     private RecyclerView homepageRecyclerView;
@@ -50,8 +56,14 @@ public class HomePageFragment extends StationFeedFragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        currentSource = HomePageSource.fromSavedState(savedInstanceState);
+        homePageSettings = new HomePageSettings(requireContext());
+        currentSource = resolveInitialSource(savedInstanceState);
         libraryRepository = LibraryRepository.getInstance(requireContext());
+        getChildFragmentManager().setFragmentResultListener(
+                LocalStationEditorFragment.REQUEST_KEY,
+                getViewLifecycleOwner(),
+                (requestKey, result) -> onLocalStationEditorResult(result)
+        );
         headerAdapter = new HomePageHeaderAdapter(new HomePageHeaderAdapter.Listener() {
             @Override
             public void onSourceClicked(@NonNull View anchorView) {
@@ -63,7 +75,7 @@ public class HomePageFragment extends StationFeedFragment {
                 handleAddStationClick();
             }
         });
-        headerAdapter.setTitleResId(currentSource.titleResId);
+        headerAdapter.setTitleResId(currentSource.getTitleResId());
         bindStationFeed(
                 view,
                 R.id.station_feed_recycler_view,
@@ -106,16 +118,25 @@ public class HomePageFragment extends StationFeedFragment {
     }
 
     private void loadHomepageStations() {
-        if (currentSource == HomePageSource.FAVORITES) {
-            loadStations(
-                    (repository, callback) -> libraryRepository.loadFavoriteStations(callback),
-                    R.string.station_list_empty_favorites,
-                    R.string.station_list_error
-            );
-            return;
+        switch (currentSource) {
+            case FAVORITES:
+                loadStations(
+                        (repository, callback) -> libraryRepository.loadFavoriteStations(callback),
+                        R.string.station_list_empty_favorites,
+                        R.string.station_list_error
+                );
+                return;
+            case LOCAL_STATIONS:
+                loadStations(
+                        (repository, callback) -> libraryRepository.loadLocalStations(callback),
+                        R.string.station_list_empty_local_stations,
+                        R.string.station_list_error
+                );
+                return;
+            case NOW_POPULAR:
+            default:
+                loadTopStations(R.string.station_list_empty, R.string.station_list_error);
         }
-
-        loadTopStations(R.string.station_list_empty, R.string.station_list_error);
     }
 
     private void showSourceMenu(@NonNull View anchorView) {
@@ -154,7 +175,7 @@ public class HomePageFragment extends StationFeedFragment {
                     false
             );
             TextView optionTextView = optionView.findViewById(R.id.homepage_source_option_text);
-            optionTextView.setText(source.titleResId);
+            optionTextView.setText(source.getTitleResId());
             optionView.setOnClickListener(v -> {
                 popupWindow.dismiss();
                 switchSource(source);
@@ -185,7 +206,7 @@ public class HomePageFragment extends StationFeedFragment {
                     false
             );
             TextView optionTextView = optionView.findViewById(R.id.homepage_source_option_text);
-            optionTextView.setText(source.titleResId);
+            optionTextView.setText(source.getTitleResId());
             optionView.measure(
                     View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
                     View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
@@ -202,9 +223,27 @@ public class HomePageFragment extends StationFeedFragment {
 
         currentSource = source;
         if (headerAdapter != null) {
-            headerAdapter.setTitleResId(source.titleResId);
+            headerAdapter.setTitleResId(source.getTitleResId());
         }
         loadHomepageStations();
+    }
+
+    @NonNull
+    private HomePageSource resolveInitialSource(@Nullable Bundle savedInstanceState) {
+        if (savedInstanceState == null) {
+            return homePageSettings.getDefaultSource();
+        }
+
+        String sourceName = savedInstanceState.getString(STATE_SOURCE);
+        if (sourceName == null) {
+            return homePageSettings.getDefaultSource();
+        }
+
+        try {
+            return HomePageSource.valueOf(sourceName);
+        } catch (IllegalArgumentException exception) {
+            return homePageSettings.getDefaultSource();
+        }
     }
 
     @NonNull
@@ -245,7 +284,34 @@ public class HomePageFragment extends StationFeedFragment {
     }
 
     private void handleAddStationClick() {
-        // TODO: Open local station creation when that slice is implemented.
+        LocalStationEditorFragment.newCreateInstance()
+                .show(getChildFragmentManager(), "local_station_editor");
+    }
+
+    @Override
+    public void onStationLongClick(Station station) {
+        if (station.getOrigin() == StationOrigin.LOCAL_USER) {
+            LocalStationEditorFragment.newEditInstance(station)
+                    .show(getChildFragmentManager(), "local_station_editor");
+            return;
+        }
+
+        super.onStationLongClick(station);
+    }
+
+    private void onLocalStationEditorResult(@NonNull Bundle result) {
+        if (result.getBoolean(LocalStationEditorFragment.RESULT_KEY_OPEN_LOCAL_SOURCE, false)) {
+            if (currentSource == HomePageSource.LOCAL_STATIONS) {
+                loadHomepageStations();
+                return;
+            }
+            switchSource(HomePageSource.LOCAL_STATIONS);
+            return;
+        }
+
+        if (currentSource == HomePageSource.LOCAL_STATIONS) {
+            loadHomepageStations();
+        }
     }
 
     @NonNull
@@ -260,6 +326,11 @@ public class HomePageFragment extends StationFeedFragment {
     @Override
     protected boolean keepsRecyclerVisibleDuringStateViews() {
         return true;
+    }
+
+    @Override
+    protected boolean shouldCrossfadeStationListUpdates() {
+        return false;
     }
 
     private void updateHeaderStateInset() {
@@ -290,32 +361,4 @@ public class HomePageFragment extends StationFeedFragment {
         setStateContainerTopInsetPx(topInsetPx);
     }
 
-    private enum HomePageSource {
-        NOW_POPULAR(R.string.station_list_title_now_popular),
-        FAVORITES(R.string.station_list_title_favorites);
-
-        private final int titleResId;
-
-        HomePageSource(int titleResId) {
-            this.titleResId = titleResId;
-        }
-
-        @NonNull
-        private static HomePageSource fromSavedState(@Nullable Bundle savedInstanceState) {
-            if (savedInstanceState == null) {
-                return NOW_POPULAR;
-            }
-
-            String sourceName = savedInstanceState.getString(STATE_SOURCE);
-            if (sourceName == null) {
-                return NOW_POPULAR;
-            }
-
-            try {
-                return HomePageSource.valueOf(sourceName);
-            } catch (IllegalArgumentException exception) {
-                return NOW_POPULAR;
-            }
-        }
-    }
 }

@@ -27,4 +27,7 @@ public interface LocalStationDao {
 
     @Query("DELETE FROM local_stations WHERE id = :stationId")
     void deleteById(@NonNull String stationId);
+
+    @Query("DELETE FROM local_stations")
+    void clearAll();
 }

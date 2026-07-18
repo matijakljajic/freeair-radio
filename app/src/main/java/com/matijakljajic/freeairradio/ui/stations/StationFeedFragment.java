@@ -194,6 +194,10 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
         return false;
     }
 
+    protected boolean shouldCrossfadeStationListUpdates() {
+        return true;
+    }
+
     protected final void setStateContainerTopInsetPx(int topInsetPx) {
         int sanitizedInsetPx = Math.max(0, topInsetPx);
         if (stateContainerTopInsetPx == sanitizedInsetPx) {
@@ -231,18 +235,18 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
         }
 
         hasRenderedContent = true;
-        if (hadVisibleContent) {
+        if (hadVisibleContent && shouldCrossfadeStationListUpdates()) {
             crossfadeStationList(stations, () -> renderState(ListUiState.CONTENT, 0));
             return;
         }
 
         submitStationList(stations, () -> {
-            if (recyclerView != null) {
+            if (!hadVisibleContent && recyclerView != null) {
                 recyclerView.animate().cancel();
                 recyclerView.setAlpha(0f);
             }
             renderState(ListUiState.CONTENT, 0);
-            if (recyclerView != null) {
+            if (!hadVisibleContent && recyclerView != null) {
                 recyclerView.animate()
                         .alpha(1f)
                         .setDuration(CONTENT_FADE_IN_DURATION_MS)

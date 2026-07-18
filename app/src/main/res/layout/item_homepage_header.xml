@@ -9,7 +9,6 @@
     android:gravity="center_vertical"
     android:orientation="horizontal">
 
-    <!-- TODO: Use this header as the source switch between Now Popular and Favorites. -->
     <TextView
         android:id="@+id/homepage_title"
         android:layout_width="wrap_content"
@@ -28,7 +27,6 @@
         android:layout_height="1dp"
         android:layout_weight="1" />
 
-    <!-- TODO: Use this button to add a local station type station later. -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/homepage_add_station_button"
         style="@style/Widget.FreeAirRadio.NavPillButton"

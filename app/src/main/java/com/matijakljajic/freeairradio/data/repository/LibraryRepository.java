@@ -31,6 +31,12 @@ public final class LibraryRepository {
         void onFavoritesChanged();
     }
 
+    public interface WriteCallback {
+        void onSuccess();
+
+        void onError(@NonNull Throwable throwable);
+    }
+
     private static final String TAG = "LibraryRepository";
     private static final long RECENTLY_PLAYED_RETENTION_MILLIS = 7L * 24L * 60L * 60L * 1000L;
 
@@ -160,27 +166,91 @@ public final class LibraryRepository {
         });
     }
 
-    public void saveLocalStation(@NonNull Station station) {
+    public void saveLocalStation(@NonNull Station station, @Nullable WriteCallback callback) {
         ioExecutor.execute(() -> {
             try {
+                long now = System.currentTimeMillis();
                 LocalStationEntity existingEntity = localStationDao.findById(station.getId());
                 localStationDao.upsert(StationMapper.toLocalStationEntity(
                         station,
                         existingEntity,
-                        System.currentTimeMillis()
+                        now
                 ));
+                FavoriteStationEntity favoriteEntity = favoriteStationDao.findById(station.getId());
+                if (favoriteEntity != null) {
+                    favoriteStationDao.upsert(StationMapper.toFavoriteStationEntity(station, favoriteEntity, now));
+                }
+                List<Station> refreshedFavorites = loadFavoriteStationsFromDatabase();
+                boolean favoritesChanged = replaceFavoriteCache(refreshedFavorites);
+                favoritesLoaded = true;
+                if (favoritesChanged) {
+                    notifyFavoritesListeners();
+                }
+                postWriteSuccess(callback);
             } catch (Throwable throwable) {
                 Log.w(TAG, "Could not save local station", throwable);
+                postWriteError(callback, throwable);
             }
         });
     }
 
-    public void deleteLocalStation(@NonNull String stationId) {
+    public void deleteLocalStation(@NonNull String stationId, @Nullable WriteCallback callback) {
         ioExecutor.execute(() -> {
             try {
                 localStationDao.deleteById(stationId);
+                favoriteStationDao.deleteById(stationId);
+                recentlyPlayedDao.deleteById(stationId);
+                List<Station> refreshedFavorites = loadFavoriteStationsFromDatabase();
+                boolean favoritesChanged = replaceFavoriteCache(refreshedFavorites);
+                favoritesLoaded = true;
+                if (favoritesChanged) {
+                    notifyFavoritesListeners();
+                }
+                postWriteSuccess(callback);
             } catch (Throwable throwable) {
                 Log.w(TAG, "Could not delete local station", throwable);
+                postWriteError(callback, throwable);
+            }
+        });
+    }
+
+    public void clearFavoriteStations(@Nullable WriteCallback callback) {
+        ioExecutor.execute(() -> {
+            try {
+                favoriteStationDao.clearAll();
+                boolean favoritesChanged = replaceFavoriteCache(new ArrayList<>());
+                favoritesLoaded = true;
+                if (favoritesChanged) {
+                    notifyFavoritesListeners();
+                }
+                postWriteSuccess(callback);
+            } catch (Throwable throwable) {
+                Log.w(TAG, "Could not clear favorite stations", throwable);
+                postWriteError(callback, throwable);
+            }
+        });
+    }
+
+    public void clearLocalStations(@Nullable WriteCallback callback) {
+        ioExecutor.execute(() -> {
+            try {
+                localStationDao.clearAll();
+                postWriteSuccess(callback);
+            } catch (Throwable throwable) {
+                Log.w(TAG, "Could not clear local stations", throwable);
+                postWriteError(callback, throwable);
+            }
+        });
+    }
+
+    public void clearRecentlyPlayedStations(@Nullable WriteCallback callback) {
+        ioExecutor.execute(() -> {
+            try {
+                recentlyPlayedDao.clearAll();
+                postWriteSuccess(callback);
+            } catch (Throwable throwable) {
+                Log.w(TAG, "Could not clear recently played stations", throwable);
+                postWriteError(callback, throwable);
             }
         });
     }
@@ -292,6 +362,20 @@ public final class LibraryRepository {
 
     private void postError(@NonNull StationRepository.LoadCallback callback,
                            @NonNull Throwable throwable) {
+        postToMain(() -> callback.onError(throwable));
+    }
+
+    private void postWriteSuccess(@Nullable WriteCallback callback) {
+        if (callback == null) {
+            return;
+        }
+        postToMain(callback::onSuccess);
+    }
+
+    private void postWriteError(@Nullable WriteCallback callback, @NonNull Throwable throwable) {
+        if (callback == null) {
+            return;
+        }
         postToMain(() -> callback.onError(throwable));
     }
 

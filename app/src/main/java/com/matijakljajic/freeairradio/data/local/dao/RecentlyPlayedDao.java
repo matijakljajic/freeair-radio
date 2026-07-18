@@ -20,6 +20,12 @@ public interface RecentlyPlayedDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void upsert(@NonNull RecentlyPlayedStationEntity entity);
 
+    @Query("DELETE FROM recently_played_stations WHERE id = :stationId")
+    void deleteById(@NonNull String stationId);
+
     @Query("DELETE FROM recently_played_stations WHERE last_played_at < :cutoffTimestamp")
     void deleteOlderThan(long cutoffTimestamp);
+
+    @Query("DELETE FROM recently_played_stations")
+    void clearAll();
 }
