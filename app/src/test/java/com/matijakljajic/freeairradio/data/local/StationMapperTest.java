@@ -46,11 +46,12 @@ public class StationMapperTest {
                 station.getHls(),
                 station.getOrigin().name(),
                 123L,
-                456L
+                456L,
+                789L
         );
 
         FavoriteStationEntity mappedEntity =
-                StationMapper.toFavoriteStationEntity(station, existingEntity, 999L);
+                StationMapper.toFavoriteStationEntity(station, existingEntity, 123L, 999L);
 
         assertEquals("RADIO_BROWSER:test-station", mappedEntity.id);
         assertEquals("Radio Test", mappedEntity.name);
@@ -66,6 +67,7 @@ public class StationMapperTest {
         assertEquals(192, mappedEntity.bitrate);
         assertEquals(Boolean.FALSE, mappedEntity.hls);
         assertEquals("RADIO_BROWSER", mappedEntity.origin);
+        assertEquals(123L, mappedEntity.displayOrder);
         assertEquals(123L, mappedEntity.addedAt);
         assertEquals(999L, mappedEntity.updatedAt);
     }
@@ -87,6 +89,7 @@ public class StationMapperTest {
                 128,
                 null,
                 "not-a-valid-origin",
+                5L,
                 111L,
                 222L
         );
