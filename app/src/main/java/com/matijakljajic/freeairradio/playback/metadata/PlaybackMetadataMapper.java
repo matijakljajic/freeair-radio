@@ -23,36 +23,24 @@ public final class PlaybackMetadataMapper {
                                                             boolean favorite) {
         MediaMetadata.Builder builder = new MediaMetadata.Builder();
 
-        String stationName = station != null
-                ? station.getName()
-                : charSequenceToString(rawMetadata.station);
+        String stationName = resolveStationName(rawMetadata, station);
         if (stationName != null) {
             builder.setStation(stationName);
         }
-        byte[] cachedArtworkData = station != null
-                ? StationArtworkBitmapLoader.getCachedArtworkData(StationArtworkResolver.getBestAvailableUrl(station))
-                : rawMetadata.artworkData;
+        byte[] cachedArtworkData = resolveArtworkData(rawMetadata, station);
         if (cachedArtworkData != null) {
             builder.setArtworkData(cachedArtworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER);
         }
-        Uri artworkUri = station != null
-                ? resolveStationArtworkUri(station)
-                : rawMetadata.artworkUri;
-        if (artworkUri == null) {
-            artworkUri = rawMetadata.artworkUri;
-        }
+        Uri artworkUri = resolveArtworkUri(rawMetadata, station);
         if (artworkUri != null) {
             builder.setArtworkUri(artworkUri);
         }
-        if (station != null) {
-            builder.setUserRating(new HeartRating(favorite));
-        } else if (rawMetadata.userRating != null) {
-            builder.setUserRating(rawMetadata.userRating);
+        HeartRating userRating = resolveUserRating(rawMetadata, station, favorite);
+        if (userRating != null) {
+            builder.setUserRating(userRating);
         }
 
-        NowPlaying nowPlaying = currentNowPlaying != null
-                ? currentNowPlaying
-                : extractNowPlaying(rawMetadata, stationName);
+        NowPlaying nowPlaying = resolvePresentedNowPlaying(rawMetadata, stationName, currentNowPlaying);
         if (nowPlaying != null) {
             if (nowPlaying.getTitle() != null) {
                 builder.setTitle(nowPlaying.getTitle());
@@ -66,6 +54,21 @@ public final class PlaybackMetadataMapper {
     }
 
     @Nullable
+    public static CharSequence buildNotificationTitle(@NonNull MediaMetadata metadata) {
+        NowPlaying nowPlaying = resolvePresentedNowPlaying(metadata, charSequenceToString(metadata.station), null);
+        if (hasCompleteTrackInfo(nowPlaying)) {
+            return nowPlaying.getTitle();
+        }
+        return firstNonEmpty(metadata.station, metadata.displayTitle, metadata.artist);
+    }
+
+    @Nullable
+    public static CharSequence buildNotificationText(@NonNull MediaMetadata metadata) {
+        NowPlaying nowPlaying = resolvePresentedNowPlaying(metadata, charSequenceToString(metadata.station), null);
+        return hasCompleteTrackInfo(nowPlaying) ? nowPlaying.getArtist() : null;
+    }
+
+    @Nullable
     public static Uri resolveStationArtworkUri(@NonNull Station station) {
         String url = StationArtworkResolver.getBestAvailableUrl(station);
         if (StationArtworkResolver.isSvgUrl(url)) {
@@ -75,13 +78,73 @@ public final class PlaybackMetadataMapper {
     }
 
     @Nullable
-    private static NowPlaying extractNowPlaying(@NonNull MediaMetadata rawMetadata,
-                                                @Nullable String stationName) {
+    private static NowPlaying resolvePresentedNowPlaying(@NonNull MediaMetadata rawMetadata,
+                                                         @Nullable String stationName,
+                                                         @Nullable NowPlaying currentNowPlaying) {
+        if (currentNowPlaying != null) {
+            return currentNowPlaying;
+        }
         return NowPlaying.fromMetadata(
                 stationName,
                 charSequenceToString(rawMetadata.artist),
                 charSequenceToString(rawMetadata.title)
         );
+    }
+
+    @Nullable
+    private static String resolveStationName(@NonNull MediaMetadata rawMetadata,
+                                             @Nullable Station station) {
+        return station != null ? station.getName() : charSequenceToString(rawMetadata.station);
+    }
+
+    @Nullable
+    private static byte[] resolveArtworkData(@NonNull MediaMetadata rawMetadata,
+                                             @Nullable Station station) {
+        if (station == null) {
+            return rawMetadata.artworkData;
+        }
+        return StationArtworkBitmapLoader.getCachedArtworkData(
+                StationArtworkResolver.getBestAvailableUrl(station)
+        );
+    }
+
+    @Nullable
+    private static Uri resolveArtworkUri(@NonNull MediaMetadata rawMetadata,
+                                         @Nullable Station station) {
+        if (station == null) {
+            return rawMetadata.artworkUri;
+        }
+
+        Uri artworkUri = resolveStationArtworkUri(station);
+        return artworkUri != null ? artworkUri : rawMetadata.artworkUri;
+    }
+
+    @Nullable
+    private static HeartRating resolveUserRating(@NonNull MediaMetadata rawMetadata,
+                                                 @Nullable Station station,
+                                                 boolean favorite) {
+        if (station != null) {
+            return new HeartRating(favorite);
+        }
+        return rawMetadata.userRating instanceof HeartRating
+                ? (HeartRating) rawMetadata.userRating
+                : null;
+    }
+
+    private static boolean hasCompleteTrackInfo(@Nullable NowPlaying nowPlaying) {
+        return nowPlaying != null
+                && nowPlaying.getTitle() != null
+                && nowPlaying.getArtist() != null;
+    }
+
+    @Nullable
+    private static CharSequence firstNonEmpty(@Nullable CharSequence... values) {
+        for (CharSequence value : values) {
+            if (value != null && value.length() > 0) {
+                return value;
+            }
+        }
+        return null;
     }
 
     @Nullable

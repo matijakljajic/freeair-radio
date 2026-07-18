@@ -11,6 +11,7 @@ import androidx.media3.session.DefaultMediaNotificationProvider;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.playback.metadata.CurrentPlaybackState;
+import com.matijakljajic.freeairradio.playback.metadata.PlaybackMetadataMapper;
 
 @UnstableApi
 public final class RadioPlaybackNotificationProvider extends DefaultMediaNotificationProvider {
@@ -45,7 +46,7 @@ public final class RadioPlaybackNotificationProvider extends DefaultMediaNotific
         if (isConnecting()) {
             return null;
         }
-        return buildNotificationText(metadata);
+        return PlaybackMetadataMapper.buildNotificationText(metadata);
     }
 
     @Nullable
@@ -67,45 +68,15 @@ public final class RadioPlaybackNotificationProvider extends DefaultMediaNotific
 
     @Nullable
     static CharSequence buildNotificationTitle(@NonNull MediaMetadata metadata) {
-        if (hasCompleteTrackInfo(metadata)
-                && hasText(metadata.title)
-                && !contentEquals(metadata.title, metadata.station)) {
-            return metadata.title;
-        }
-        if (hasText(metadata.station)) {
-            return metadata.station;
-        }
-        if (hasText(metadata.displayTitle)) {
-            return metadata.displayTitle;
-        }
-        return metadata.artist;
+        return PlaybackMetadataMapper.buildNotificationTitle(metadata);
     }
 
     @Nullable
     static CharSequence buildNotificationText(@NonNull MediaMetadata metadata) {
-        if (hasCompleteTrackInfo(metadata)
-                && hasText(metadata.artist)
-                && !contentEquals(metadata.artist, metadata.title)) {
-            return metadata.artist;
-        }
-        return null;
-    }
-
-    private static boolean hasCompleteTrackInfo(@NonNull MediaMetadata metadata) {
-        return hasText(metadata.title) && hasText(metadata.artist);
+        return PlaybackMetadataMapper.buildNotificationText(metadata);
     }
 
     private static boolean hasText(@Nullable CharSequence text) {
         return text != null && text.length() > 0;
-    }
-
-    private static boolean contentEquals(@Nullable CharSequence left, @Nullable CharSequence right) {
-        if (left == right) {
-            return true;
-        }
-        if (left == null || right == null) {
-            return false;
-        }
-        return left.toString().contentEquals(right);
     }
 }

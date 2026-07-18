@@ -11,40 +11,37 @@ public final class FavoriteStationNavigator {
 
     public boolean canNavigate(@Nullable Station currentStation,
                                @NonNull List<Station> favoriteStations) {
-        return favoriteStations.size() > 1 && findCurrentIndex(currentStation, favoriteStations) >= 0;
+        return findNavigableIndex(currentStation, favoriteStations) >= 0;
     }
 
     @Nullable
     public Station getPrevious(@Nullable Station currentStation,
                                @NonNull List<Station> favoriteStations) {
-        int currentIndex = findCurrentIndex(currentStation, favoriteStations);
-        if (favoriteStations.size() <= 1 || currentIndex < 0) {
-            return null;
-        }
-
-        int previousIndex = currentIndex == 0
-                ? favoriteStations.size() - 1
-                : currentIndex - 1;
-        return favoriteStations.get(previousIndex);
+        return getOffsetStation(currentStation, favoriteStations, -1);
     }
 
     @Nullable
     public Station getNext(@Nullable Station currentStation,
                            @NonNull List<Station> favoriteStations) {
-        int currentIndex = findCurrentIndex(currentStation, favoriteStations);
-        if (favoriteStations.size() <= 1 || currentIndex < 0) {
+        return getOffsetStation(currentStation, favoriteStations, 1);
+    }
+
+    @Nullable
+    private Station getOffsetStation(@Nullable Station currentStation,
+                                     @NonNull List<Station> favoriteStations,
+                                     int offset) {
+        int currentIndex = findNavigableIndex(currentStation, favoriteStations);
+        if (currentIndex < 0) {
             return null;
         }
 
-        int nextIndex = currentIndex == favoriteStations.size() - 1
-                ? 0
-                : currentIndex + 1;
-        return favoriteStations.get(nextIndex);
+        int targetIndex = (currentIndex + offset + favoriteStations.size()) % favoriteStations.size();
+        return favoriteStations.get(targetIndex);
     }
 
-    private int findCurrentIndex(@Nullable Station currentStation,
-                                 @NonNull List<Station> favoriteStations) {
-        if (currentStation == null) {
+    private int findNavigableIndex(@Nullable Station currentStation,
+                                   @NonNull List<Station> favoriteStations) {
+        if (currentStation == null || favoriteStations.size() <= 1) {
             return -1;
         }
 
