@@ -10,19 +10,19 @@ import com.google.gson.JsonParser;
 import com.matijakljajic.freeairradio.BuildConfig;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ThreadLocalRandom;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 
 public final class RadioBrowserServerDirectory {
 
@@ -48,12 +48,22 @@ public final class RadioBrowserServerDirectory {
         return BOOTSTRAP_BASE_URL;
     }
 
-    public static void refresh() {
-        cachedServers = RadioBrowserServerDirectory.discoverBaseUrls();
+    @NonNull
+    public static List<String> loadServers(boolean forceRefresh) {
+        if (!forceRefresh && !cachedServers.isEmpty()) {
+            return cachedServers;
+        }
+        return refresh();
     }
 
     @NonNull
-    public static List<String> discoverBaseUrls() {
+    public static List<String> refresh() {
+        cachedServers = discoverFreshBaseUrls();
+        return cachedServers;
+    }
+
+    @NonNull
+    private static List<String> discoverFreshBaseUrls() {
         List<String> directoryBaseUrls = discoverViaServerDirectory();
         if (!directoryBaseUrls.isEmpty()) {
             return shuffle(directoryBaseUrls);
@@ -105,7 +115,7 @@ public final class RadioBrowserServerDirectory {
     @NonNull
     private static List<String> shuffle(@NonNull List<String> baseUrls) {
         List<String> randomizedBaseUrls = new ArrayList<>(new LinkedHashSet<>(baseUrls));
-        Collections.shuffle(randomizedBaseUrls, new Random());
+        Collections.shuffle(randomizedBaseUrls, ThreadLocalRandom.current());
         return randomizedBaseUrls;
     }
 

@@ -313,12 +313,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         updateServerStatus(-1);
 
         new Thread(() -> {
-            List<String> discoveredBaseUrls = RadioBrowserServerDirectory.getCachedServers();
-            if (forceRefresh || discoveredBaseUrls.isEmpty()) {
-                RadioBrowserServerDirectory.refresh();
-                discoveredBaseUrls =
-                        RadioBrowserServerDirectory.getCachedServers();
-            }
+            List<String> discoveredBaseUrls = RadioBrowserServerDirectory.loadServers(forceRefresh);
             postServerChoices(requestId, discoveredBaseUrls);
         }, forceRefresh ? "RadioBrowserServerSettingsRefresh" : "RadioBrowserServerSettingsLoad").start();
     }
