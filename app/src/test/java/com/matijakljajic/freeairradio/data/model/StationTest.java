@@ -10,11 +10,7 @@ public class StationTest {
 
     @Test
     public void builderWithOriginOnlyDefaultsOptionalFields() {
-        Station station = Station.builder(
-                        "id-1",
-                        "Test Station",
-                        "https://example.com/stream",
-                        StationOrigin.RADIO_BROWSER)
+        Station station = stationBuilder("id-1")
                 .build();
 
         assertEquals(Station.UNKNOWN, station.getCountry());
@@ -26,11 +22,7 @@ public class StationTest {
 
     @Test
     public void builderWithCountryOnlyStoresCountry() {
-        Station station = Station.builder(
-                        "id-2",
-                        "Test Station",
-                        "https://example.com/stream",
-                        StationOrigin.RADIO_BROWSER)
+        Station station = stationBuilder("id-2")
                 .setCountry("Norway")
                 .build();
 
@@ -42,11 +34,7 @@ public class StationTest {
 
     @Test
     public void builderWithCountryAndLanguageStoresLanguage() {
-        Station station = Station.builder(
-                        "id-3",
-                        "Test Station",
-                        "https://example.com/stream",
-                        StationOrigin.RADIO_BROWSER)
+        Station station = stationBuilder("id-3")
                 .setCountry("Serbia")
                 .setLanguage("Serbian")
                 .build();
@@ -59,11 +47,7 @@ public class StationTest {
 
     @Test
     public void builderWithTagsStoresTags() {
-        Station station = Station.builder(
-                        "id-4",
-                        "Test Station",
-                        "https://example.com/stream",
-                        StationOrigin.RADIO_BROWSER)
+        Station station = stationBuilder("id-4")
                 .setCountry("France")
                 .setLanguage("French")
                 .setTags("jazz, smooth jazz")
@@ -77,11 +61,7 @@ public class StationTest {
 
     @Test
     public void builderWithCodecStoresCodec() {
-        Station station = Station.builder(
-                        "id-5",
-                        "Test Station",
-                        "https://example.com/stream",
-                        StationOrigin.RADIO_BROWSER)
+        Station station = stationBuilder("id-5")
                 .setCountry("Croatia")
                 .setLanguage("Croatian")
                 .setTags("classic")
@@ -97,11 +77,7 @@ public class StationTest {
 
     @Test
     public void builderNormalizesUnknownValues() {
-        Station station = Station.builder(
-                        "id-6",
-                        "Test Station",
-                        "https://example.com/stream",
-                        StationOrigin.RADIO_BROWSER)
+        Station station = stationBuilder("id-6")
                 .setCountry("unknown country")
                 .setLanguage("  ")
                 .setTags("unknown tags")
@@ -118,22 +94,14 @@ public class StationTest {
 
     @Test
     public void equalsAndHashCodeDependOnNormalizedValues() {
-        Station first = Station.builder(
-                        "id-7",
-                        "Test Station",
-                        "https://example.com/stream",
-                        StationOrigin.RADIO_BROWSER)
+        Station first = stationBuilder("id-7")
                 .setCountry(" Norway ")
                 .setLanguage("norwegian")
                 .setTags("jazz")
                 .setCodec("MP3")
                 .setBitrate(128)
                 .build();
-        Station second = Station.builder(
-                        "id-7",
-                        "Test Station",
-                        "https://example.com/stream",
-                        StationOrigin.RADIO_BROWSER)
+        Station second = stationBuilder("id-7")
                 .setCountry("Norway")
                 .setLanguage("norwegian")
                 .setTags("jazz")
@@ -162,5 +130,14 @@ public class StationTest {
                 .build();
 
         assertEquals("https://example.com/stream", station.getPlayableStreamUrl());
+    }
+
+    private Station.Builder stationBuilder(String id) {
+        return Station.builder(
+                id,
+                "Test Station",
+                "https://example.com/stream",
+                StationOrigin.RADIO_BROWSER
+        );
     }
 }

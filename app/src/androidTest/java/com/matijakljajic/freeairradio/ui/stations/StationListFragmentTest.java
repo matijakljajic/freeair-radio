@@ -34,7 +34,7 @@ public class StationListFragmentTest {
 
     @Test
     public void staleSearchResultIsIgnoredAfterQueryIsCleared() {
-        ControllableStationRepositoryTest repository = new ControllableStationRepositoryTest();
+        ControllableStationRepository repository = new ControllableStationRepository();
         TestStationListFragment.repository = repository;
 
         try (FragmentScenario<TestStationListFragment> scenario = FragmentScenario.launchInContainer(
@@ -47,17 +47,19 @@ public class StationListFragmentTest {
             scenario.onFragment(fragment -> fragment.submitQuery(""));
             scenario.onFragment(fragment -> repository.deliverStations(Collections.singletonList(createStation())));
 
-            scenario.onFragment(fragment -> {
-                TextView emptyView = fragment.requireView().findViewById(R.id.station_feed_empty_view);
-                ProgressBar loadingView = fragment.requireView().findViewById(R.id.station_feed_loading_view);
-                View recyclerView = fragment.requireView().findViewById(R.id.station_feed_recycler_view);
-
-                assertEquals(View.VISIBLE, emptyView.getVisibility());
-                assertEquals(fragment.getString(R.string.station_search_idle), emptyView.getText().toString());
-                assertEquals(View.GONE, loadingView.getVisibility());
-                assertEquals(View.GONE, recyclerView.getVisibility());
-            });
+            scenario.onFragment(this::assertIdleState);
         }
+    }
+
+    private void assertIdleState(@NonNull TestStationListFragment fragment) {
+        TextView emptyView = fragment.requireView().findViewById(R.id.station_feed_empty_view);
+        ProgressBar loadingView = fragment.requireView().findViewById(R.id.station_feed_loading_view);
+        View recyclerView = fragment.requireView().findViewById(R.id.station_feed_recycler_view);
+
+        assertEquals(View.VISIBLE, emptyView.getVisibility());
+        assertEquals(fragment.getString(R.string.station_search_idle), emptyView.getText().toString());
+        assertEquals(View.GONE, loadingView.getVisibility());
+        assertEquals(View.GONE, recyclerView.getVisibility());
     }
 
     @NonNull
@@ -84,7 +86,7 @@ public class StationListFragmentTest {
         }
     }
 
-    private static final class ControllableStationRepositoryTest implements StationRepository {
+    private static final class ControllableStationRepository implements StationRepository {
         @Nullable
         private LoadCallback callback;
         @Nullable

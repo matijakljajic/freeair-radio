@@ -17,4 +17,13 @@
     <dimen name="homepage_source_dropdown_horizontal_padding">16dp</dimen>
     <dimen name="station_favicon_size">72dp</dimen>
     <dimen name="station_feed_state_vertical_offset">24dp</dimen>
+    <dimen name="dialog_card_corner_radius">20dp</dimen>
+    <dimen name="dialog_section_corner_radius">16dp</dimen>
+    <dimen name="dialog_content_padding">20dp</dimen>
+    <dimen name="dialog_title_horizontal_margin">8dp</dimen>
+    <dimen name="dialog_section_margin_top">14dp</dimen>
+    <dimen name="dialog_section_padding">16dp</dimen>
+    <dimen name="dialog_primary_button_margin_top">18dp</dimen>
+    <dimen name="dialog_secondary_button_margin_top">10dp</dimen>
+    <dimen name="dialog_pill_corner_radius">999dp</dimen>
 </resources>

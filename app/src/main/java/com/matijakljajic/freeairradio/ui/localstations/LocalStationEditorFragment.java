@@ -1,15 +1,10 @@
 package com.matijakljajic.freeairradio.ui.localstations;
 
 import android.app.Dialog;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.view.Gravity;
 import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -27,6 +22,7 @@ import com.matijakljajic.freeairradio.data.local.LocalStationIdFactory;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
 import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
+import com.matijakljajic.freeairradio.ui.util.DialogWindowHelper;
 
 public class LocalStationEditorFragment extends DialogFragment {
 
@@ -63,6 +59,8 @@ public class LocalStationEditorFragment extends DialogFragment {
     private MaterialButton closeButton;
     @Nullable
     private LibraryRepository libraryRepository;
+    @Nullable
+    private Station editedStation;
     private boolean saving;
 
     @NonNull
@@ -82,8 +80,8 @@ public class LocalStationEditorFragment extends DialogFragment {
     @NonNull
     @Override
     public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
-        Station editedStation = readEditedStation();
-        View contentView = getLayoutInflater().inflate(R.layout.fragment_local_station_editor, null, false);
+        editedStation = readEditedStation();
+        View contentView = getLayoutInflater().inflate(R.layout.dialog_local_station_editor, null, false);
         bindViews(contentView);
         populateFields(editedStation);
         bindButtons(editedStation);
@@ -96,17 +94,7 @@ public class LocalStationEditorFragment extends DialogFragment {
     @Override
     public void onStart() {
         super.onStart();
-        Dialog dialog = getDialog();
-        if (dialog == null) {
-            return;
-        }
-
-        Window window = dialog.getWindow();
-        if (window != null) {
-            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            window.setGravity(Gravity.CENTER_HORIZONTAL);
-            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
-        }
+        DialogWindowHelper.applyWideCenteredLayout(getDialog());
     }
 
     @Override
@@ -125,6 +113,8 @@ public class LocalStationEditorFragment extends DialogFragment {
         deleteButton = null;
         closeButton = null;
         libraryRepository = null;
+        editedStation = null;
+        saving = false;
         super.onDestroyView();
     }
 
@@ -185,47 +175,18 @@ public class LocalStationEditorFragment extends DialogFragment {
         String name = readRequiredText(nameEditText);
         String streamUrl = readRequiredText(streamUrlEditText);
         String homepage = readOptionalText(homepageEditText);
-
-        boolean hasError = false;
-        if (TextUtils.isEmpty(name)) {
-            setError(nameInputLayout, R.string.local_station_error_name_required);
-            hasError = true;
-        }
-        if (TextUtils.isEmpty(streamUrl)) {
-            setError(streamUrlInputLayout, R.string.local_station_error_stream_url_required);
-            hasError = true;
-        } else if (!isSupportedUrl(streamUrl)) {
-            setError(streamUrlInputLayout, R.string.local_station_error_stream_url_invalid);
-            hasError = true;
-        }
-        if (!TextUtils.isEmpty(homepage) && !isSupportedUrl(homepage)) {
-            setError(homepageInputLayout, R.string.local_station_error_homepage_invalid);
-            hasError = true;
-        }
-        if (hasError) {
+        if (!isValidInput(name, streamUrl, homepage)) {
             return;
         }
 
-        Station existingStation = readEditedStation();
-        Station station = Station.builder(
-                        existingStation != null ? existingStation.getId() : LocalStationIdFactory.create(),
-                        name,
-                        streamUrl,
-                        StationOrigin.LOCAL_USER
-                )
-                .setHomepage(homepage)
-                .setCountry(readOptionalText(countryEditText))
-                .setLanguage(readOptionalText(languageEditText))
-                .setTags(readOptionalText(tagsEditText))
-                .build();
-
+        Station station = buildStation(name, streamUrl, homepage);
         saving = true;
         libraryRepository.saveLocalStation(station, new LibraryRepository.WriteCallback() {
             @Override
             public void onSuccess() {
                 saving = false;
                 Bundle result = new Bundle();
-                result.putBoolean(RESULT_KEY_OPEN_LOCAL_SOURCE, existingStation == null);
+                result.putBoolean(RESULT_KEY_OPEN_LOCAL_SOURCE, editedStation == null);
                 getParentFragmentManager().setFragmentResult(REQUEST_KEY, result);
                 dismissAllowingStateLoss();
             }
@@ -239,13 +200,12 @@ public class LocalStationEditorFragment extends DialogFragment {
     }
 
     private void deleteStation() {
-        Station station = readEditedStation();
-        if (station == null || saving || libraryRepository == null) {
+        if (editedStation == null || saving || libraryRepository == null) {
             return;
         }
 
         saving = true;
-        libraryRepository.deleteLocalStation(station.getId(), new LibraryRepository.WriteCallback() {
+        libraryRepository.deleteLocalStation(editedStation.getId(), new LibraryRepository.WriteCallback() {
             @Override
             public void onSuccess() {
                 saving = false;
@@ -268,6 +228,45 @@ public class LocalStationEditorFragment extends DialogFragment {
             return null;
         }
         return BundleCompat.getSerializable(args, ARG_STATION, Station.class);
+    }
+
+    @NonNull
+    private Station buildStation(@NonNull String name,
+                                 @NonNull String streamUrl,
+                                 @Nullable String homepage) {
+        return Station.builder(
+                        editedStation != null ? editedStation.getId() : LocalStationIdFactory.create(),
+                        name,
+                        streamUrl,
+                        StationOrigin.LOCAL_USER
+                )
+                .setHomepage(homepage)
+                .setCountry(readOptionalText(countryEditText))
+                .setLanguage(readOptionalText(languageEditText))
+                .setTags(readOptionalText(tagsEditText))
+                .build();
+    }
+
+    private boolean isValidInput(@NonNull String name,
+                                 @NonNull String streamUrl,
+                                 @Nullable String homepage) {
+        boolean hasError = false;
+        if (TextUtils.isEmpty(name)) {
+            setError(nameInputLayout, R.string.local_station_error_name_required);
+            hasError = true;
+        }
+        if (TextUtils.isEmpty(streamUrl)) {
+            setError(streamUrlInputLayout, R.string.local_station_error_stream_url_required);
+            hasError = true;
+        } else if (!isSupportedUrl(streamUrl)) {
+            setError(streamUrlInputLayout, R.string.local_station_error_stream_url_invalid);
+            hasError = true;
+        }
+        if (!TextUtils.isEmpty(homepage) && !isSupportedUrl(homepage)) {
+            setError(homepageInputLayout, R.string.local_station_error_homepage_invalid);
+            hasError = true;
+        }
+        return !hasError;
     }
 
     private void clearErrors() {

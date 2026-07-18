@@ -92,7 +92,7 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
 
     @Override
     public int getItemCount() {
-        return getDisplayedStationsInternal().size();
+        return getDisplayedStations().size();
     }
 
     public void submitList(@NonNull List<Station> newStations) {
@@ -164,7 +164,7 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
 
     @NonNull
     public List<Station> getDragReorderSnapshot() {
-        return new ArrayList<>(getDisplayedStationsInternal());
+        return new ArrayList<>(getDisplayedStations());
     }
 
     public void clearDragReorderPreview() {
@@ -200,7 +200,7 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
 
     @Nullable
     private Station getStationAt(int position) {
-        List<Station> displayedStations = getDisplayedStationsInternal();
+        List<Station> displayedStations = getDisplayedStations();
         if (position < 0 || position >= displayedStations.size()) {
             return null;
         }
@@ -208,7 +208,7 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
     }
 
     @NonNull
-    private List<Station> getDisplayedStationsInternal() {
+    private List<Station> getDisplayedStations() {
         if (dragReordering) {
             return dragStations;
         }
@@ -249,7 +249,7 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
         }
     }
 
-    public static class StationViewHolder extends RecyclerView.ViewHolder {
+    public static final class StationViewHolder extends RecyclerView.ViewHolder {
         private final ImageView faviconView;
         private final TextView nameText;
         private final TextView detailsText;
@@ -265,17 +265,8 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
             faviconView = itemView.findViewById(R.id.station_item_favicon);
             nameText = itemView.findViewById(R.id.station_item_name);
             detailsText = itemView.findViewById(R.id.station_item_details);
-            itemView.setOnClickListener(v -> {
-                if (boundStation != null) {
-                    listener.onStationClick(boundStation);
-                }
-            });
-            itemView.setOnLongClickListener(v -> {
-                if (boundStation != null) {
-                    listener.onStationLongClick(boundStation);
-                }
-                return true;
-            });
+            itemView.setOnClickListener(v -> dispatchClick(listener));
+            itemView.setOnLongClickListener(v -> dispatchLongClick(listener));
             faviconView.setOnLongClickListener(v -> {
                 if (boundStation == null) {
                     return false;
@@ -303,6 +294,19 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
             boundStation = null;
             nameText.setText(null);
             detailsText.setText(null);
+        }
+
+        private void dispatchClick(@NonNull OnStationInteractionListener listener) {
+            if (boundStation != null) {
+                listener.onStationClick(boundStation);
+            }
+        }
+
+        private boolean dispatchLongClick(@NonNull OnStationInteractionListener listener) {
+            if (boundStation != null) {
+                listener.onStationLongClick(boundStation);
+            }
+            return true;
         }
 
         void loadFavicon(int initialRevealOrder) {

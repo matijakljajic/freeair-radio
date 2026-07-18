@@ -98,7 +98,7 @@ public class PlayerFragment extends Fragment {
             return;
         }
 
-        Station stationToShow = selectedStation;
+        Station stationToShow = getDisplayedStation();
         boolean stationChanged = renderStation(stationToShow);
         boolean nowPlayingChanged = renderNowPlaying(stationToShow, nowPlaying);
         if (stationChanged || nowPlayingChanged) {
@@ -171,10 +171,7 @@ public class PlayerFragment extends Fragment {
             return false;
         }
 
-        String displayText = nowPlaying != null
-                && isCurrentStation(stationToShow)
-                ? nowPlaying.buildDisplayText()
-                : null;
+        String displayText = resolveNowPlayingText(stationToShow, nowPlaying);
 
         if (displayText == null) {
             if (!nowPlayingVisible && renderedNowPlayingText == null) {
@@ -299,12 +296,9 @@ public class PlayerFragment extends Fragment {
         }
 
         boolean hasStation = stationToShow != null;
-        boolean isCurrentStation = isCurrentStation(stationToShow);
-        boolean isLoading = isCurrentStation
+        boolean isLoading = isStopAction(stationToShow)
                 && currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.CONNECTING;
-        boolean isPlaying = isCurrentStation
-                && currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.PLAYING;
-        boolean canStop = isLoading || isPlaying;
+        boolean canStop = isStopAction(stationToShow);
 
         playStopButton.setEnabled(hasStation);
         playStopButton.setIconResource(canStop ? R.drawable.ic_stop : R.drawable.ic_play);
@@ -317,22 +311,19 @@ public class PlayerFragment extends Fragment {
     }
 
     private void onPlayStopClicked() {
-        Station stationToShow = selectedStation;
+        Station stationToShow = getDisplayedStation();
         if (stationToShow == null || radioPlayer == null) {
             return;
         }
 
-        boolean isCurrentStation = isCurrentStation(stationToShow);
-        boolean canStop = isCurrentStation
-                && (currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.CONNECTING
-                || currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.PLAYING);
-        if (canStop) {
+        if (isStopAction(stationToShow)) {
             pendingUserStopAnimation = true;
             radioPlayer.stop();
             return;
         }
 
-        if (isCurrentStation && currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.PAUSED) {
+        if (isCurrentStation(stationToShow)
+                && currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.PAUSED) {
             pendingUserStopAnimation = false;
             radioPlayer.resume();
             return;
@@ -340,6 +331,19 @@ public class PlayerFragment extends Fragment {
 
         pendingUserStopAnimation = false;
         radioPlayer.play(stationToShow);
+    }
+
+    @Nullable
+    private Station getDisplayedStation() {
+        return selectedStation;
+    }
+
+    @Nullable
+    private String resolveNowPlayingText(@Nullable Station stationToShow, @Nullable NowPlaying nowPlaying) {
+        if (nowPlaying == null || !isCurrentStation(stationToShow)) {
+            return null;
+        }
+        return nowPlaying.buildDisplayText();
     }
 
     private float calculateSingleLineTitleOffset() {
@@ -359,5 +363,13 @@ public class PlayerFragment extends Fragment {
         return station != null
                 && currentStation != null
                 && currentStation.getId().equals(station.getId());
+    }
+
+    private boolean isStopAction(@Nullable Station station) {
+        if (!isCurrentStation(station)) {
+            return false;
+        }
+        return currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.CONNECTING
+                || currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.PLAYING;
     }
 }
