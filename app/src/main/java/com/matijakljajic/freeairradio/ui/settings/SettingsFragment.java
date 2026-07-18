@@ -1,5 +1,7 @@
 package com.matijakljajic.freeairradio.ui.settings;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.util.TypedValue;
@@ -34,6 +36,9 @@ import java.util.List;
 public class SettingsFragment extends ShellChromeAwareFragment {
 
     private static final String SETTINGS_RESET_DIALOG_TAG = "settings_reset_dialog";
+    private static final String PROJECT_GITHUB_URL = "https://github.com/matijakljajic/freeair-radio";
+    private static final String PROJECT_GITHUB_ISSUES_URL = PROJECT_GITHUB_URL + "/issues";
+    private static final String SUPPORT_EMAIL_ADDRESS = "freeair-radio@matijakljajic.com";
 
     @Nullable
     private View settingsRootView;
@@ -58,6 +63,12 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     @Nullable
     private TextView serverStatusText;
     @Nullable
+    private TextView supportEmailText;
+    @Nullable
+    private Button supportStarButton;
+    @Nullable
+    private Button supportIssueButton;
+    @Nullable
     private Button resetButton;
     @Nullable
     private Button clearFavoritesButton;
@@ -80,6 +91,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         initDependencies();
         bindViews(view);
         bindResetDialogResults();
+        bindSupportSection();
         bindThemeSection();
         bindPlaybackSection();
         bindHomePageSection();
@@ -126,6 +138,9 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         themeSelectionGroup = view.findViewById(R.id.theme_selection_group);
         homePageDefaultSelectionGroup = view.findViewById(R.id.homepage_default_selection_group);
         audioInterruptionSelectionGroup = view.findViewById(R.id.audio_interruption_selection_group);
+        supportEmailText = view.findViewById(R.id.settings_support_email_text);
+        supportStarButton = view.findViewById(R.id.settings_support_star_button);
+        supportIssueButton = view.findViewById(R.id.settings_support_issue_button);
         resetButton = view.findViewById(R.id.server_reset_button);
         clearFavoritesButton = view.findViewById(R.id.settings_clear_favorites_button);
         clearLocalStationsButton = view.findViewById(R.id.settings_clear_local_stations_button);
@@ -153,6 +168,15 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         if (audioInterruptionSelectionGroup != null) {
             audioInterruptionSelectionGroup.setOnCheckedChangeListener(null);
         }
+        if (supportEmailText != null) {
+            supportEmailText.setOnClickListener(null);
+        }
+        if (supportStarButton != null) {
+            supportStarButton.setOnClickListener(null);
+        }
+        if (supportIssueButton != null) {
+            supportIssueButton.setOnClickListener(null);
+        }
         if (resetButton != null) {
             resetButton.setOnClickListener(null);
         }
@@ -178,11 +202,26 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         homePageDefaultSelectionGroup = null;
         audioInterruptionSelectionGroup = null;
         serverStatusText = null;
+        supportEmailText = null;
+        supportStarButton = null;
+        supportIssueButton = null;
         resetButton = null;
         clearFavoritesButton = null;
         clearLocalStationsButton = null;
         clearRecentlyPlayedButton = null;
         settingsRootView = null;
+    }
+
+    private void bindSupportSection() {
+        if (supportEmailText != null) {
+            supportEmailText.setOnClickListener(v -> openEmailComposer());
+        }
+        if (supportStarButton != null) {
+            supportStarButton.setOnClickListener(v -> openExternalUrl(PROJECT_GITHUB_URL));
+        }
+        if (supportIssueButton != null) {
+            supportIssueButton.setOnClickListener(v -> openExternalUrl(PROJECT_GITHUB_ISSUES_URL));
+        }
     }
 
     private void bindThemeSection() {
@@ -602,6 +641,15 @@ public class SettingsFragment extends ShellChromeAwareFragment {
 
     private void showToast(@StringRes int messageResId) {
         Toast.makeText(requireContext(), messageResId, Toast.LENGTH_SHORT).show();
+    }
+
+    private void openExternalUrl(@NonNull String url) {
+        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+    }
+
+    private void openEmailComposer() {
+        startActivity(new Intent(Intent.ACTION_SENDTO)
+                .setData(Uri.parse("mailto:" + SUPPORT_EMAIL_ADDRESS)));
     }
 
     private int resolveThemeColor(@AttrRes int attrResId) {
