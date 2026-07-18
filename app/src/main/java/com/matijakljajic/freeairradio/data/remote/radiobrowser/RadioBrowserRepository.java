@@ -27,6 +27,7 @@ public final class RadioBrowserRepository implements StationRepository {
 
     private static final int DEFAULT_LIMIT = 50;
     private static final long SERVER_DISCOVERY_TIMEOUT_MILLIS = 7000L;
+    private static final String RADIO_BROWSER_ID_PREFIX = "RADIO_BROWSER:";
     @NonNull
     private final RadioBrowserClient client;
     @NonNull
@@ -73,32 +74,21 @@ public final class RadioBrowserRepository implements StationRepository {
     private void enqueueStationsAsync(@NonNull String action,
                                       @NonNull LoadCallback callback,
                                       @NonNull RequestFactory requestFactory) {
-        startWorker("RadioBrowserStationLoad", () -> enqueueStations(action, callback, requestFactory));
-    }
-
-    private void enqueueStations(@NonNull String action,
-                                 @NonNull LoadCallback callback,
-                                 @NonNull RequestFactory requestFactory) {
-        enqueueStations(action, callback, requestFactory, 0);
+        startWorker("RadioBrowserStationLoad",
+                () -> enqueueStations(action, callback, requestFactory, 0));
     }
 
     private void enqueueStations(@NonNull String action,
                                  @NonNull LoadCallback callback,
                                  @NonNull RequestFactory requestFactory,
                                  int attempt) {
-        if (!serverSelector.awaitReady(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
-            postError(callback, new IOException("Timed out waiting for Radio Browser servers"));
+        String baseUrl = awaitSelectedBaseUrl(callback);
+        if (baseUrl == null) {
             return;
         }
 
-        String baseUrl = serverSelector.getSelectedBaseUrl();
-        if (baseUrl == null) {
-            postError(callback, new IOException("No Radio Browser servers available"));
-            return;
-        }
         RadioBrowserApi api = client.create(baseUrl);
-        Call<List<RadioBrowserStationDto>> call = requestFactory.create(api);
-        call.enqueue(new Callback<>() {
+        requestFactory.create(api).enqueue(new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<List<RadioBrowserStationDto>> call,
                                    @NonNull Response<List<RadioBrowserStationDto>> response) {
@@ -134,11 +124,7 @@ public final class RadioBrowserRepository implements StationRepository {
     }
 
     private void enqueueClick(@NonNull String stationUuid) {
-        if (!serverSelector.awaitReady(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
-            return;
-        }
-
-        String baseUrl = serverSelector.getSelectedBaseUrl();
+        String baseUrl = awaitSelectedBaseUrl(null);
         if (baseUrl == null) {
             return;
         }
@@ -164,6 +150,22 @@ public final class RadioBrowserRepository implements StationRepository {
         Call<List<RadioBrowserStationDto>> create(@NonNull RadioBrowserApi api);
     }
 
+    @Nullable
+    private String awaitSelectedBaseUrl(@Nullable StationRepository.LoadCallback callback) {
+        if (!serverSelector.awaitReady(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
+            if (callback != null) {
+                postError(callback, new IOException("Timed out waiting for Radio Browser servers"));
+            }
+            return null;
+        }
+
+        String baseUrl = serverSelector.getSelectedBaseUrl();
+        if (baseUrl == null && callback != null) {
+            postError(callback, new IOException("No Radio Browser servers available"));
+        }
+        return baseUrl;
+    }
+
     private void postStationsLoaded(@NonNull StationRepository.LoadCallback callback,
                                     @NonNull List<Station> stations) {
         postToMain(() -> callback.onStationsLoaded(stations));
@@ -184,12 +186,11 @@ public final class RadioBrowserRepository implements StationRepository {
 
     @Nullable
     private static String extractStationUuid(@NonNull String stationId) {
-        String prefix = "RADIO_BROWSER:";
-        if (!stationId.startsWith(prefix)) {
+        if (!stationId.startsWith(RADIO_BROWSER_ID_PREFIX)) {
             return null;
         }
 
-        String stationUuid = stationId.substring(prefix.length()).trim();
+        String stationUuid = stationId.substring(RADIO_BROWSER_ID_PREFIX.length()).trim();
         return stationUuid.isEmpty() ? null : stationUuid;
     }
 

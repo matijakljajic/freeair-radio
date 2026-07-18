@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -46,13 +45,9 @@ public final class RadioBrowserServerSelector {
         this.baseUrls = buildStartupBaseUrls(cachedBaseUrls, this.preferredBaseUrl);
         this.selectedIndex = 0;
         this.readyLatch = new CountDownLatch(1);
+        readyLatch.countDown();
         if (refreshAsync && cachedBaseUrls.isEmpty()) {
-            readyLatch.countDown();
             refreshAsync();
-        } else if (this.baseUrls.isEmpty() && refreshAsync) {
-            refreshAsync();
-        } else {
-            readyLatch.countDown();
         }
     }
 
@@ -102,11 +97,7 @@ public final class RadioBrowserServerSelector {
     private void refreshAsync() {
         Thread refreshThread = new Thread(() -> {
             try {
-                List<String> discoveredBaseUrls = RadioBrowserServerDirectory.getCachedServers();
-                if (discoveredBaseUrls.isEmpty()) {
-                    RadioBrowserServerDirectory.refresh();
-                    discoveredBaseUrls = RadioBrowserServerDirectory.getCachedServers();
-                }
+                List<String> discoveredBaseUrls = RadioBrowserServerDirectory.refresh();
                 synchronized (lock) {
                     List<String> refreshedBaseUrls = buildInitialBaseUrls(discoveredBaseUrls, preferredBaseUrl);
                     if (!refreshedBaseUrls.isEmpty()) {
@@ -130,8 +121,10 @@ public final class RadioBrowserServerSelector {
             return startupBaseUrls;
         }
 
-        return new ArrayList<>(Collections.singletonList(Objects.requireNonNullElseGet(preferredBaseUrl, RadioBrowserServerDirectory::getBootstrapBaseUrl)));
-
+        String fallbackBaseUrl = preferredBaseUrl != null
+                ? preferredBaseUrl
+                : RadioBrowserServerDirectory.getBootstrapBaseUrl();
+        return new ArrayList<>(Collections.singletonList(fallbackBaseUrl));
     }
 
     @NonNull
