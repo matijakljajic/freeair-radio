@@ -39,6 +39,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     private static final String PROJECT_GITHUB_URL = "https://github.com/matijakljajic/freeair-radio";
     private static final String PROJECT_GITHUB_ISSUES_URL = PROJECT_GITHUB_URL + "/issues";
     private static final String SUPPORT_EMAIL_ADDRESS = "freeair-radio@matijakljajic.com";
+    private static final String SUPPORT_EMAIL_SUBJECT_PREFIX = "[FreeAir Radio] ";
 
     @Nullable
     private View settingsRootView;
@@ -649,7 +650,10 @@ public class SettingsFragment extends ShellChromeAwareFragment {
 
     private void openEmailComposer() {
         startActivity(new Intent(Intent.ACTION_SENDTO)
-                .setData(Uri.parse("mailto:" + SUPPORT_EMAIL_ADDRESS)));
+                .setData(Uri.parse(
+                        "mailto:" + SUPPORT_EMAIL_ADDRESS
+                                + "?subject=" + Uri.encode(SUPPORT_EMAIL_SUBJECT_PREFIX)))
+                .putExtra(Intent.EXTRA_SUBJECT, SUPPORT_EMAIL_SUBJECT_PREFIX));
     }
 
     private int resolveThemeColor(@AttrRes int attrResId) {
