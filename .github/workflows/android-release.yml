@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -31,7 +33,90 @@ jobs:
       - name: Ensure Gradle wrapper is executable
         run: chmod +x gradlew
 
+      - name: Bump app version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        id: bump_version
+        shell: bash
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          TARGET_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout "$TARGET_BRANCH"
+          git pull --ff-only origin "$TARGET_BRANCH"
+
+          current_version_code="$(sed -n 's/.*versionCode = \([0-9]\+\).*/\1/p' app/build.gradle | head -n 1)"
+          current_version_name="$(sed -n 's/.*versionName = "\(.*\)"/\1/p' app/build.gradle | head -n 1)"
+
+          if [[ -z "$current_version_code" || -z "$current_version_name" ]]; then
+            echo "Could not resolve current app version from app/build.gradle"
+            exit 1
+          fi
+
+          if [[ "$current_version_name" != "$TAG_NAME" ]]; then
+            next_version_code=$((current_version_code + 1))
+
+            perl -0pi -e "s/versionCode = \\d+/versionCode = $next_version_code/; s/versionName = \".*?\"/versionName = \"$ENV{TAG_NAME}\"/;" app/build.gradle
+
+            git add app/build.gradle
+            git commit -m "chore: bump version"
+            git push origin "HEAD:${TARGET_BRANCH}"
+            git tag -f "$TAG_NAME"
+            git push --force origin "refs/tags/${TAG_NAME}"
+
+            resolved_version_code="$next_version_code"
+            resolved_version_name="$TAG_NAME"
+            release_ready="false"
+          else
+            resolved_version_code="$current_version_code"
+            resolved_version_name="$current_version_name"
+            echo "Version already matches tag ${TAG_NAME}; skipping bump commit."
+            release_ready="true"
+          fi
+
+          grep -n "versionCode =\\|versionName =" app/build.gradle
+
+          echo "version_code=$resolved_version_code" >> "$GITHUB_OUTPUT"
+          echo "version_name=$resolved_version_name" >> "$GITHUB_OUTPUT"
+          echo "release_ready=$release_ready" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for retagged release run
+        if: startsWith(github.ref, 'refs/tags/') && steps.bump_version.outputs.release_ready == 'false'
+        run: |
+          echo "Version bump committed and tag moved to the new chore commit."
+          echo "This run stops here. The new tag push will trigger the actual build and release."
+
+      - name: Check out tagged release commit
+        if: startsWith(github.ref, 'refs/tags/') && steps.bump_version.outputs.release_ready == 'true'
+        shell: bash
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git fetch --force --tags origin
+          git checkout --force "refs/tags/${TAG_NAME}"
+
+      - name: Resolve artifact version
+        if: ${{ !startsWith(github.ref, 'refs/tags/') || steps.bump_version.outputs.release_ready == 'true' }}
+        id: artifact_version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version_name="$(sed -n 's/.*versionName = "\(.*\)"/\1/p' app/build.gradle | head -n 1)"
+          if [[ -z "$version_name" ]]; then
+            echo "Could not resolve versionName from app/build.gradle"
+            exit 1
+          fi
+
+          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
+
       - name: Build signed release APK
+        if: ${{ !startsWith(github.ref, 'refs/tags/') || steps.bump_version.outputs.release_ready == 'true' }}
         env:
           ANDROID_KEYSTORE_PATH: app/release.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -39,7 +124,25 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleRelease bundleRelease
 
+      - name: Rename release outputs with version
+        if: ${{ !startsWith(github.ref, 'refs/tags/') || steps.bump_version.outputs.release_ready == 'true' }}
+        shell: bash
+        env:
+          VERSION_NAME: ${{ steps.artifact_version.outputs.version_name }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          for apk in app/build/outputs/apk/release/*.apk; do
+            mv "$apk" "app/build/outputs/apk/release/freeairradio-${VERSION_NAME}.apk"
+          done
+
+          for aab in app/build/outputs/bundle/release/*.aab; do
+            mv "$aab" "app/build/outputs/bundle/release/freeairradio-${VERSION_NAME}.aab"
+          done
+
       - name: Upload release APK artifact
+        if: ${{ !startsWith(github.ref, 'refs/tags/') || steps.bump_version.outputs.release_ready == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: freeairradio-release-apk
@@ -47,6 +150,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload release app bundle artifact
+        if: ${{ !startsWith(github.ref, 'refs/tags/') || steps.bump_version.outputs.release_ready == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: freeairradio-release-bundle
@@ -54,7 +158,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && steps.bump_version.outputs.release_ready == 'true'
         uses: softprops/action-gh-release@v2
         with:
           files: |
