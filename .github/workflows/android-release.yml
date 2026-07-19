@@ -69,10 +69,12 @@ jobs:
           fi
 
           next_version_code=$((current_version_code + 1))
+          release_apk_url="https://github.com/matijakljajic/freeair-radio/releases/download/${TAG_NAME}/freeairradio-${TAG_NAME}.apk"
 
           perl -0pi -e "s/versionCode = \\d+/versionCode = $next_version_code/; s/versionName = \".*?\"/versionName = \"$TAG_NAME\"/;" app/build.gradle
+          perl -0pi -e "s#https://github\\.com/matijakljajic/freeair-radio/releases/(?:latest/download/freeairradio-latest|download/[^/]+/freeairradio-[^)\n]+)\\.apk#$release_apk_url#g" README.md
 
-          git add app/build.gradle
+          git add app/build.gradle README.md
 
           if git diff --cached --quiet; then
             echo "No version changes were staged"
@@ -131,7 +133,9 @@ jobs:
           shopt -s nullglob
 
           for apk in app/build/outputs/apk/release/*.apk; do
-            mv "$apk" "app/build/outputs/apk/release/freeairradio-${VERSION_NAME}.apk"
+            versioned_apk="app/build/outputs/apk/release/freeairradio-${VERSION_NAME}.apk"
+            mv "$apk" "$versioned_apk"
+            cp "$versioned_apk" "app/build/outputs/apk/release/freeairradio-latest.apk"
           done
 
           for aab in app/build/outputs/bundle/release/*.aab; do
