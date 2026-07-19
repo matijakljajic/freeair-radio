@@ -21,6 +21,7 @@ import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.material.radiobutton.MaterialRadioButton;
+import com.matijakljajic.freeairradio.BuildConfig;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerDirectory;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerSettings;
@@ -65,6 +66,8 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     private TextView serverStatusText;
     @Nullable
     private TextView supportEmailText;
+    @Nullable
+    private TextView versionText;
     @Nullable
     private Button supportStarButton;
     @Nullable
@@ -139,6 +142,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         themeSelectionGroup = view.findViewById(R.id.theme_selection_group);
         homePageDefaultSelectionGroup = view.findViewById(R.id.homepage_default_selection_group);
         audioInterruptionSelectionGroup = view.findViewById(R.id.audio_interruption_selection_group);
+        versionText = view.findViewById(R.id.settings_version_text);
         supportEmailText = view.findViewById(R.id.settings_support_email_text);
         supportStarButton = view.findViewById(R.id.settings_support_star_button);
         supportIssueButton = view.findViewById(R.id.settings_support_issue_button);
@@ -146,6 +150,9 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         clearFavoritesButton = view.findViewById(R.id.settings_clear_favorites_button);
         clearLocalStationsButton = view.findViewById(R.id.settings_clear_local_stations_button);
         clearRecentlyPlayedButton = view.findViewById(R.id.settings_clear_recently_played_button);
+        if (versionText != null) {
+            versionText.setText(BuildConfig.VERSION_NAME);
+        }
     }
 
     private void bindResetDialogResults() {
@@ -204,6 +211,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         audioInterruptionSelectionGroup = null;
         serverStatusText = null;
         supportEmailText = null;
+        versionText = null;
         supportStarButton = null;
         supportIssueButton = null;
         resetButton = null;
