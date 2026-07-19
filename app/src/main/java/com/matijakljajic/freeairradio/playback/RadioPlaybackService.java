@@ -77,6 +77,8 @@ public class RadioPlaybackService extends MediaSessionService {
     private static final String PLAYBACK_NOTIFICATION_CHANNEL_ID = "radio_playback";
     private static final int PLAYBACK_NOTIFICATION_ID = 1001;
     private static final long MIN_RECENTLY_LISTENED_TRACK_DURATION_MS = 20_000L;
+    private static final float DEFAULT_PLAYER_VOLUME = 1f;
+    private static final float DUCKED_PLAYER_VOLUME = 0.25f;
     @NonNull
     private static final SessionCommand TOGGLE_FAVORITE_COMMAND =
             new SessionCommand(PlaybackSessionContract.COMMAND_TOGGLE_FAVORITE, Bundle.EMPTY);
@@ -189,6 +191,7 @@ public class RadioPlaybackService extends MediaSessionService {
     private final HeadphoneUnplugReceiver headphoneUnplugReceiver =
             new HeadphoneUnplugReceiver(this::handleAudioOutputBecameNoisy);
     private boolean resumeAfterTemporaryFocusLoss;
+    private boolean duckedForTransientFocusLoss;
     @NonNull
     private final Player.Listener playerListener = new Player.Listener() {
         @Override
@@ -272,6 +275,11 @@ public class RadioPlaybackService extends MediaSessionService {
             }
 
             @Override
+            public void onAudioFocusShouldDuck() {
+                handleDuckableAudioFocusLoss();
+            }
+
+            @Override
             public void onAudioFocusLostPermanently() {
                 handlePermanentAudioFocusLoss();
             }
@@ -310,6 +318,7 @@ public class RadioPlaybackService extends MediaSessionService {
             return;
         }
 
+        restorePlayerVolumeIfNeeded();
         clearTemporaryFocusLossState();
         int sequence = beginPlaybackSequence();
         prepareStationPlayback(station);
@@ -328,6 +337,7 @@ public class RadioPlaybackService extends MediaSessionService {
                 + " appStatus="
                 + currentPlaybackState.getPlaybackStatus());
 
+        restorePlayerVolumeIfNeeded();
         clearTemporaryFocusLossState();
         cancelCurrentPlayback();
         currentStation = null;
@@ -349,6 +359,7 @@ public class RadioPlaybackService extends MediaSessionService {
             return;
         }
 
+        restorePlayerVolumeIfNeeded();
         clearTemporaryFocusLossState();
         player.play();
     }
@@ -525,6 +536,7 @@ public class RadioPlaybackService extends MediaSessionService {
     }
 
     private void handleAudioFocusGained() {
+        restorePlayerVolumeIfNeeded();
         if (!resumeAfterTemporaryFocusLoss || player == null || currentStation == null) {
             AppLog.d(TAG, "Audio focus gained without pending auto-resume");
             resumeAfterTemporaryFocusLoss = false;
@@ -564,11 +576,44 @@ public class RadioPlaybackService extends MediaSessionService {
                 + getPlayerStateLogValue()
                 + " appStatus="
                 + currentPlaybackState.getPlaybackStatus());
+        restorePlayerVolumeIfNeeded();
         player.pause();
         currentPlaybackState.setPlaybackStatus(
                 currentStation,
                 CurrentPlaybackState.PlaybackStatus.PAUSED
         );
+    }
+
+    private void handleDuckableAudioFocusLoss() {
+        if (!shouldRespectAudioInterruptions()) {
+            AppLog.d(TAG, "Ignoring duckable audio focus loss because interruptions are disabled");
+            return;
+        }
+        if (player == null || currentStation == null) {
+            AppLog.d(TAG, "Ignoring duckable audio focus loss because there is no active station");
+            return;
+        }
+        if (!shouldResumeAfterTemporaryFocusLoss()) {
+            AppLog.d(TAG, "Ignoring duckable audio focus loss because playback is not active"
+                    + " playerState="
+                    + getPlayerStateLogValue()
+                    + " appStatus="
+                    + currentPlaybackState.getPlaybackStatus());
+            return;
+        }
+        if (duckedForTransientFocusLoss) {
+            AppLog.d(TAG, "Ignoring duckable audio focus loss because player is already ducked");
+            return;
+        }
+
+        AppLog.d(TAG, "Ducking playback after transient duckable audio focus loss for "
+                + currentStation.getName()
+                + " playerState="
+                + getPlayerStateLogValue()
+                + " appStatus="
+                + currentPlaybackState.getPlaybackStatus());
+        player.setVolume(DUCKED_PLAYER_VOLUME);
+        duckedForTransientFocusLoss = true;
     }
 
     private void handlePermanentAudioFocusLoss() {
@@ -582,6 +627,7 @@ public class RadioPlaybackService extends MediaSessionService {
         }
 
         AppLog.d(TAG, "Stopping playback after permanent audio focus loss");
+        restorePlayerVolumeIfNeeded();
         stop();
     }
 
@@ -592,6 +638,7 @@ public class RadioPlaybackService extends MediaSessionService {
         }
 
         AppLog.d(TAG, "Stopping playback because audio output became noisy");
+        restorePlayerVolumeIfNeeded();
         stop();
     }
 
@@ -613,6 +660,14 @@ public class RadioPlaybackService extends MediaSessionService {
 
     private void clearTemporaryFocusLossState() {
         resumeAfterTemporaryFocusLoss = false;
+    }
+
+    private void restorePlayerVolumeIfNeeded() {
+        if (player != null && duckedForTransientFocusLoss) {
+            AppLog.d(TAG, "Restoring player volume after ducking");
+            player.setVolume(DEFAULT_PLAYER_VOLUME);
+        }
+        duckedForTransientFocusLoss = false;
     }
 
     private boolean shouldRespectAudioInterruptions() {

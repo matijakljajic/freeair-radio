@@ -23,6 +23,8 @@ public final class AudioFocusHandler {
 
         void onAudioFocusLostTemporarily();
 
+        void onAudioFocusShouldDuck();
+
         void onAudioFocusLostPermanently();
     }
 
@@ -44,7 +46,7 @@ public final class AudioFocusHandler {
         audioFocusRequest = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 ? new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setOnAudioFocusChangeListener(focusChangeListener)
-                .setWillPauseWhenDucked(true)
+                .setWillPauseWhenDucked(false)
                 .setAudioAttributes(new AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
@@ -88,8 +90,10 @@ public final class AudioFocusHandler {
                 listener.onAudioFocusGained();
                 break;
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
                 listener.onAudioFocusLostTemporarily();
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                listener.onAudioFocusShouldDuck();
                 break;
             case AudioManager.AUDIOFOCUS_LOSS:
                 listener.onAudioFocusLostPermanently();
