@@ -1,8 +1,10 @@
 package com.matijakljajic.freeairradio.ui.player;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -24,6 +26,13 @@ import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
 @SuppressWarnings("unused")
 public class PlayerFragment extends Fragment {
+
+    public interface PlayerSurfaceHost {
+        void onPlayerSurfaceTap(boolean expanded);
+
+        void onPlayerSurfaceSwipe(boolean expanded, boolean upward);
+    }
+
     private static final long MARQUEE_START_DELAY_MS = 1000L;
     private static final long METADATA_ANIMATION_DURATION_MS = 180L;
 
@@ -49,8 +58,22 @@ public class PlayerFragment extends Fragment {
     private CircularProgressIndicator playStopLoadingIndicator;
     @Nullable
     private RadioPlayer radioPlayer;
+    @Nullable
+    private PlayerSurfaceHost playerSurfaceHost;
+    private float touchDownX;
+    private float touchDownY;
+    private boolean ignoreNextSurfaceClick;
+    private int swipeThresholdPx;
     private final CurrentPlaybackState.Listener playbackStateListener = this::renderPlaybackState;
     private final Runnable activateMarqueeRunnable = this::activateMiniPlayerMarquee;
+
+    @Override
+    public void onAttach(@NonNull Context context) {
+        super.onAttach(context);
+        if (context instanceof PlayerSurfaceHost) {
+            playerSurfaceHost = (PlayerSurfaceHost) context;
+        }
+    }
 
     @Nullable
     @Override
@@ -70,8 +93,10 @@ public class PlayerFragment extends Fragment {
         playStopLoadingIndicator = view.findViewById(R.id.player_play_stop_loading_indicator);
         playStopButton.setOnClickListener(v -> onPlayStopClicked());
         radioPlayer = new RadioPlayer(requireContext());
+        swipeThresholdPx = UiDimensions.px(requireContext(), R.dimen.player_surface_swipe_threshold);
         metadataShiftPx = UiDimensions.px(requireContext(), R.dimen.mini_player_metadata_shift);
         singleLineTitleOffsetPx = calculateSingleLineTitleOffset();
+        bindPlayerSurfaceInteractions();
         resetMetadataLayout();
         CurrentPlaybackState.getInstance().addListener(playbackStateListener);
     }
@@ -144,6 +169,8 @@ public class PlayerFragment extends Fragment {
     public void onDestroyView() {
         if (playerView != null) {
             playerView.removeCallbacks(activateMarqueeRunnable);
+            playerView.setOnClickListener(null);
+            playerView.setOnTouchListener(null);
         }
         CurrentPlaybackState.getInstance().removeListener(playbackStateListener);
         selectedStation = null;
@@ -164,6 +191,12 @@ public class PlayerFragment extends Fragment {
         playStopButton = null;
         playStopLoadingIndicator = null;
         super.onDestroyView();
+    }
+
+    @Override
+    public void onDetach() {
+        playerSurfaceHost = null;
+        super.onDetach();
     }
 
     private boolean renderNowPlaying(@Nullable Station stationToShow, @Nullable NowPlaying nowPlaying) {
@@ -333,6 +366,51 @@ public class PlayerFragment extends Fragment {
         radioPlayer.play(stationToShow);
     }
 
+    private void bindPlayerSurfaceInteractions() {
+        if (playerView == null) {
+            return;
+        }
+
+        playerView.setOnClickListener(v -> handlePlayerSurfaceClick());
+        playerView.setOnTouchListener((v, event) -> handlePlayerSurfaceTouch(event));
+    }
+
+    private boolean handlePlayerSurfaceTouch(@NonNull MotionEvent event) {
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                touchDownX = event.getX();
+                touchDownY = event.getY();
+                ignoreNextSurfaceClick = false;
+                return false;
+            case MotionEvent.ACTION_UP:
+                float deltaX = event.getX() - touchDownX;
+                float deltaY = event.getY() - touchDownY;
+                if (Math.abs(deltaY) <= Math.abs(deltaX) || Math.abs(deltaY) < swipeThresholdPx) {
+                    return false;
+                }
+                ignoreNextSurfaceClick = true;
+                if (playerSurfaceHost != null) {
+                    playerSurfaceHost.onPlayerSurfaceSwipe(isExpandedPlayer(), deltaY < 0f);
+                }
+                return true;
+            case MotionEvent.ACTION_CANCEL:
+                ignoreNextSurfaceClick = false;
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    private void handlePlayerSurfaceClick() {
+        if (ignoreNextSurfaceClick) {
+            ignoreNextSurfaceClick = false;
+            return;
+        }
+        if (playerSurfaceHost != null) {
+            playerSurfaceHost.onPlayerSurfaceTap(isExpandedPlayer());
+        }
+    }
+
     @Nullable
     private Station getDisplayedStation() {
         return selectedStation;
@@ -371,5 +449,9 @@ public class PlayerFragment extends Fragment {
         }
         return currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.CONNECTING
                 || currentPlaybackStatus == CurrentPlaybackState.PlaybackStatus.PLAYING;
+    }
+
+    private boolean isExpandedPlayer() {
+        return getId() == R.id.expanded_player_fragment_container;
     }
 }

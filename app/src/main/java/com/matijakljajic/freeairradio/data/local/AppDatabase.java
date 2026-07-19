@@ -11,18 +11,21 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import com.matijakljajic.freeairradio.data.local.dao.FavoriteStationDao;
 import com.matijakljajic.freeairradio.data.local.dao.LocalStationDao;
+import com.matijakljajic.freeairradio.data.local.dao.RecentlyListenedSongDao;
 import com.matijakljajic.freeairradio.data.local.dao.RecentlyPlayedDao;
 import com.matijakljajic.freeairradio.data.local.entity.FavoriteStationEntity;
 import com.matijakljajic.freeairradio.data.local.entity.LocalStationEntity;
+import com.matijakljajic.freeairradio.data.local.entity.RecentlyListenedSongEntity;
 import com.matijakljajic.freeairradio.data.local.entity.RecentlyPlayedStationEntity;
 
 @Database(
         entities = {
                 FavoriteStationEntity.class,
                 LocalStationEntity.class,
-                RecentlyPlayedStationEntity.class
+                RecentlyPlayedStationEntity.class,
+                RecentlyListenedSongEntity.class
         },
-        version = 2,
+        version = 3,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -33,6 +36,13 @@ public abstract class AppDatabase extends RoomDatabase {
         public void migrate(@NonNull SupportSQLiteDatabase database) {
             database.execSQL("ALTER TABLE favorite_stations ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0");
             database.execSQL("UPDATE favorite_stations SET display_order = added_at");
+        }
+    };
+    private static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("CREATE TABLE IF NOT EXISTS `recently_listened_songs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `station_id` TEXT NOT NULL, `artist` TEXT, `title` TEXT, `heard_at` INTEGER NOT NULL)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_recently_listened_songs_station_id_heard_at` ON `recently_listened_songs` (`station_id`, `heard_at`)");
         }
     };
 
@@ -48,7 +58,7 @@ public abstract class AppDatabase extends RoomDatabase {
                                     AppDatabase.class,
                                     DATABASE_NAME
                             )
-                            .addMigrations(MIGRATION_1_2)
+                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                             .fallbackToDestructiveMigration(false)
                             .build();
                 }
@@ -65,4 +75,7 @@ public abstract class AppDatabase extends RoomDatabase {
 
     @NonNull
     public abstract RecentlyPlayedDao recentlyPlayedDao();
+
+    @NonNull
+    public abstract RecentlyListenedSongDao recentlyListenedSongDao();
 }

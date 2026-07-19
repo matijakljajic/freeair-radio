@@ -11,6 +11,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -44,6 +45,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.matijakljajic.freeairradio.artwork.StationArtworkBitmapLoader;
 import com.matijakljajic.freeairradio.artwork.StationArtworkResolver;
 import com.matijakljajic.freeairradio.R;
+import com.matijakljajic.freeairradio.data.model.RecentlyListenedSong;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.RadioBrowserRepository;
@@ -73,6 +75,7 @@ public class RadioPlaybackService extends MediaSessionService {
     private static final String TAG = "RadioPlaybackService";
     private static final String PLAYBACK_NOTIFICATION_CHANNEL_ID = "radio_playback";
     private static final int PLAYBACK_NOTIFICATION_ID = 1001;
+    private static final long MIN_RECENTLY_LISTENED_TRACK_DURATION_MS = 20_000L;
     @NonNull
     private static final SessionCommand TOGGLE_FAVORITE_COMMAND =
             new SessionCommand(PlaybackSessionContract.COMMAND_TOGGLE_FAVORITE, Bundle.EMPTY);
@@ -99,6 +102,7 @@ public class RadioPlaybackService extends MediaSessionService {
     private int currentCandidateIndex;
     private long currentPlaybackGeneration;
     private long reportedUsageGeneration;
+    private long currentNowPlayingStartedAtElapsedMs;
     @NonNull
     private final ExecutorService playbackResolverExecutor = Executors.newSingleThreadExecutor();
     @NonNull
@@ -464,6 +468,7 @@ public class RadioPlaybackService extends MediaSessionService {
         currentPlaybackGeneration = 0L;
         clearResolvedPlaybackState();
         reportedUsageGeneration = 0L;
+        clearCurrentNowPlayingTiming();
         clearTemporaryFocusLossState();
         stopAndClearPlayer();
     }
@@ -900,15 +905,56 @@ public class RadioPlaybackService extends MediaSessionService {
     private void handleObservedNowPlayingChange(@NonNull Station station,
                                                 @Nullable NowPlaying previousNowPlaying,
                                                 @Nullable NowPlaying currentNowPlaying) {
+        long changedAtElapsedMs = SystemClock.elapsedRealtime();
         currentPlaybackState.setCurrentNowPlaying(station, currentNowPlaying);
         dispatchPresentedMetadataChanged();
-        onNowPlayingChanged(station, previousNowPlaying, currentNowPlaying);
+        onNowPlayingChanged(station, previousNowPlaying, currentNowPlaying, changedAtElapsedMs);
+        updateCurrentNowPlayingTiming(currentNowPlaying, changedAtElapsedMs);
     }
 
     private void onNowPlayingChanged(@NonNull Station station,
                                      @Nullable NowPlaying previousNowPlaying,
-                                     @Nullable NowPlaying currentNowPlaying) {
-        // TODO: Attach future song-boundary features here, such as recording chunk finalization.
+                                     @Nullable NowPlaying currentNowPlaying,
+                                     long changedAtElapsedMs) {
+        if (libraryRepository == null
+                || !isCurrentStation(station)
+                || previousNowPlaying == null
+                || currentNowPlaying == null
+                || previousNowPlaying.equals(currentNowPlaying)) {
+            return;
+        }
+        if (!wasCurrentTrackHeardLongEnough(changedAtElapsedMs)) {
+            return;
+        }
+
+        libraryRepository.recordRecentlyListenedSong(
+                station,
+                new RecentlyListenedSong(
+                        previousNowPlaying.getArtist(),
+                        previousNowPlaying.getTitle(),
+                        System.currentTimeMillis()
+                )
+        );
+    }
+
+    private boolean wasCurrentTrackHeardLongEnough(long changedAtElapsedMs) {
+        if (currentNowPlayingStartedAtElapsedMs <= 0L) {
+            return false;
+        }
+
+        return changedAtElapsedMs - currentNowPlayingStartedAtElapsedMs
+                >= MIN_RECENTLY_LISTENED_TRACK_DURATION_MS;
+    }
+
+    private void updateCurrentNowPlayingTiming(@Nullable NowPlaying currentNowPlaying,
+                                               long changedAtElapsedMs) {
+        currentNowPlayingStartedAtElapsedMs = currentNowPlaying == null
+                ? 0L
+                : changedAtElapsedMs;
+    }
+
+    private void clearCurrentNowPlayingTiming() {
+        currentNowPlayingStartedAtElapsedMs = 0L;
     }
 
     private void requestNotificationRefresh() {

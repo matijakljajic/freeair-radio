@@ -17,6 +17,10 @@ public interface RecentlyPlayedDao {
     @Query("SELECT * FROM recently_played_stations ORDER BY last_played_at DESC")
     List<RecentlyPlayedStationEntity> getAll();
 
+    @NonNull
+    @Query("SELECT id FROM recently_played_stations")
+    List<String> getAllStationIds();
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void upsert(@NonNull RecentlyPlayedStationEntity entity);
 

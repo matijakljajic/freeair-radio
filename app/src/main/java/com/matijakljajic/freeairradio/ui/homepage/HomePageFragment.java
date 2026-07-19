@@ -208,6 +208,8 @@ public class HomePageFragment extends StationFeedFragment {
             return;
         }
 
+        setSourceMenuExpanded(true);
+
         LayoutInflater inflater = LayoutInflater.from(requireContext());
         ViewGroup popupAnchorParent = homepageRecyclerView != null
                 ? homepageRecyclerView
@@ -249,6 +251,7 @@ public class HomePageFragment extends StationFeedFragment {
             if (sourcePopupWindow == popupWindow) {
                 sourcePopupWindow = null;
             }
+            setSourceMenuExpanded(false);
         });
         popupWindow.showAsDropDown(
                 anchorView,
@@ -325,6 +328,12 @@ public class HomePageFragment extends StationFeedFragment {
         if (sourcePopupWindow != null) {
             sourcePopupWindow.dismiss();
             sourcePopupWindow = null;
+        }
+    }
+
+    private void setSourceMenuExpanded(boolean expanded) {
+        if (headerAdapter != null) {
+            headerAdapter.setSourceMenuExpanded(expanded);
         }
     }
 

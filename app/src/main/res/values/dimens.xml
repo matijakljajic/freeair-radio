@@ -26,4 +26,8 @@
     <dimen name="dialog_primary_button_margin_top">18dp</dimen>
     <dimen name="dialog_secondary_button_margin_top">10dp</dimen>
     <dimen name="dialog_pill_corner_radius">999dp</dimen>
+    <dimen name="player_overlay_history_gap">12dp</dimen>
+    <dimen name="player_overlay_history_edge_fade_height">24dp</dimen>
+    <dimen name="player_overlay_history_enter_offset">20dp</dimen>
+    <dimen name="player_surface_swipe_threshold">36dp</dimen>
 </resources>
