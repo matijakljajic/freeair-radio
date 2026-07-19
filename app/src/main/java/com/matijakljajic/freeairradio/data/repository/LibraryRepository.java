@@ -12,12 +12,18 @@ import com.matijakljajic.freeairradio.data.local.AppDatabase;
 import com.matijakljajic.freeairradio.data.local.StationMapper;
 import com.matijakljajic.freeairradio.data.local.dao.FavoriteStationDao;
 import com.matijakljajic.freeairradio.data.local.dao.LocalStationDao;
+import com.matijakljajic.freeairradio.data.local.dao.RecentlyListenedSongDao;
 import com.matijakljajic.freeairradio.data.local.dao.RecentlyPlayedDao;
 import com.matijakljajic.freeairradio.data.local.entity.FavoriteStationEntity;
 import com.matijakljajic.freeairradio.data.local.entity.LocalStationEntity;
+import com.matijakljajic.freeairradio.data.local.entity.RecentlyListenedSongEntity;
+import com.matijakljajic.freeairradio.data.local.entity.RecentlyPlayedStationEntity;
+import com.matijakljajic.freeairradio.data.model.RecentlyListenedSong;
+import com.matijakljajic.freeairradio.data.model.RecentlyListenedStation;
 import com.matijakljajic.freeairradio.data.model.Station;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +37,16 @@ public final class LibraryRepository {
         void onFavoritesChanged();
     }
 
+    public interface RecentlyListenedListener {
+        void onRecentlyListenedChanged();
+    }
+
+    public interface RecentlyListenedCallback {
+        void onRecentlyListenedLoaded(@NonNull List<RecentlyListenedStation> stations);
+
+        void onError(@NonNull Throwable throwable);
+    }
+
     public interface WriteCallback {
         void onSuccess();
 
@@ -38,7 +54,9 @@ public final class LibraryRepository {
     }
 
     private static final String TAG = "LibraryRepository";
-    private static final long RECENTLY_PLAYED_RETENTION_MILLIS = 7L * 24L * 60L * 60L * 1000L;
+    private static final long RECENTLY_PLAYED_RETENTION_MILLIS = 3L * 24L * 60L * 60L * 1000L;
+    private static final long RECENTLY_LISTENED_SONG_RETENTION_MILLIS = 3L * 24L * 60L * 60L * 1000L;
+    private static final int MAX_RECENT_SONGS_PER_STATION = 12;
 
     @Nullable
     private static volatile LibraryRepository instance;
@@ -60,6 +78,8 @@ public final class LibraryRepository {
     @NonNull
     private final LocalStationDao localStationDao;
     @NonNull
+    private final RecentlyListenedSongDao recentlyListenedSongDao;
+    @NonNull
     private final RecentlyPlayedDao recentlyPlayedDao;
     @NonNull
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
@@ -69,12 +89,21 @@ public final class LibraryRepository {
     private final Map<String, Station> favoriteStationsCache = new LinkedHashMap<>();
     @NonNull
     private final CopyOnWriteArraySet<FavoritesListener> favoritesListeners = new CopyOnWriteArraySet<>();
+    @NonNull
+    private final Object recentHistoryLock = new Object();
+    @NonNull
+    private final List<RecentlyListenedStation> recentlyListenedCache = new ArrayList<>();
+    @NonNull
+    private final CopyOnWriteArraySet<RecentlyListenedListener> recentlyListenedListeners =
+            new CopyOnWriteArraySet<>();
     private volatile boolean favoritesLoaded;
+    private volatile boolean recentlyListenedLoaded;
 
     private LibraryRepository(@NonNull Context context) {
         AppDatabase database = AppDatabase.getInstance(context);
         favoriteStationDao = database.favoriteStationDao();
         localStationDao = database.localStationDao();
+        recentlyListenedSongDao = database.recentlyListenedSongDao();
         recentlyPlayedDao = database.recentlyPlayedDao();
         refreshFavoriteStationsAsync();
         cleanupExpiredRecentlyPlayedAsync();
@@ -130,6 +159,18 @@ public final class LibraryRepository {
             } catch (Throwable throwable) {
                 Log.w(TAG, "Could not load recently played stations", throwable);
                 postError(callback, throwable);
+            }
+        });
+    }
+
+    public void loadRecentlyListenedStations(@NonNull RecentlyListenedCallback callback) {
+        ioExecutor.execute(() -> {
+            try {
+                List<RecentlyListenedStation> stations = refreshRecentlyListenedFromDatabase(true);
+                postRecentlyListenedLoaded(callback, stations);
+            } catch (Throwable throwable) {
+                Log.w(TAG, "Could not load recently listened stations", throwable);
+                postRecentlyListenedError(callback, throwable);
             }
         });
     }
@@ -227,6 +268,11 @@ public final class LibraryRepository {
         ioExecutor.execute(() -> {
             try {
                 recentlyPlayedDao.clearAll();
+                recentlyListenedSongDao.clearAll();
+                boolean historyChanged = clearRecentHistory();
+                if (historyChanged) {
+                    notifyRecentlyListenedListeners();
+                }
                 postWriteSuccess(callback);
             } catch (Throwable throwable) {
                 Log.w(TAG, "Could not clear recently played stations", throwable);
@@ -241,8 +287,23 @@ public final class LibraryRepository {
                 long now = System.currentTimeMillis();
                 cleanupExpiredRecentlyPlayed(now);
                 recentlyPlayedDao.upsert(StationMapper.toRecentlyPlayedStationEntity(station, now));
+                refreshRecentlyListenedFromDatabase(true);
             } catch (Throwable throwable) {
                 Log.w(TAG, "Could not record recently played station", throwable);
+            }
+        });
+    }
+
+    public void recordRecentlyListenedSong(@NonNull Station station,
+                                           @NonNull RecentlyListenedSong song) {
+        ioExecutor.execute(() -> {
+            try {
+                if (!persistRecentlyListenedSong(station, song)) {
+                    return;
+                }
+                refreshRecentlyListenedFromDatabase(true);
+            } catch (Throwable throwable) {
+                Log.w(TAG, "Could not record recently listened song", throwable);
             }
         });
     }
@@ -256,6 +317,28 @@ public final class LibraryRepository {
 
     public void removeFavoritesListener(@NonNull FavoritesListener listener) {
         favoritesListeners.remove(listener);
+    }
+
+    public boolean hasLoadedRecentlyListened() {
+        return recentlyListenedLoaded;
+    }
+
+    @NonNull
+    public List<RecentlyListenedStation> getRecentlyListenedSnapshot() {
+        synchronized (recentHistoryLock) {
+            return new ArrayList<>(recentlyListenedCache);
+        }
+    }
+
+    public void addRecentlyListenedListener(@NonNull RecentlyListenedListener listener) {
+        recentlyListenedListeners.add(listener);
+        if (recentlyListenedLoaded) {
+            postToMain(listener::onRecentlyListenedChanged);
+        }
+    }
+
+    public void removeRecentlyListenedListener(@NonNull RecentlyListenedListener listener) {
+        recentlyListenedListeners.remove(listener);
     }
 
     private void refreshFavoriteStationsAsync() {
@@ -328,6 +411,7 @@ public final class LibraryRepository {
         localStationDao.deleteById(stationId);
         favoriteStationDao.deleteById(stationId);
         recentlyPlayedDao.deleteById(stationId);
+        recentlyListenedSongDao.deleteByStationId(stationId);
     }
 
     private void persistFavoriteOrder(@NonNull List<Station> orderedStations) {
@@ -389,11 +473,19 @@ public final class LibraryRepository {
 
     private void cleanupExpiredRecentlyPlayed(long now) {
         recentlyPlayedDao.deleteOlderThan(now - RECENTLY_PLAYED_RETENTION_MILLIS);
+        recentlyListenedSongDao.deleteOlderThan(now - RECENTLY_LISTENED_SONG_RETENTION_MILLIS);
+        pruneOrphanedRecentSongs();
     }
 
     private void notifyFavoritesListeners() {
         for (FavoritesListener listener : favoritesListeners) {
             postToMain(listener::onFavoritesChanged);
+        }
+    }
+
+    private void notifyRecentlyListenedListeners() {
+        for (RecentlyListenedListener listener : recentlyListenedListeners) {
+            postToMain(listener::onRecentlyListenedChanged);
         }
     }
 
@@ -404,6 +496,16 @@ public final class LibraryRepository {
 
     private void postError(@NonNull StationRepository.LoadCallback callback,
                            @NonNull Throwable throwable) {
+        postToMain(() -> callback.onError(throwable));
+    }
+
+    private void postRecentlyListenedLoaded(@NonNull RecentlyListenedCallback callback,
+                                            @NonNull List<RecentlyListenedStation> stations) {
+        postToMain(() -> callback.onRecentlyListenedLoaded(stations));
+    }
+
+    private void postRecentlyListenedError(@NonNull RecentlyListenedCallback callback,
+                                           @NonNull Throwable throwable) {
         postToMain(() -> callback.onError(throwable));
     }
 
@@ -427,5 +529,96 @@ public final class LibraryRepository {
             return;
         }
         mainHandler.post(action);
+    }
+
+    @NonNull
+    private List<RecentlyListenedStation> refreshRecentlyListenedFromDatabase(boolean notifyListeners) {
+        cleanupExpiredRecentlyPlayed();
+        List<RecentlyListenedStation> history = buildRecentlyListenedStations(recentlyPlayedDao.getAll());
+        boolean changed = applyRecentlyListenedHistory(history);
+        if (notifyListeners && changed) {
+            notifyRecentlyListenedListeners();
+        }
+        return history;
+    }
+
+    @NonNull
+    private List<RecentlyListenedStation> buildRecentlyListenedStations(
+            @NonNull List<RecentlyPlayedStationEntity> entities) {
+        Map<String, List<RecentlyListenedSong>> songsByStationId = loadRecentSongsByStationId();
+        List<RecentlyListenedStation> stations = new ArrayList<>(entities.size());
+        for (RecentlyPlayedStationEntity entity : entities) {
+            stations.add(new RecentlyListenedStation(
+                    StationMapper.toStation(entity),
+                    entity.lastPlayedAt,
+                    songsByStationId.getOrDefault(entity.id, Collections.emptyList())
+            ));
+        }
+        return stations;
+    }
+
+    private boolean applyRecentlyListenedHistory(@NonNull List<RecentlyListenedStation> stations) {
+        synchronized (recentHistoryLock) {
+            recentlyListenedLoaded = true;
+            if (recentlyListenedCache.equals(stations)) {
+                return false;
+            }
+
+            recentlyListenedCache.clear();
+            recentlyListenedCache.addAll(stations);
+            return true;
+        }
+    }
+
+    private boolean clearRecentHistory() {
+        synchronized (recentHistoryLock) {
+            boolean changed = !recentlyListenedCache.isEmpty();
+            recentlyListenedLoaded = true;
+            recentlyListenedCache.clear();
+            return changed;
+        }
+    }
+
+    private boolean persistRecentlyListenedSong(@NonNull Station station,
+                                                @NonNull RecentlyListenedSong song) {
+        if (song.buildDisplayText() == null) {
+            return false;
+        }
+
+        RecentlyListenedSongEntity latestSongEntity =
+                recentlyListenedSongDao.findLatestByStationId(station.getId());
+        RecentlyListenedSong latestSong = latestSongEntity == null
+                ? null
+                : StationMapper.toRecentlyListenedSong(latestSongEntity);
+        if (song.hasSameTrackInfo(latestSong)) {
+            return false;
+        }
+
+        recentlyListenedSongDao.insert(StationMapper.toRecentlyListenedSongEntity(station.getId(), song));
+        recentlyListenedSongDao.trimToLatest(station.getId(), MAX_RECENT_SONGS_PER_STATION);
+        return true;
+    }
+
+    @NonNull
+    private Map<String, List<RecentlyListenedSong>> loadRecentSongsByStationId() {
+        Map<String, List<RecentlyListenedSong>> songsByStationId = new LinkedHashMap<>();
+        for (RecentlyListenedSongEntity entity : recentlyListenedSongDao.getAll()) {
+            List<RecentlyListenedSong> songs = songsByStationId.get(entity.stationId);
+            if (songs == null) {
+                songs = new ArrayList<>();
+                songsByStationId.put(entity.stationId, songs);
+            }
+            songs.add(StationMapper.toRecentlyListenedSong(entity));
+        }
+        return songsByStationId;
+    }
+
+    private void pruneOrphanedRecentSongs() {
+        List<String> activeStationIds = recentlyPlayedDao.getAllStationIds();
+        if (activeStationIds.isEmpty()) {
+            recentlyListenedSongDao.clearAll();
+            return;
+        }
+        recentlyListenedSongDao.deleteByStationIdNotIn(activeStationIds);
     }
 }

@@ -11,6 +11,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -44,6 +45,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.matijakljajic.freeairradio.artwork.StationArtworkBitmapLoader;
 import com.matijakljajic.freeairradio.artwork.StationArtworkResolver;
 import com.matijakljajic.freeairradio.R;
+import com.matijakljajic.freeairradio.data.model.RecentlyListenedSong;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.RadioBrowserRepository;
@@ -57,6 +59,7 @@ import com.matijakljajic.freeairradio.playback.resolution.ResolutionResult;
 import com.matijakljajic.freeairradio.playback.resolution.ResolvedStreamCandidate;
 import com.matijakljajic.freeairradio.playback.resolution.StreamResolutionEngine;
 import com.matijakljajic.freeairradio.ui.MainActivity;
+import com.matijakljajic.freeairradio.util.AppLog;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -73,6 +76,9 @@ public class RadioPlaybackService extends MediaSessionService {
     private static final String TAG = "RadioPlaybackService";
     private static final String PLAYBACK_NOTIFICATION_CHANNEL_ID = "radio_playback";
     private static final int PLAYBACK_NOTIFICATION_ID = 1001;
+    private static final long MIN_RECENTLY_LISTENED_TRACK_DURATION_MS = 20_000L;
+    private static final float DEFAULT_PLAYER_VOLUME = 1f;
+    private static final float DUCKED_PLAYER_VOLUME = 0.25f;
     @NonNull
     private static final SessionCommand TOGGLE_FAVORITE_COMMAND =
             new SessionCommand(PlaybackSessionContract.COMMAND_TOGGLE_FAVORITE, Bundle.EMPTY);
@@ -99,6 +105,7 @@ public class RadioPlaybackService extends MediaSessionService {
     private int currentCandidateIndex;
     private long currentPlaybackGeneration;
     private long reportedUsageGeneration;
+    private long currentNowPlayingStartedAtElapsedMs;
     @NonNull
     private final ExecutorService playbackResolverExecutor = Executors.newSingleThreadExecutor();
     @NonNull
@@ -184,6 +191,7 @@ public class RadioPlaybackService extends MediaSessionService {
     private final HeadphoneUnplugReceiver headphoneUnplugReceiver =
             new HeadphoneUnplugReceiver(this::handleAudioOutputBecameNoisy);
     private boolean resumeAfterTemporaryFocusLoss;
+    private boolean duckedForTransientFocusLoss;
     @NonNull
     private final Player.Listener playerListener = new Player.Listener() {
         @Override
@@ -206,6 +214,13 @@ public class RadioPlaybackService extends MediaSessionService {
                 return;
             }
 
+            AppLog.d(TAG, "Player state changed for "
+                    + getCurrentStationLogName()
+                    + " -> "
+                    + playbackStateToString(playbackState)
+                    + " candidate="
+                    + getCurrentCandidateLogUrl());
+
             if (playbackState == Player.STATE_BUFFERING) {
                 markCurrentStationStatus(CurrentPlaybackState.PlaybackStatus.CONNECTING);
             } else if (playbackState == Player.STATE_ENDED) {
@@ -224,6 +239,15 @@ public class RadioPlaybackService extends MediaSessionService {
             if (currentStation == null) {
                 return;
             }
+
+            AppLog.d(TAG, "isPlaying changed for "
+                    + getCurrentStationLogName()
+                    + " -> "
+                    + isPlaying
+                    + " playerState="
+                    + getPlayerStateLogValue()
+                    + " appStatus="
+                    + currentPlaybackState.getPlaybackStatus());
 
             if (isPlaying) {
                 markCurrentStationStatus(CurrentPlaybackState.PlaybackStatus.PLAYING);
@@ -248,6 +272,11 @@ public class RadioPlaybackService extends MediaSessionService {
             @Override
             public void onAudioFocusLostTemporarily() {
                 handleTemporaryAudioFocusLoss();
+            }
+
+            @Override
+            public void onAudioFocusShouldDuck() {
+                handleDuckableAudioFocusLoss();
             }
 
             @Override
@@ -282,12 +311,14 @@ public class RadioPlaybackService extends MediaSessionService {
         if (player == null) {
             return;
         }
+        AppLog.d(TAG, "Play requested for " + station.getName());
         if (audioFocusHandler == null || !audioFocusHandler.requestFocus()) {
             Log.w(TAG, "Audio focus denied for " + station.getName());
             handleDeniedPlaybackStart();
             return;
         }
 
+        restorePlayerVolumeIfNeeded();
         clearTemporaryFocusLossState();
         int sequence = beginPlaybackSequence();
         prepareStationPlayback(station);
@@ -299,6 +330,14 @@ public class RadioPlaybackService extends MediaSessionService {
             return;
         }
 
+        AppLog.d(TAG, "Stopping playback for "
+                + getCurrentStationLogName()
+                + " playerState="
+                + getPlayerStateLogValue()
+                + " appStatus="
+                + currentPlaybackState.getPlaybackStatus());
+
+        restorePlayerVolumeIfNeeded();
         clearTemporaryFocusLossState();
         cancelCurrentPlayback();
         currentStation = null;
@@ -314,11 +353,13 @@ public class RadioPlaybackService extends MediaSessionService {
         if (player == null || currentStation == null) {
             return;
         }
+        AppLog.d(TAG, "Resume requested for " + currentStation.getName());
         if (audioFocusHandler == null || !audioFocusHandler.requestFocus()) {
             Log.w(TAG, "Audio focus denied while resuming " + currentStation.getName());
             return;
         }
 
+        restorePlayerVolumeIfNeeded();
         clearTemporaryFocusLossState();
         player.play();
     }
@@ -464,6 +505,7 @@ public class RadioPlaybackService extends MediaSessionService {
         currentPlaybackGeneration = 0L;
         clearResolvedPlaybackState();
         reportedUsageGeneration = 0L;
+        clearCurrentNowPlayingTiming();
         clearTemporaryFocusLossState();
         stopAndClearPlayer();
     }
@@ -494,29 +536,47 @@ public class RadioPlaybackService extends MediaSessionService {
     }
 
     private void handleAudioFocusGained() {
+        restorePlayerVolumeIfNeeded();
         if (!resumeAfterTemporaryFocusLoss || player == null || currentStation == null) {
+            AppLog.d(TAG, "Audio focus gained without pending auto-resume");
             resumeAfterTemporaryFocusLoss = false;
             return;
         }
 
+        AppLog.d(TAG, "Resuming playback after temporary audio focus loss for "
+                + currentStation.getName());
         resumeAfterTemporaryFocusLoss = false;
         player.play();
     }
 
     private void handleTemporaryAudioFocusLoss() {
         if (!shouldRespectAudioInterruptions()) {
+            AppLog.d(TAG, "Ignoring temporary audio focus loss because interruptions are disabled");
             return;
         }
         if (player == null || currentStation == null) {
+            AppLog.d(TAG, "Ignoring temporary audio focus loss because there is no active station");
             resumeAfterTemporaryFocusLoss = false;
             return;
         }
 
         resumeAfterTemporaryFocusLoss = shouldResumeAfterTemporaryFocusLoss();
         if (!resumeAfterTemporaryFocusLoss) {
+            AppLog.d(TAG, "Ignoring temporary audio focus loss because playback is not active"
+                    + " playerState="
+                    + getPlayerStateLogValue()
+                    + " appStatus="
+                    + currentPlaybackState.getPlaybackStatus());
             return;
         }
 
+        AppLog.d(TAG, "Pausing playback after temporary audio focus loss for "
+                + currentStation.getName()
+                + " playerState="
+                + getPlayerStateLogValue()
+                + " appStatus="
+                + currentPlaybackState.getPlaybackStatus());
+        restorePlayerVolumeIfNeeded();
         player.pause();
         currentPlaybackState.setPlaybackStatus(
                 currentStation,
@@ -524,24 +584,61 @@ public class RadioPlaybackService extends MediaSessionService {
         );
     }
 
-    private void handlePermanentAudioFocusLoss() {
+    private void handleDuckableAudioFocusLoss() {
         if (!shouldRespectAudioInterruptions()) {
+            AppLog.d(TAG, "Ignoring duckable audio focus loss because interruptions are disabled");
             return;
         }
-        if (!hasInterruptiblePlayback()) {
+        if (player == null || currentStation == null) {
+            AppLog.d(TAG, "Ignoring duckable audio focus loss because there is no active station");
+            return;
+        }
+        if (!shouldResumeAfterTemporaryFocusLoss()) {
+            AppLog.d(TAG, "Ignoring duckable audio focus loss because playback is not active"
+                    + " playerState="
+                    + getPlayerStateLogValue()
+                    + " appStatus="
+                    + currentPlaybackState.getPlaybackStatus());
+            return;
+        }
+        if (duckedForTransientFocusLoss) {
+            AppLog.d(TAG, "Ignoring duckable audio focus loss because player is already ducked");
             return;
         }
 
-        Log.d(TAG, "Stopping playback after permanent audio focus loss");
+        AppLog.d(TAG, "Ducking playback after transient duckable audio focus loss for "
+                + currentStation.getName()
+                + " playerState="
+                + getPlayerStateLogValue()
+                + " appStatus="
+                + currentPlaybackState.getPlaybackStatus());
+        player.setVolume(DUCKED_PLAYER_VOLUME);
+        duckedForTransientFocusLoss = true;
+    }
+
+    private void handlePermanentAudioFocusLoss() {
+        if (!shouldRespectAudioInterruptions()) {
+            AppLog.d(TAG, "Ignoring permanent audio focus loss because interruptions are disabled");
+            return;
+        }
+        if (!hasInterruptiblePlayback()) {
+            AppLog.d(TAG, "Ignoring permanent audio focus loss because playback is not active");
+            return;
+        }
+
+        AppLog.d(TAG, "Stopping playback after permanent audio focus loss");
+        restorePlayerVolumeIfNeeded();
         stop();
     }
 
     private void handleAudioOutputBecameNoisy() {
         if (!hasInterruptiblePlayback()) {
+            AppLog.d(TAG, "Ignoring noisy-audio event because playback is not active");
             return;
         }
 
-        Log.d(TAG, "Stopping playback because audio output became noisy");
+        AppLog.d(TAG, "Stopping playback because audio output became noisy");
+        restorePlayerVolumeIfNeeded();
         stop();
     }
 
@@ -563,6 +660,14 @@ public class RadioPlaybackService extends MediaSessionService {
 
     private void clearTemporaryFocusLossState() {
         resumeAfterTemporaryFocusLoss = false;
+    }
+
+    private void restorePlayerVolumeIfNeeded() {
+        if (player != null && duckedForTransientFocusLoss) {
+            AppLog.d(TAG, "Restoring player volume after ducking");
+            player.setVolume(DEFAULT_PLAYER_VOLUME);
+        }
+        duckedForTransientFocusLoss = false;
     }
 
     private boolean shouldRespectAudioInterruptions() {
@@ -619,12 +724,12 @@ public class RadioPlaybackService extends MediaSessionService {
 
         String playableStreamUrl = resolvePlayableStreamUrl(station, resolutionResult, candidateIndex);
         currentCandidateIndex = candidateIndex;
-        Log.d(TAG, "Starting playback for "
+        AppLog.d(TAG, "Starting playback for "
                 + station.getName()
                 + " candidateIndex="
                 + candidateIndex
                 + " url="
-                + playableStreamUrl);
+                + AppLog.redactUrl(playableStreamUrl));
         stopAndClearPlayer();
         player.setMediaItem(buildStationMediaItem(station, playableStreamUrl));
         currentPlaybackState.setPlaybackStatus(station, CurrentPlaybackState.PlaybackStatus.CONNECTING);
@@ -690,7 +795,30 @@ public class RadioPlaybackService extends MediaSessionService {
                 || currentCandidateIndex >= currentResolutionResult.getCandidates().size()) {
             return "<none>";
         }
-        return currentResolutionResult.getCandidates().get(currentCandidateIndex).getUrl();
+        return AppLog.redactUrl(currentResolutionResult.getCandidates().get(currentCandidateIndex).getUrl());
+    }
+
+    @NonNull
+    private String getPlayerStateLogValue() {
+        return player != null
+                ? playbackStateToString(player.getPlaybackState())
+                : "<no-player>";
+    }
+
+    @NonNull
+    private static String playbackStateToString(int playbackState) {
+        switch (playbackState) {
+            case Player.STATE_IDLE:
+                return "IDLE";
+            case Player.STATE_BUFFERING:
+                return "BUFFERING";
+            case Player.STATE_READY:
+                return "READY";
+            case Player.STATE_ENDED:
+                return "ENDED";
+            default:
+                return "UNKNOWN(" + playbackState + ")";
+        }
     }
 
     private void createPlaybackNotificationChannel() {
@@ -900,15 +1028,56 @@ public class RadioPlaybackService extends MediaSessionService {
     private void handleObservedNowPlayingChange(@NonNull Station station,
                                                 @Nullable NowPlaying previousNowPlaying,
                                                 @Nullable NowPlaying currentNowPlaying) {
+        long changedAtElapsedMs = SystemClock.elapsedRealtime();
         currentPlaybackState.setCurrentNowPlaying(station, currentNowPlaying);
         dispatchPresentedMetadataChanged();
-        onNowPlayingChanged(station, previousNowPlaying, currentNowPlaying);
+        onNowPlayingChanged(station, previousNowPlaying, currentNowPlaying, changedAtElapsedMs);
+        updateCurrentNowPlayingTiming(currentNowPlaying, changedAtElapsedMs);
     }
 
     private void onNowPlayingChanged(@NonNull Station station,
                                      @Nullable NowPlaying previousNowPlaying,
-                                     @Nullable NowPlaying currentNowPlaying) {
-        // TODO: Attach future song-boundary features here, such as recording chunk finalization.
+                                     @Nullable NowPlaying currentNowPlaying,
+                                     long changedAtElapsedMs) {
+        if (libraryRepository == null
+                || !isCurrentStation(station)
+                || previousNowPlaying == null
+                || currentNowPlaying == null
+                || previousNowPlaying.equals(currentNowPlaying)) {
+            return;
+        }
+        if (!wasCurrentTrackHeardLongEnough(changedAtElapsedMs)) {
+            return;
+        }
+
+        libraryRepository.recordRecentlyListenedSong(
+                station,
+                new RecentlyListenedSong(
+                        previousNowPlaying.getArtist(),
+                        previousNowPlaying.getTitle(),
+                        System.currentTimeMillis()
+                )
+        );
+    }
+
+    private boolean wasCurrentTrackHeardLongEnough(long changedAtElapsedMs) {
+        if (currentNowPlayingStartedAtElapsedMs <= 0L) {
+            return false;
+        }
+
+        return changedAtElapsedMs - currentNowPlayingStartedAtElapsedMs
+                >= MIN_RECENTLY_LISTENED_TRACK_DURATION_MS;
+    }
+
+    private void updateCurrentNowPlayingTiming(@Nullable NowPlaying currentNowPlaying,
+                                               long changedAtElapsedMs) {
+        currentNowPlayingStartedAtElapsedMs = currentNowPlaying == null
+                ? 0L
+                : changedAtElapsedMs;
+    }
+
+    private void clearCurrentNowPlayingTiming() {
+        currentNowPlayingStartedAtElapsedMs = 0L;
     }
 
     private void requestNotificationRefresh() {

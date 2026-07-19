@@ -5,7 +5,10 @@ import androidx.annotation.Nullable;
 
 import com.matijakljajic.freeairradio.data.local.entity.FavoriteStationEntity;
 import com.matijakljajic.freeairradio.data.local.entity.LocalStationEntity;
+import com.matijakljajic.freeairradio.data.local.entity.RecentlyListenedSongEntity;
 import com.matijakljajic.freeairradio.data.local.entity.RecentlyPlayedStationEntity;
+import com.matijakljajic.freeairradio.data.local.entity.StationSnapshotFields;
+import com.matijakljajic.freeairradio.data.model.RecentlyListenedSong;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
 
@@ -26,19 +29,7 @@ public final class StationMapper {
         long addedAt = existingEntity != null ? existingEntity.addedAt : now;
         return new FavoriteStationEntity(
                 station.getId(),
-                station.getName(),
-                station.getStreamUrl(),
-                station.getResolvedStreamUrl(),
-                station.getHomepage(),
-                station.getFavicon(),
-                station.getCountry(),
-                station.getCountryCode(),
-                station.getLanguage(),
-                station.getTags(),
-                station.getCodec(),
-                station.getBitrate(),
-                station.getHls(),
-                station.getOrigin().name(),
+                toStationSnapshotFields(station),
                 displayOrder,
                 addedAt,
                 now
@@ -52,19 +43,7 @@ public final class StationMapper {
         long createdAt = existingEntity != null ? existingEntity.createdAt : now;
         return new LocalStationEntity(
                 station.getId(),
-                station.getName(),
-                station.getStreamUrl(),
-                station.getResolvedStreamUrl(),
-                station.getHomepage(),
-                station.getFavicon(),
-                station.getCountry(),
-                station.getCountryCode(),
-                station.getLanguage(),
-                station.getTags(),
-                station.getCodec(),
-                station.getBitrate(),
-                station.getHls(),
-                station.getOrigin().name(),
+                toStationSnapshotFields(station),
                 createdAt,
                 now
         );
@@ -75,20 +54,20 @@ public final class StationMapper {
                                                                             long now) {
         return new RecentlyPlayedStationEntity(
                 station.getId(),
-                station.getName(),
-                station.getStreamUrl(),
-                station.getResolvedStreamUrl(),
-                station.getHomepage(),
-                station.getFavicon(),
-                station.getCountry(),
-                station.getCountryCode(),
-                station.getLanguage(),
-                station.getTags(),
-                station.getCodec(),
-                station.getBitrate(),
-                station.getHls(),
-                station.getOrigin().name(),
+                toStationSnapshotFields(station),
                 now
+        );
+    }
+
+    @NonNull
+    public static RecentlyListenedSongEntity toRecentlyListenedSongEntity(@NonNull String stationId,
+                                                                          @NonNull RecentlyListenedSong song) {
+        return new RecentlyListenedSongEntity(
+                0L,
+                stationId,
+                song.getArtist(),
+                song.getTitle(),
+                song.getHeardAt()
         );
     }
 
@@ -96,19 +75,7 @@ public final class StationMapper {
     public static Station toStation(@NonNull FavoriteStationEntity entity) {
         return buildStation(
                 entity.id,
-                entity.name,
-                entity.streamUrl,
-                entity.resolvedStreamUrl,
-                entity.homepage,
-                entity.favicon,
-                entity.country,
-                entity.countryCode,
-                entity.language,
-                entity.tags,
-                entity.codec,
-                entity.bitrate,
-                entity.hls,
-                entity.origin
+                entity.station
         );
     }
 
@@ -116,19 +83,7 @@ public final class StationMapper {
     public static Station toStation(@NonNull LocalStationEntity entity) {
         return buildStation(
                 entity.id,
-                entity.name,
-                entity.streamUrl,
-                entity.resolvedStreamUrl,
-                entity.homepage,
-                entity.favicon,
-                entity.country,
-                entity.countryCode,
-                entity.language,
-                entity.tags,
-                entity.codec,
-                entity.bitrate,
-                entity.hls,
-                entity.origin
+                entity.station
         );
     }
 
@@ -136,20 +91,13 @@ public final class StationMapper {
     public static Station toStation(@NonNull RecentlyPlayedStationEntity entity) {
         return buildStation(
                 entity.id,
-                entity.name,
-                entity.streamUrl,
-                entity.resolvedStreamUrl,
-                entity.homepage,
-                entity.favicon,
-                entity.country,
-                entity.countryCode,
-                entity.language,
-                entity.tags,
-                entity.codec,
-                entity.bitrate,
-                entity.hls,
-                entity.origin
+                entity.station
         );
+    }
+
+    @NonNull
+    public static RecentlyListenedSong toRecentlyListenedSong(@NonNull RecentlyListenedSongEntity entity) {
+        return new RecentlyListenedSong(entity.artist, entity.title, entity.heardAt);
     }
 
     @NonNull
@@ -179,31 +127,38 @@ public final class StationMapper {
 
     @NonNull
     private static Station buildStation(@NonNull String id,
-                                        @NonNull String name,
-                                        @NonNull String streamUrl,
-                                        @Nullable String resolvedStreamUrl,
-                                        @Nullable String homepage,
-                                        @Nullable String favicon,
-                                        @Nullable String country,
-                                        @Nullable String countryCode,
-                                        @Nullable String language,
-                                        @Nullable String tags,
-                                        @Nullable String codec,
-                                        int bitrate,
-                                        @Nullable Boolean hls,
-                                        @Nullable String originName) {
-        return Station.builder(id, name, streamUrl, parseOrigin(id, originName))
-                .setResolvedStreamUrl(resolvedStreamUrl)
-                .setHomepage(homepage)
-                .setFavicon(favicon)
-                .setCountry(country)
-                .setCountryCode(countryCode)
-                .setLanguage(language)
-                .setTags(tags)
-                .setCodec(codec)
-                .setBitrate(bitrate)
-                .setHls(hls)
+                                        @NonNull StationSnapshotFields station) {
+        return Station.builder(id, station.name, station.streamUrl, parseOrigin(id, station.origin))
+                .setResolvedStreamUrl(station.resolvedStreamUrl)
+                .setHomepage(station.homepage)
+                .setFavicon(station.favicon)
+                .setCountry(station.country)
+                .setCountryCode(station.countryCode)
+                .setLanguage(station.language)
+                .setTags(station.tags)
+                .setCodec(station.codec)
+                .setBitrate(station.bitrate)
+                .setHls(station.hls)
                 .build();
+    }
+
+    @NonNull
+    private static StationSnapshotFields toStationSnapshotFields(@NonNull Station station) {
+        return new StationSnapshotFields(
+                station.getName(),
+                station.getStreamUrl(),
+                station.getResolvedStreamUrl(),
+                station.getHomepage(),
+                station.getFavicon(),
+                station.getCountry(),
+                station.getCountryCode(),
+                station.getLanguage(),
+                station.getTags(),
+                station.getCodec(),
+                station.getBitrate(),
+                station.getHls(),
+                station.getOrigin().name()
+        );
     }
 
     @NonNull

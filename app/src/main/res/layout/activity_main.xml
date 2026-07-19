@@ -106,4 +106,46 @@
 
     </com.matijakljajic.freeairradio.ui.shell.PlayerShellContainer>
 
+    <FrameLayout
+        android:id="@+id/player_overlay_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="true"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:focusable="true"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/player_overlay_scrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#CC000000" />
+
+        <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/recently_listened_fragment_container"
+            android:name="com.matijakljajic.freeairradio.ui.history.RecentlyListenedFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:layout="@layout/fragment_recently_listened" />
+
+        <FrameLayout
+            android:id="@+id/expanded_player_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:elevation="8dp">
+
+            <androidx.fragment.app.FragmentContainerView
+                android:id="@+id/expanded_player_fragment_container"
+                android:name="com.matijakljajic.freeairradio.ui.player.PlayerFragment"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                tools:layout="@layout/fragment_player" />
+
+        </FrameLayout>
+
+    </FrameLayout>
+
 </FrameLayout>

@@ -267,6 +267,7 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
             detailsText = itemView.findViewById(R.id.station_item_details);
             itemView.setOnClickListener(v -> dispatchClick(listener));
             itemView.setOnLongClickListener(v -> dispatchLongClick(listener));
+            faviconView.setOnClickListener(v -> dispatchClick(listener));
             faviconView.setOnLongClickListener(v -> {
                 if (boundStation == null) {
                     return false;

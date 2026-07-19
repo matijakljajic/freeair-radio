@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/recently_listened_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recently_listened_recycler_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingStart="10dp"
+        android:paddingTop="0dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="@dimen/player_overlay_history_edge_fade_height" />
+
+    <View
+        android:id="@+id/recently_listened_bottom_fade"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/player_overlay_history_edge_fade_height"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bottom_content_filter"
+        android:importantForAccessibility="no" />
+
+    <TextView
+        android:id="@+id/recently_listened_empty_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:text="@string/recently_listened_empty"
+        android:textAlignment="center"
+        android:visibility="gone" />
+
+</FrameLayout>

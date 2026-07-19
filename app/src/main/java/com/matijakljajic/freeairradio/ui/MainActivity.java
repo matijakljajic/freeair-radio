@@ -23,6 +23,7 @@ import com.matijakljajic.freeairradio.playback.RadioPlayer;
 import com.matijakljajic.freeairradio.ui.settings.AppThemeSettings;
 import com.matijakljajic.freeairradio.ui.homepage.HomePageFragment;
 import com.matijakljajic.freeairradio.ui.player.PlayerFragment;
+import com.matijakljajic.freeairradio.ui.player.PlayerOverlayController;
 import com.matijakljajic.freeairradio.ui.settings.SettingsFragment;
 import com.matijakljajic.freeairradio.ui.shell.ShellChromeController;
 import com.matijakljajic.freeairradio.ui.shell.ShellChromeHost;
@@ -30,7 +31,10 @@ import com.matijakljajic.freeairradio.ui.stations.StationFeedFragment;
 import com.matijakljajic.freeairradio.ui.stations.StationSearchFragment;
 
 @SuppressWarnings("unused")
-public class MainActivity extends AppCompatActivity implements StationFeedFragment.OnStationSelectedListener, ShellChromeHost {
+public class MainActivity extends AppCompatActivity implements
+        StationFeedFragment.OnStationSelectedListener,
+        ShellChromeHost,
+        PlayerFragment.PlayerSurfaceHost {
 
     private static final int REQUEST_CODE_POST_NOTIFICATIONS = 1001;
     private static final String STATE_SELECTED_STATION = "state_selected_station";
@@ -46,6 +50,8 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
     private ShellChromeController shellChromeController;
     @Nullable
     private RadioPlayer radioPlayer;
+    @Nullable
+    private PlayerOverlayController playerOverlayController;
     private boolean suppressNavCallbacks;
 
     @Override
@@ -106,6 +112,15 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
                 findViewById(R.id.player_shell_container),
                 findViewById(R.id.search_shell_overlay_container)
         );
+        playerOverlayController = new PlayerOverlayController(
+                this,
+                findViewById(R.id.main),
+                findViewById(R.id.player_overlay_container),
+                findViewById(R.id.player_overlay_scrim),
+                findViewById(R.id.player_fragment_container),
+                findViewById(R.id.expanded_player_container),
+                findViewById(R.id.recently_listened_fragment_container)
+        );
     }
 
     private void bindNavigation() {
@@ -132,6 +147,9 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
         if (shellChromeController != null) {
             shellChromeController.attach();
         }
+        if (playerOverlayController != null) {
+            playerOverlayController.attach();
+        }
     }
 
     private void refreshRadioBrowserServers() {
@@ -142,19 +160,15 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
     }
 
     private void showSelectedStation() {
-        PlayerFragment fragment = findPlayerFragment();
-        if (fragment != null) {
-            fragment.showStation(selectedStation);
-        }
+        showSelectedStation(R.id.player_fragment_container);
+        showSelectedStation(R.id.expanded_player_fragment_container);
     }
 
-    @Nullable
-    private PlayerFragment findPlayerFragment() {
-        Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.player_fragment_container);
+    private void showSelectedStation(int containerId) {
+        Fragment fragment = getSupportFragmentManager().findFragmentById(containerId);
         if (fragment instanceof PlayerFragment) {
-            return (PlayerFragment) fragment;
+            ((PlayerFragment) fragment).showStation(selectedStation);
         }
-        return null;
     }
 
     @Override
@@ -165,8 +179,37 @@ public class MainActivity extends AppCompatActivity implements StationFeedFragme
     }
 
     private void detachShellChrome() {
+        if (playerOverlayController != null) {
+            playerOverlayController.detach();
+        }
         if (shellChromeController != null) {
             shellChromeController.detach();
+        }
+    }
+
+    @Override
+    public void onPlayerSurfaceTap(boolean expanded) {
+        if (playerOverlayController == null) {
+            return;
+        }
+
+        if (expanded) {
+            playerOverlayController.close();
+        } else {
+            playerOverlayController.open();
+        }
+    }
+
+    @Override
+    public void onPlayerSurfaceSwipe(boolean expanded, boolean upward) {
+        if (playerOverlayController == null) {
+            return;
+        }
+
+        if (!expanded && upward) {
+            playerOverlayController.open();
+        } else if (expanded && !upward) {
+            playerOverlayController.close();
         }
     }
 

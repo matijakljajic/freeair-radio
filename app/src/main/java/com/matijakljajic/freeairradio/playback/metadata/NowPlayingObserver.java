@@ -10,6 +10,7 @@ import androidx.media3.extractor.metadata.icy.IcyInfo;
 import androidx.media3.extractor.metadata.id3.TextInformationFrame;
 
 import com.matijakljajic.freeairradio.data.model.Station;
+import com.matijakljajic.freeairradio.util.AppLog;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -17,6 +18,8 @@ import java.util.Objects;
 @SuppressWarnings("unused")
 @UnstableApi
 public final class NowPlayingObserver implements Player.Listener {
+
+    private static final String TAG = "NowPlayingObserver";
 
     public interface Listener {
         void onNowPlayingChanged(@NonNull Station station,
@@ -81,27 +84,44 @@ public final class NowPlayingObserver implements Player.Listener {
         emitParsedNowPlaying(parseNowPlaying(mediaMetadata), playbackGeneration);
     }
 
-    private void emitParsedNowPlaying(@Nullable NowPlaying nowPlaying, long generationSnapshot) {
-        if (nowPlaying != null) {
-            emitIfChanged(nowPlaying, generationSnapshot);
+    private void emitParsedNowPlaying(@Nullable ParsedNowPlaying parsedNowPlaying, long generationSnapshot) {
+        if (parsedNowPlaying != null && parsedNowPlaying.nowPlaying != null) {
+            emitIfChanged(parsedNowPlaying.nowPlaying, generationSnapshot, parsedNowPlaying.source);
         }
     }
 
-    private void emitIfChanged(@NonNull NowPlaying nowPlaying, long generationSnapshot) {
+    private void emitIfChanged(@NonNull NowPlaying nowPlaying,
+                               long generationSnapshot,
+                               @NonNull String source) {
         if (generationSnapshot != playbackGeneration || station == null) {
+            AppLog.d(TAG, "Ignoring stale now playing"
+                    + " station=" + getObservedStationLogName()
+                    + " source=" + source
+                    + " artist=" + AppLog.value(nowPlaying.getArtist())
+                    + " title=" + AppLog.value(nowPlaying.getTitle()));
             return;
         }
         if (Objects.equals(lastEmitted, nowPlaying)) {
+            AppLog.d(TAG, "Ignoring duplicate now playing"
+                    + " station=" + getObservedStationLogName()
+                    + " source=" + source
+                    + " artist=" + AppLog.value(nowPlaying.getArtist())
+                    + " title=" + AppLog.value(nowPlaying.getTitle()));
             return;
         }
 
         NowPlaying previousNowPlaying = lastEmitted;
         lastEmitted = nowPlaying;
+        AppLog.d(TAG, "Emitting now playing"
+                + " station=" + getObservedStationLogName()
+                + " source=" + source
+                + " artist=" + AppLog.value(nowPlaying.getArtist())
+                + " title=" + AppLog.value(nowPlaying.getTitle()));
         listener.onNowPlayingChanged(station, previousNowPlaying, nowPlaying);
     }
 
     @Nullable
-    private NowPlaying parseNowPlaying(@NonNull Metadata metadata) {
+    private ParsedNowPlaying parseNowPlaying(@NonNull Metadata metadata) {
         if (station == null) {
             return null;
         }
@@ -112,29 +132,36 @@ public final class NowPlayingObserver implements Player.Listener {
             consumeMetadataEntry(metadata.get(i), parsedMetadata);
         }
 
-        return NowPlaying.fromMetadata(
-                station.getName(),
-                parsedMetadata.artist,
-                firstNonNull(parsedMetadata.icyTitle, parsedMetadata.title)
+        return new ParsedNowPlaying(
+                NowPlaying.fromMetadata(
+                        station.getName(),
+                        parsedMetadata.artist,
+                        firstNonNull(parsedMetadata.icyTitle, parsedMetadata.title)
+                ),
+                parsedMetadata.resolveSource()
         );
     }
 
     @Nullable
-    private NowPlaying parseNowPlaying(@NonNull MediaMetadata mediaMetadata) {
+    private ParsedNowPlaying parseNowPlaying(@NonNull MediaMetadata mediaMetadata) {
         if (station == null) {
             return null;
         }
 
-        return NowPlaying.fromMetadata(
-                station.getName(),
-                charSequenceToString(mediaMetadata.artist),
-                charSequenceToString(mediaMetadata.title)
+        return new ParsedNowPlaying(
+                NowPlaying.fromMetadata(
+                        station.getName(),
+                        charSequenceToString(mediaMetadata.artist),
+                        charSequenceToString(mediaMetadata.title)
+                ),
+                "MEDIA_METADATA"
         );
     }
 
     private static void consumeMetadataEntry(@NonNull Metadata.Entry entry,
                                              @NonNull ParsedMetadata parsedMetadata) {
         if (entry instanceof IcyInfo) {
+            parsedMetadata.sawIcy = true;
             parsedMetadata.icyTitle = normalizeNullable(((IcyInfo) entry).title);
             return;
         }
@@ -144,6 +171,7 @@ public final class NowPlayingObserver implements Player.Listener {
         }
 
         TextInformationFrame frame = (TextInformationFrame) entry;
+        parsedMetadata.sawId3 = true;
         String frameValue = getFirstFrameValue(frame);
         if (frameValue == null) {
             return;
@@ -202,5 +230,35 @@ public final class NowPlayingObserver implements Player.Listener {
         private String artist;
         @Nullable
         private String title;
+        private boolean sawIcy;
+        private boolean sawId3;
+
+        @NonNull
+        private String resolveSource() {
+            if (icyTitle != null || sawIcy) {
+                return "ICY";
+            }
+            if (artist != null || title != null || sawId3) {
+                return "ID3";
+            }
+            return "UNKNOWN";
+        }
+    }
+
+    private static final class ParsedNowPlaying {
+        @Nullable
+        private final NowPlaying nowPlaying;
+        @NonNull
+        private final String source;
+
+        private ParsedNowPlaying(@Nullable NowPlaying nowPlaying, @NonNull String source) {
+            this.nowPlaying = nowPlaying;
+            this.source = source;
+        }
+    }
+
+    @NonNull
+    private String getObservedStationLogName() {
+        return AppLog.stationName(station != null ? station.getName() : null);
     }
 }
