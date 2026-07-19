@@ -5,6 +5,8 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.matijakljajic.freeairradio.util.AppLog;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -16,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 @SuppressWarnings("unused")
 public final class RadioBrowserServerSelector {
 
+    private static final String TAG = "RadioBrowserServerSelector";
     @NonNull
     private final Object lock = new Object();
     @Nullable
@@ -46,6 +49,11 @@ public final class RadioBrowserServerSelector {
         this.selectedIndex = 0;
         this.readyLatch = new CountDownLatch(1);
         readyLatch.countDown();
+        AppLog.d(TAG, "Initialized server selector"
+                + " preferred=" + AppLog.value(this.preferredBaseUrl)
+                + " startupSource=" + (cachedBaseUrls.isEmpty() ? "bootstrap" : "cache")
+                + " serverCount=" + this.baseUrls.size()
+                + " selected=" + AppLog.value(getSelectedBaseUrl()));
         if (refreshAsync && cachedBaseUrls.isEmpty()) {
             refreshAsync();
         }
@@ -66,6 +74,9 @@ public final class RadioBrowserServerSelector {
             int index = indexOf(baseUrl);
             if (index >= 0) {
                 selectedIndex = index;
+                AppLog.d(TAG, "Remembered successful server"
+                        + " selected=" + baseUrls.get(selectedIndex)
+                        + " index=" + selectedIndex);
             }
         }
     }
@@ -81,20 +92,32 @@ public final class RadioBrowserServerSelector {
                 failedIndex = selectedIndex;
             }
             selectedIndex = (failedIndex + 1) % baseUrls.size();
+            android.util.Log.w(TAG, "Rotated Radio Browser server after failure"
+                    + " failed=" + AppLog.value(failedBaseUrl)
+                    + " next=" + baseUrls.get(selectedIndex)
+                    + " serverCount=" + baseUrls.size());
             return true;
         }
     }
 
     public boolean awaitReady(long timeoutMillis) {
         try {
-            return readyLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
+            boolean ready = readyLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
+            if (!ready) {
+                android.util.Log.w(TAG, "Server selector timed out waiting for refresh"
+                        + " timeoutMs=" + timeoutMillis
+                        + " selected=" + AppLog.value(getSelectedBaseUrl()));
+            }
+            return ready;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            android.util.Log.w(TAG, "Server selector wait interrupted", e);
             return false;
         }
     }
 
     private void refreshAsync() {
+        AppLog.d(TAG, "Refreshing Radio Browser servers in background");
         Thread refreshThread = new Thread(() -> {
             try {
                 List<String> discoveredBaseUrls = RadioBrowserServerDirectory.refresh();
@@ -103,6 +126,11 @@ public final class RadioBrowserServerSelector {
                     if (!refreshedBaseUrls.isEmpty()) {
                         baseUrls = refreshedBaseUrls;
                         selectedIndex = 0;
+                        AppLog.d(TAG, "Refreshed Radio Browser servers"
+                                + " serverCount=" + baseUrls.size()
+                                + " selected=" + baseUrls.get(selectedIndex));
+                    } else {
+                        android.util.Log.w(TAG, "Server refresh returned no base urls");
                     }
                 }
             } finally {
@@ -165,4 +193,5 @@ public final class RadioBrowserServerSelector {
         }
         return -1;
     }
+
 }

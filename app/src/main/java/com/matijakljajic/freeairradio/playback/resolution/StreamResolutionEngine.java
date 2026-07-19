@@ -8,6 +8,7 @@ import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.playback.resolution.ResolutionResult.ResolutionStatus;
 import com.matijakljajic.freeairradio.playback.resolution.ResolvedStreamCandidate.MetadataCapability;
 import com.matijakljajic.freeairradio.playback.resolution.ResolvedStreamCandidate.StreamProtocol;
+import com.matijakljajic.freeairradio.util.AppLog;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -41,6 +42,7 @@ import org.xml.sax.InputSource;
 @SuppressWarnings({"unused", "GrazieInspectionRunner"})
 public final class StreamResolutionEngine {
 
+    private static final String TAG = "StreamResolutionEngine";
     private static final int MAX_DEPTH = 10;
     private static final int MAX_PREVIEW_BYTES = 64 * 1024;
     private static final int MAX_PLAYLIST_ENTRIES = 32;
@@ -55,7 +57,7 @@ public final class StreamResolutionEngine {
 
     @NonNull
     public ResolutionResult resolveUrls(@NonNull String originalUrl) {
-        return resolveUrlsInternal(originalUrl, buildCandidates(originalUrl));
+        return resolveUrlsInternal(originalUrl, buildCandidates(originalUrl), null);
     }
 
     @NonNull
@@ -65,7 +67,7 @@ public final class StreamResolutionEngine {
             seedUrls.add(station.getResolvedStreamUrl());
         }
         seedUrls.add(station.getStreamUrl());
-        return resolveUrlsInternal(station.getStreamUrl(), seedUrls);
+        return resolveUrlsInternal(station.getStreamUrl(), seedUrls, station.getName());
     }
 
     @NonNull
@@ -200,11 +202,25 @@ public final class StreamResolutionEngine {
     }
 
     @NonNull
-    private ResolutionResult resolveUrlsInternal(@NonNull String originalUrl, @NonNull List<String> seedUrls) {
+    private ResolutionResult resolveUrlsInternal(@NonNull String originalUrl,
+                                                 @NonNull List<String> seedUrls,
+                                                 @Nullable String stationName) {
         String normalizedOriginalUrl = normalizeCandidateUrl(originalUrl);
         if (normalizedOriginalUrl == null) {
-            return new ResolutionResult(originalUrl, null, new ArrayList<>(), new ArrayList<>(), ResolutionStatus.FAILURE, "INVALID_URL");
+            ResolutionResult invalidResult = new ResolutionResult(
+                    originalUrl,
+                    null,
+                    new ArrayList<>(),
+                    new ArrayList<>(),
+                    ResolutionStatus.FAILURE,
+                    "INVALID_URL"
+            );
+            logResolutionStart(stationName, originalUrl, seedUrls);
+            logResolutionResult(stationName, invalidResult);
+            return invalidResult;
         }
+
+        logResolutionStart(stationName, normalizedOriginalUrl, seedUrls);
 
         Queue<ProbeState> queue = createInitialProbeQueue(seedUrls);
         Set<String> visited = new LinkedHashSet<>();
@@ -213,7 +229,14 @@ public final class StreamResolutionEngine {
 
         while (!queue.isEmpty()) {
             if (Thread.currentThread().isInterrupted()) {
-                return buildResult(originalUrl, tracesByUrl, failureReason, ResolutionStatus.CANCELLED);
+                ResolutionResult cancelledResult = buildResult(
+                        originalUrl,
+                        tracesByUrl,
+                        failureReason,
+                        ResolutionStatus.CANCELLED
+                );
+                logResolutionResult(stationName, cancelledResult);
+                return cancelledResult;
             }
 
             ProbeState state = queue.remove();
@@ -230,7 +253,37 @@ public final class StreamResolutionEngine {
             failureReason = enqueueNextProbeStates(queue, visited, outcome, state.depth, failureReason);
         }
 
-        return buildResult(originalUrl, tracesByUrl, failureReason, tracesByUrl.isEmpty() ? ResolutionStatus.FAILURE : ResolutionStatus.SUCCESS);
+        ResolutionResult result = buildResult(
+                originalUrl,
+                tracesByUrl,
+                failureReason,
+                tracesByUrl.isEmpty() ? ResolutionStatus.FAILURE : ResolutionStatus.SUCCESS
+        );
+        logResolutionResult(stationName, result);
+        return result;
+    }
+
+    private static void logResolutionStart(@Nullable String stationName,
+                                           @NonNull String originalUrl,
+                                           @NonNull List<String> seedUrls) {
+        AppLog.d(TAG, "Resolving stream url"
+                + " station=" + AppLog.stationName(stationName)
+                + " originalUrl=" + AppLog.redactUrl(originalUrl)
+                + " seedCount=" + seedUrls.size());
+    }
+
+    private static void logResolutionResult(@Nullable String stationName,
+                                            @NonNull ResolutionResult result) {
+        ResolvedStreamCandidate selectedCandidate = result.getSelectedCandidate();
+        AppLog.d(TAG, "Resolved stream url"
+                + " station=" + AppLog.stationName(stationName)
+                + " status=" + result.getStatus()
+                + " candidateCount=" + result.getCandidates().size()
+                + " selectedUrl=" + AppLog.redactUrl(selectedCandidate != null ? selectedCandidate.getUrl() : null)
+                + " protocol=" + (selectedCandidate != null ? selectedCandidate.getProtocol() : "<none>")
+                + " metadataCapability=" + (selectedCandidate != null ? selectedCandidate.getMetadataCapability() : "<none>")
+                + " selectionReason=" + (selectedCandidate != null ? selectedCandidate.getSelectionReason() : "<none>")
+                + " failureReason=" + (result.getFailureReason() != null ? result.getFailureReason() : "<none>"));
     }
 
     @NonNull
