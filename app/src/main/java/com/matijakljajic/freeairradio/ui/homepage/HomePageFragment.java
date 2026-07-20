@@ -1,5 +1,7 @@
 package com.matijakljajic.freeairradio.ui.homepage;
 
+import android.hardware.Sensor;
+import android.hardware.SensorManager;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
@@ -12,6 +14,8 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.fragment.app.DialogFragment;
+import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.ConcatAdapter;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
@@ -19,10 +23,12 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
-import com.matijakljajic.freeairradio.data.repository.StationRepository;
 import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
+import com.matijakljajic.freeairradio.data.repository.StationRepository;
+import com.matijakljajic.freeairradio.sensor.ShakeDetector;
 import com.matijakljajic.freeairradio.ui.localstations.LocalStationEditorFragment;
 import com.matijakljajic.freeairradio.ui.settings.HomePageSettings;
+import com.matijakljajic.freeairradio.ui.settings.ShakeRandomSettings;
 import com.matijakljajic.freeairradio.ui.settings.TopStationsGeography;
 import com.matijakljajic.freeairradio.ui.settings.TopStationsLocationSettings;
 import com.matijakljajic.freeairradio.ui.stations.StationAdapter;
@@ -32,6 +38,7 @@ import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 
 @SuppressWarnings("unused")
 public class HomePageFragment extends StationFeedFragment {
@@ -56,8 +63,17 @@ public class HomePageFragment extends StationFeedFragment {
     private HomePageHeaderAdapter headerAdapter;
     @Nullable
     private ItemTouchHelper favoritesReorderTouchHelper;
+    @Nullable
+    private SensorManager sensorManager;
+    @Nullable
+    private Sensor accelerometerSensor;
+    @Nullable
+    private ShakeDetector shakeDetector;
+    @Nullable
+    private ShakeRandomSettings shakeRandomSettings;
     private boolean favoriteOrderDirty;
     private boolean favoriteOrderPersisting;
+    private boolean randomSelectionInProgress;
     @Nullable
     private List<Station> pendingFavoriteOrder;
     @NonNull
@@ -73,9 +89,11 @@ public class HomePageFragment extends StationFeedFragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         homePageSettings = new HomePageSettings(requireContext());
+        shakeRandomSettings = new ShakeRandomSettings(requireContext());
         topStationsLocationSettings = new TopStationsLocationSettings(requireContext());
         currentSource = resolveInitialSource(savedInstanceState);
         libraryRepository = LibraryRepository.getInstance(requireContext());
+        bindShakeDetection();
         bindLocalStationEditorResults();
         bindHeaderAdapter();
         bindStationFeed(
@@ -106,7 +124,20 @@ public class HomePageFragment extends StationFeedFragment {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        registerShakeDetection();
+    }
+
+    @Override
+    public void onPause() {
+        unregisterShakeDetection();
+        super.onPause();
+    }
+
+    @Override
     public void onDestroyView() {
+        unregisterShakeDetection();
         libraryRepository.removeFavoritesListener(favoritesListener);
         dismissSourcePopup();
         detachRecyclerChrome();
@@ -115,6 +146,11 @@ public class HomePageFragment extends StationFeedFragment {
         favoriteOrderDirty = false;
         clearFavoriteReorderState();
         headerAdapter = null;
+        sensorManager = null;
+        accelerometerSensor = null;
+        shakeDetector = null;
+        shakeRandomSettings = null;
+        randomSelectionInProgress = false;
         setStateContainerTopInsetPx(0);
         clearStationFeed();
         super.onDestroyView();
@@ -185,6 +221,79 @@ public class HomePageFragment extends StationFeedFragment {
                 R.string.station_list_empty,
                 R.string.station_list_error
         );
+    }
+
+    private void bindShakeDetection() {
+        sensorManager = requireContext().getSystemService(SensorManager.class);
+        accelerometerSensor = sensorManager != null
+                ? sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+                : null;
+        if (accelerometerSensor == null) {
+            shakeDetector = null;
+            return;
+        }
+        shakeDetector = new ShakeDetector(this::onShakeDetected);
+    }
+
+    private void registerShakeDetection() {
+        if (sensorManager == null
+                || accelerometerSensor == null
+                || shakeDetector == null
+                || shakeRandomSettings == null
+                || !shakeRandomSettings.isEnabled()) {
+            return;
+        }
+        sensorManager.registerListener(
+                shakeDetector,
+                accelerometerSensor,
+                SensorManager.SENSOR_DELAY_UI
+        );
+    }
+
+    private void unregisterShakeDetection() {
+        if (sensorManager == null || shakeDetector == null) {
+            return;
+        }
+        sensorManager.unregisterListener(shakeDetector);
+    }
+
+    private void onShakeDetected() {
+        if (!canHandleShake()) {
+            return;
+        }
+
+        randomSelectionInProgress = true;
+        if (!isShowingLoadedStationContent()) {
+            randomSelectionInProgress = false;
+            Toast.makeText(requireContext(), R.string.shake_random_no_stations, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        List<Station> visibleStations = getCurrentStationsSnapshot();
+        if (visibleStations.isEmpty()) {
+            randomSelectionInProgress = false;
+            Toast.makeText(requireContext(), R.string.shake_random_no_stations, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Station station = visibleStations.get(new Random().nextInt(visibleStations.size()));
+        randomSelectionInProgress = false;
+        onStationClick(station);
+    }
+
+    private boolean canHandleShake() {
+        if (!isAdded() || getView() == null || randomSelectionInProgress || sourcePopupWindow != null) {
+            return false;
+        }
+        if (getStationAdapter().isDragReordering()) {
+            return false;
+        }
+        for (Fragment fragment : getChildFragmentManager().getFragments()) {
+            if (fragment instanceof DialogFragment && fragment.isVisible()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void bindLocalStationEditorResults() {

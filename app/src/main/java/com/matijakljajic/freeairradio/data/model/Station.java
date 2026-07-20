@@ -92,6 +92,11 @@ public class Station implements Serializable {
         return countryName;
     }
 
+    @NonNull
+    public String getCountry() {
+        return getCountryName();
+    }
+
     public String getCountryCode() {
         return countryCode;
     }
@@ -252,6 +257,11 @@ public class Station implements Serializable {
         public Builder setCountryName(@Nullable String countryName) {
             this.countryName = countryName;
             return this;
+        }
+
+        @NonNull
+        public Builder setCountry(@Nullable String countryName) {
+            return setCountryName(countryName);
         }
 
         @NonNull

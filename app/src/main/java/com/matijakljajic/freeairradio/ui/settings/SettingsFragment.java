@@ -20,6 +20,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.radiobutton.MaterialRadioButton;
 import com.matijakljajic.freeairradio.BuildConfig;
 import com.matijakljajic.freeairradio.R;
@@ -59,6 +60,8 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     @Nullable
     private TopStationsLocationSettings topStationsLocationSettings;
     @Nullable
+    private ShakeRandomSettings shakeRandomSettings;
+    @Nullable
     private AudioInterruptionSettings audioInterruptionSettings;
     @Nullable
     private RadioGroup serverSelectionGroup;
@@ -70,6 +73,8 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     private RadioGroup audioInterruptionSelectionGroup;
     @Nullable
     private Button topStationsLocationButton;
+    @Nullable
+    private MaterialSwitch shakeRandomEnabledSwitch;
     @Nullable
     private TextView serverStatusText;
     @Nullable
@@ -146,6 +151,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         appThemeSettings = new AppThemeSettings(requireContext());
         homePageSettings = new HomePageSettings(requireContext());
         topStationsLocationSettings = new TopStationsLocationSettings(requireContext());
+        shakeRandomSettings = new ShakeRandomSettings(requireContext());
         audioInterruptionSettings = new AudioInterruptionSettings(requireContext());
     }
 
@@ -156,6 +162,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         homePageDefaultSelectionGroup = view.findViewById(R.id.homepage_default_selection_group);
         audioInterruptionSelectionGroup = view.findViewById(R.id.audio_interruption_selection_group);
         topStationsLocationButton = view.findViewById(R.id.top_stations_location_button);
+        shakeRandomEnabledSwitch = view.findViewById(R.id.shake_random_enabled_switch);
         versionText = view.findViewById(R.id.settings_version_text);
         supportEmailText = view.findViewById(R.id.settings_support_email_text);
         supportStarButton = view.findViewById(R.id.settings_support_star_button);
@@ -193,6 +200,9 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         if (topStationsLocationButton != null) {
             topStationsLocationButton.setOnClickListener(null);
         }
+        if (shakeRandomEnabledSwitch != null) {
+            shakeRandomEnabledSwitch.setOnCheckedChangeListener(null);
+        }
         if (supportEmailText != null) {
             supportEmailText.setOnClickListener(null);
         }
@@ -223,12 +233,14 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         appThemeSettings = null;
         homePageSettings = null;
         topStationsLocationSettings = null;
+        shakeRandomSettings = null;
         audioInterruptionSettings = null;
         serverSelectionGroup = null;
         themeSelectionGroup = null;
         homePageDefaultSelectionGroup = null;
         audioInterruptionSelectionGroup = null;
         topStationsLocationButton = null;
+        shakeRandomEnabledSwitch = null;
         serverStatusText = null;
         supportEmailText = null;
         versionText = null;
@@ -266,6 +278,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     private void bindHomePageSection() {
         bindHomePageDefaultSelection();
         bindTopStationsLocationSelection();
+        bindShakeRandomToggle();
     }
 
     private void bindServerSection() {
@@ -345,6 +358,20 @@ public class SettingsFragment extends ShellChromeAwareFragment {
             }
 
             audioInterruptionSettings.setRespectAudioInterruptions(respectAudioInterruptions);
+        });
+    }
+
+    private void bindShakeRandomToggle() {
+        if (shakeRandomEnabledSwitch == null || shakeRandomSettings == null) {
+            return;
+        }
+
+        shakeRandomEnabledSwitch.setOnCheckedChangeListener(null);
+        shakeRandomEnabledSwitch.setChecked(shakeRandomSettings.isEnabled());
+        shakeRandomEnabledSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (shakeRandomSettings != null) {
+                shakeRandomSettings.setEnabled(isChecked);
+            }
         });
     }
 

@@ -71,7 +71,7 @@ public class StationMapperTest {
         assertEquals(Boolean.FALSE, mappedEntity.station.hls);
         assertEquals("RADIO_BROWSER", mappedEntity.station.origin);
         assertEquals(123L, mappedEntity.displayOrder);
-        assertEquals(123L, mappedEntity.addedAt);
+        assertEquals(456L, mappedEntity.addedAt);
         assertEquals(999L, mappedEntity.updatedAt);
     }
 

@@ -82,7 +82,11 @@
     <string name="settings_top_stations_location_load_failed">Could not load locations.</string>
     <string name="settings_top_stations_location_picker_hint">Location</string>
     <string name="settings_top_stations_location_invalid">Choose one of the available locations.</string>
+    <string name="settings_shake_random_section_title">Shake to random station</string>
+    <string name="settings_shake_random_section_summary">When enabled, shaking on the homepage plays a random station from the list currently shown there.</string>
+    <string name="settings_shake_random_enabled">Enable shake on homepage</string>
     <string name="station_list_title_top_stations">Top stations</string>
+    <string name="shake_random_no_stations">No stations are currently visible on the homepage.</string>
     <string name="settings_reset_section_title">Reset stored lists</string>
     <string name="settings_reset_section_summary">Delete all items from one stored list at a time.</string>
     <string name="settings_clear_favorites_button">Clear favorites</string>
