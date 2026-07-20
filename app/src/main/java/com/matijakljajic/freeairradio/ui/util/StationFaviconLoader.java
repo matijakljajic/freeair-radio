@@ -202,15 +202,21 @@ public final class StationFaviconLoader {
                 if (!isCurrentLoad(imageView, requestTag, signature)) {
                     return true;
                 }
-                advanceCandidateOrResolve(
-                        imageView,
-                        station,
-                        artworkUrls,
-                        candidateIndex,
-                        requestTag,
-                        signature,
-                        initialRevealOrder
-                );
+                // Glide forbids starting a new request directly from a request callback.
+                imageView.post(() -> {
+                    if (!isCurrentLoad(imageView, requestTag, signature)) {
+                        return;
+                    }
+                    advanceCandidateOrResolve(
+                            imageView,
+                            station,
+                            artworkUrls,
+                            candidateIndex,
+                            requestTag,
+                            signature,
+                            initialRevealOrder
+                    );
+                });
                 return true;
             }
 
@@ -521,7 +527,19 @@ public final class StationFaviconLoader {
             if (!isSameRequest(imageView, requestTag)) {
                 return;
             }
-            loadResolvedCandidateUrls(imageView, station, artworkUrls, requestTag, initialRevealOrder);
+            // Resolver callbacks may arrive while a Glide listener is still unwinding.
+            imageView.post(() -> {
+                if (!isSameRequest(imageView, requestTag)) {
+                    return;
+                }
+                loadResolvedCandidateUrls(
+                        imageView,
+                        station,
+                        artworkUrls,
+                        requestTag,
+                        initialRevealOrder
+                );
+            });
         });
         return true;
     }

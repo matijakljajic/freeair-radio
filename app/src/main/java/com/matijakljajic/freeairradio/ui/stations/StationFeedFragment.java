@@ -140,6 +140,22 @@ public abstract class StationFeedFragment extends ShellChromeAwareFragment imple
     }
 
     @NonNull
+    protected final List<Station> getCurrentStationsSnapshot() {
+        if (stationAdapter == null) {
+            return Collections.emptyList();
+        }
+        return stationAdapter.getCurrentList();
+    }
+
+    protected final boolean isShowingLoadedStationContent() {
+        return recyclerView != null
+                && recyclerView.getVisibility() == View.VISIBLE
+                && (loadingView == null || loadingView.getVisibility() != View.VISIBLE)
+                && (errorContainerView == null || errorContainerView.getVisibility() != View.VISIBLE)
+                && (emptyView == null || emptyView.getVisibility() != View.VISIBLE);
+    }
+
+    @NonNull
     protected StationRepository getStationRepository() {
         if (stationRepository == null) {
             stationRepository = createStationRepository();
