@@ -9,20 +9,24 @@ import androidx.annotation.Nullable;
 
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
-import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerSelector;
+import com.matijakljajic.freeairradio.data.remote.radiobrowser.dto.RadioBrowserCountryCodeDto;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.dto.RadioBrowserStationDto;
+import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerSelector;
 import com.matijakljajic.freeairradio.data.repository.StationRepository;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import retrofit2.Call;
-import retrofit2.Callback;
 import retrofit2.Response;
 
 public final class RadioBrowserRepository implements StationRepository {
@@ -30,12 +34,19 @@ public final class RadioBrowserRepository implements StationRepository {
     private static final int DEFAULT_LIMIT = 50;
     private static final int MAX_SERVER_ATTEMPTS = 3;
     private static final String RADIO_BROWSER_ID_PREFIX = "RADIO_BROWSER:";
+    private static final String ORDER_CLICK_COUNT = "clickcount";
+    private static final String ORDER_NAME = "name";
+    @NonNull
+    private static final Object COUNTRY_CODES_CACHE_LOCK = new Object();
+    @Nullable
+    private static List<String> cachedCountryCodes;
     @NonNull
     private static final ExecutorService WORKER_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "RadioBrowserRepository");
         thread.setDaemon(true);
         return thread;
     });
+
     @NonNull
     private final RadioBrowserClient client;
     @NonNull
@@ -44,7 +55,11 @@ public final class RadioBrowserRepository implements StationRepository {
     private final Handler mainHandler;
 
     public RadioBrowserRepository(@NonNull Context context) {
-        this(RadioBrowserClient.getInstance(), new RadioBrowserServerSelector(context), new Handler(Looper.getMainLooper()));
+        this(
+                RadioBrowserClient.getInstance(),
+                new RadioBrowserServerSelector(context),
+                new Handler(Looper.getMainLooper())
+        );
     }
 
     RadioBrowserRepository(@NonNull RadioBrowserClient client,
@@ -57,12 +72,47 @@ public final class RadioBrowserRepository implements StationRepository {
 
     @Override
     public void loadTopStations(@NonNull LoadCallback callback) {
-        enqueueStationsAsync("load top stations", callback, api -> api.loadTopStations(DEFAULT_LIMIT, true));
+        loadStationsAsync(
+                callback,
+                api -> fetchStations(api.loadTopStations(DEFAULT_LIMIT, true), "load top stations")
+        );
+    }
+
+    @Override
+    public void loadTopStationsByCountryCodes(@NonNull List<String> countryCodes,
+                                              @NonNull LoadCallback callback) {
+        List<String> normalizedCountryCodes = normalizeCountryCodes(countryCodes);
+        if (normalizedCountryCodes.isEmpty()) {
+            loadTopStations(callback);
+            return;
+        }
+
+        loadStationsAsync(
+                callback,
+                api -> fetchTopStationsByCountryCodes(api, normalizedCountryCodes)
+        );
+    }
+
+    @Override
+    public void loadAvailableCountryCodes(@NonNull CountryCodesCallback callback) {
+        List<String> cachedCountryCodes = getCachedCountryCodes();
+        if (cachedCountryCodes != null) {
+            postCountryCodesLoaded(callback, cachedCountryCodes);
+            return;
+        }
+        startWorker(() -> loadCountryCodes(callback, 0));
     }
 
     @Override
     public void searchStationsByName(@NonNull String query, @NonNull LoadCallback callback) {
-        enqueueStationsAsync("search stations", callback, api -> api.searchStationsByName(query.trim(), DEFAULT_LIMIT, true));
+        String normalizedQuery = query.trim();
+        loadStationsAsync(
+                callback,
+                api -> fetchStations(
+                        api.searchStationsByName(normalizedQuery, DEFAULT_LIMIT, true),
+                        "search stations"
+                )
+        );
     }
 
     @Override
@@ -76,55 +126,70 @@ public final class RadioBrowserRepository implements StationRepository {
             return;
         }
 
-        enqueueClickAsync(stationUuid);
+        startWorker(() -> reportStationUsage(stationUuid));
     }
 
-    private void enqueueStationsAsync(@NonNull String action,
-                                      @NonNull LoadCallback callback,
-                                      @NonNull RequestFactory requestFactory) {
-        startWorker(() -> enqueueStations(action, callback, requestFactory, 0));
+    private void loadStationsAsync(@NonNull LoadCallback callback,
+                                   @NonNull StationRequest request) {
+        startWorker(() -> loadStations(request, callback, 0));
     }
 
-    private void enqueueStations(@NonNull String action,
-                                 @NonNull LoadCallback callback,
-                                 @NonNull RequestFactory requestFactory,
-                                 int attempt) {
-        String baseUrl = getSelectedBaseUrl(callback);
+    private void loadStations(@NonNull StationRequest request,
+                              @NonNull LoadCallback callback,
+                              int attempt) {
+        String baseUrl = serverSelector.getSelectedBaseUrl();
         if (baseUrl == null) {
+            postError(callback, new IOException("No Radio Browser servers available"));
             return;
         }
 
-        RadioBrowserApi api = client.create(baseUrl);
-        requestFactory.create(api).enqueue(new Callback<>() {
-            @Override
-            public void onResponse(@NonNull Call<List<RadioBrowserStationDto>> call,
-                                   @NonNull Response<List<RadioBrowserStationDto>> response) {
-                if (!response.isSuccessful()) {
-                    IOException error = new IOException("Failed to " + action + ": " + response.code());
-                    if (shouldRetryWithAnotherServer(attempt)) {
-                        retryStationsAsync(action, callback, requestFactory, attempt, baseUrl, error);
-                        return;
-                    }
-                    postError(callback, error);
-                    return;
-                }
-                serverSelector.rememberSuccess(baseUrl);
-                postStationsLoaded(callback, mapStations(response.body()));
-            }
-
-            @Override
-            public void onFailure(@NonNull Call<List<RadioBrowserStationDto>> call, @NonNull Throwable t) {
-                if (shouldRetryWithAnotherServer(attempt)) {
-                    retryStationsAsync(action, callback, requestFactory, attempt, baseUrl, t);
-                    return;
-                }
-                postError(callback, t);
-            }
-        });
+        try {
+            List<RadioBrowserStationDto> stations = request.fetch(client.create(baseUrl));
+            serverSelector.rememberSuccess(baseUrl);
+            postStationsLoaded(callback, mapStations(stations));
+        } catch (IOException exception) {
+            retryStationsOrError(request, callback, attempt, baseUrl, exception);
+        }
     }
 
-    private boolean shouldRetryWithAnotherServer(int attempt) {
-        return attempt + 1 < MAX_SERVER_ATTEMPTS;
+    private void retryStationsOrError(@NonNull StationRequest request,
+                                      @NonNull LoadCallback callback,
+                                      int attempt,
+                                      @Nullable String failedBaseUrl,
+                                      @NonNull IOException error) {
+        if (attempt + 1 < MAX_SERVER_ATTEMPTS && selectAlternativeServer(failedBaseUrl)) {
+            loadStations(request, callback, attempt + 1);
+            return;
+        }
+        postError(callback, error);
+    }
+
+    private void loadCountryCodes(@NonNull CountryCodesCallback callback, int attempt) {
+        String baseUrl = serverSelector.getSelectedBaseUrl();
+        if (baseUrl == null) {
+            postCountryCodesError(callback, new IOException("No Radio Browser servers available"));
+            return;
+        }
+
+        try {
+            List<String> countryCodes = fetchCountryCodes(client.create(baseUrl));
+            cacheCountryCodes(countryCodes);
+            serverSelector.rememberSuccess(baseUrl);
+            postCountryCodesLoaded(callback, countryCodes);
+        } catch (IOException exception) {
+            retryCountryCodesOrError(callback, attempt, baseUrl, exception);
+        }
+    }
+
+    private void retryCountryCodesOrError(@NonNull CountryCodesCallback callback,
+                                          int attempt,
+                                          @Nullable String failedBaseUrl,
+                                          @NonNull IOException error) {
+        if (attempt + 1 < MAX_SERVER_ATTEMPTS && selectAlternativeServer(failedBaseUrl)) {
+            loadCountryCodes(callback, attempt + 1);
+            return;
+        }
+        postCountryCodesError(callback, error);
     }
 
     private boolean selectAlternativeServer(@Nullable String failedBaseUrl) {
@@ -132,73 +197,127 @@ public final class RadioBrowserRepository implements StationRepository {
                 || serverSelector.refreshAndRotate(failedBaseUrl);
     }
 
-    private void retryStationsAsync(@NonNull String action,
-                                    @NonNull LoadCallback callback,
-                                    @NonNull RequestFactory requestFactory,
-                                    int attempt,
-                                    @Nullable String failedBaseUrl,
-                                    @NonNull Throwable error) {
-        startWorker(() -> {
-            if (selectAlternativeServer(failedBaseUrl)) {
-                enqueueStations(action, callback, requestFactory, attempt + 1);
-                return;
+    private void reportStationUsage(@NonNull String stationUuid) {
+        String baseUrl = serverSelector.getSelectedBaseUrl();
+        if (baseUrl == null) {
+            return;
+        }
+
+        try {
+            Response<Void> response = client.create(baseUrl)
+                    .reportStationUsage(stationUuid)
+                    .execute();
+            if (response.isSuccessful()) {
+                serverSelector.rememberSuccess(baseUrl);
             }
-            postError(callback, error);
-        });
+        } catch (IOException ignored) {
+            // Fire-and-forget tracking must never block playback.
+        }
     }
 
-    private void enqueueClickAsync(@NonNull String stationUuid) {
-        startWorker(() -> enqueueClick(stationUuid));
+    @NonNull
+    private List<RadioBrowserStationDto> fetchTopStationsByCountryCodes(@NonNull RadioBrowserApi api,
+                                                                        @NonNull List<String> countryCodes)
+            throws IOException {
+        Map<String, RadioBrowserStationDto> mergedStations = new LinkedHashMap<>();
+
+        for (String countryCode : countryCodes) {
+            List<RadioBrowserStationDto> stations = fetchStations(
+                    api.loadTopStationsByCountryCode(
+                            countryCode,
+                            DEFAULT_LIMIT,
+                            true,
+                            ORDER_CLICK_COUNT,
+                            true
+                    ),
+                    "load top stations for " + countryCode
+            );
+            mergeStations(mergedStations, stations);
+        }
+
+        List<RadioBrowserStationDto> sortedStations = new ArrayList<>(mergedStations.values());
+        sortedStations.sort(Comparator
+                .comparingInt(RadioBrowserStationDto::getClickCount)
+                .reversed()
+                .thenComparing(dto -> safeString(dto.getName()), String.CASE_INSENSITIVE_ORDER));
+
+        if (sortedStations.size() > DEFAULT_LIMIT) {
+            return new ArrayList<>(sortedStations.subList(0, DEFAULT_LIMIT));
+        }
+        return sortedStations;
+    }
+
+    @NonNull
+    private List<String> fetchCountryCodes(@NonNull RadioBrowserApi api) throws IOException {
+        Response<List<RadioBrowserCountryCodeDto>> response = api.loadCountryCodes(true, ORDER_NAME).execute();
+        if (!response.isSuccessful()) {
+            throw new IOException("Failed to load country codes: " + response.code());
+        }
+        return mapCountryCodes(response.body());
+    }
+
+    @NonNull
+    private List<RadioBrowserStationDto> fetchStations(@NonNull retrofit2.Call<List<RadioBrowserStationDto>> call,
+                                                       @NonNull String action)
+            throws IOException {
+        Response<List<RadioBrowserStationDto>> response = call.execute();
+        if (!response.isSuccessful()) {
+            throw new IOException("Failed to " + action + ": " + response.code());
+        }
+        List<RadioBrowserStationDto> stations = response.body();
+        return stations == null ? Collections.emptyList() : stations;
+    }
+
+    private void mergeStations(@NonNull Map<String, RadioBrowserStationDto> mergedStations,
+                               @NonNull List<RadioBrowserStationDto> stations) {
+        for (RadioBrowserStationDto station : stations) {
+            String stationUuid = trimRequired(station.getStationUuid());
+            if (stationUuid == null) {
+                continue;
+            }
+
+            RadioBrowserStationDto currentStation = mergedStations.get(stationUuid);
+            if (currentStation == null || station.getClickCount() > currentStation.getClickCount()) {
+                mergedStations.put(stationUuid, station);
+            }
+        }
     }
 
     private void startWorker(@NonNull Runnable work) {
         WORKER_EXECUTOR.execute(work);
     }
 
-    private void enqueueClick(@NonNull String stationUuid) {
-        String baseUrl = getSelectedBaseUrl(null);
-        if (baseUrl == null) {
-            return;
-        }
-
-        RadioBrowserApi api = client.create(baseUrl);
-        api.reportStationUsage(stationUuid).enqueue(new Callback<>() {
-            @Override
-            public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
-                if (response.isSuccessful()) {
-                    serverSelector.rememberSuccess(baseUrl);
-                }
-            }
-
-            @Override
-            public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {
-                // Fire-and-forget tracking. Selection must not be blocked by analytics.
-            }
-        });
-    }
-
-    private interface RequestFactory {
-        @NonNull
-        Call<List<RadioBrowserStationDto>> create(@NonNull RadioBrowserApi api);
-    }
-
-    @Nullable
-    private String getSelectedBaseUrl(@Nullable StationRepository.LoadCallback callback) {
-        String baseUrl = serverSelector.getSelectedBaseUrl();
-        if (baseUrl == null && callback != null) {
-            postError(callback, new IOException("No Radio Browser servers available"));
-        }
-        return baseUrl;
-    }
-
-    private void postStationsLoaded(@NonNull StationRepository.LoadCallback callback,
+    private void postStationsLoaded(@NonNull LoadCallback callback,
                                     @NonNull List<Station> stations) {
         postToMain(() -> callback.onStationsLoaded(stations));
     }
 
-    private void postError(@NonNull StationRepository.LoadCallback callback,
+    private void postError(@NonNull LoadCallback callback,
                            @NonNull Throwable throwable) {
         postToMain(() -> callback.onError(throwable));
+    }
+
+    private void postCountryCodesLoaded(@NonNull CountryCodesCallback callback,
+                                        @NonNull List<String> countryCodes) {
+        postToMain(() -> callback.onCountryCodesLoaded(countryCodes));
+    }
+
+    private void postCountryCodesError(@NonNull CountryCodesCallback callback,
+                                       @NonNull Throwable throwable) {
+        postToMain(() -> callback.onError(throwable));
+    }
+
+    @Nullable
+    private static List<String> getCachedCountryCodes() {
+        synchronized (COUNTRY_CODES_CACHE_LOCK) {
+            return cachedCountryCodes == null ? null : new ArrayList<>(cachedCountryCodes);
+        }
+    }
+
+    private static void cacheCountryCodes(@NonNull List<String> countryCodes) {
+        synchronized (COUNTRY_CODES_CACHE_LOCK) {
+            cachedCountryCodes = new ArrayList<>(countryCodes);
+        }
     }
 
     private void postToMain(@NonNull Runnable action) {
@@ -220,6 +339,29 @@ public final class RadioBrowserRepository implements StationRepository {
     }
 
     @NonNull
+    private static List<String> normalizeCountryCodes(@NonNull List<String> countryCodes) {
+        Set<String> normalizedCountryCodes = new LinkedHashSet<>();
+        for (String countryCode : countryCodes) {
+            String normalizedCountryCode = trimCountryCode(countryCode);
+            if (normalizedCountryCode != null) {
+                normalizedCountryCodes.add(normalizedCountryCode);
+            }
+        }
+        return new ArrayList<>(normalizedCountryCodes);
+    }
+
+    @Nullable
+    private static String trimCountryCode(@Nullable String countryCode) {
+        String normalizedCountryCode = trimNullable(countryCode);
+        if (normalizedCountryCode == null) {
+            return null;
+        }
+
+        normalizedCountryCode = normalizedCountryCode.toUpperCase(Locale.ROOT);
+        return normalizedCountryCode.length() == 2 ? normalizedCountryCode : null;
+    }
+
+    @NonNull
     static List<Station> mapStations(@Nullable List<RadioBrowserStationDto> dtos) {
         if (dtos == null || dtos.isEmpty()) {
             return Collections.emptyList();
@@ -233,6 +375,22 @@ public final class RadioBrowserRepository implements StationRepository {
             }
         }
         return stations;
+    }
+
+    @NonNull
+    static List<String> mapCountryCodes(@Nullable List<RadioBrowserCountryCodeDto> dtos) {
+        if (dtos == null || dtos.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<String> countryCodes = new ArrayList<>(dtos.size());
+        for (RadioBrowserCountryCodeDto dto : dtos) {
+            String countryCode = trimCountryCode(dto.getCountryCode());
+            if (countryCode != null && !countryCodes.contains(countryCode)) {
+                countryCodes.add(countryCode);
+            }
+        }
+        return countryCodes;
     }
 
     @Nullable
@@ -252,8 +410,8 @@ public final class RadioBrowserRepository implements StationRepository {
                 .setResolvedStreamUrl(trimNullable(dto.getUrlResolved()))
                 .setHomepage(trimNullable(dto.getHomepage()))
                 .setFavicon(trimNullable(dto.getFavicon()))
-                .setCountry(trimNullable(dto.getCountry()))
-                .setCountryCode(trimNullable(dto.getCountryCode()))
+                .setCountryName(trimNullable(dto.getCountry()))
+                .setCountryCode(trimCountryCode(dto.getCountryCode()))
                 .setLanguage(trimNullable(dto.getLanguage()))
                 .setTags(trimNullable(dto.getTags()))
                 .setCodec(trimNullable(dto.getCodec()))
@@ -278,6 +436,11 @@ public final class RadioBrowserRepository implements StationRepository {
         return trimmedValue.isEmpty() ? null : trimmedValue;
     }
 
+    @NonNull
+    private static String safeString(@Nullable String value) {
+        return value == null ? "" : value;
+    }
+
     @Nullable
     private static Boolean mapHls(@Nullable String value) {
         if (value == null) {
@@ -292,5 +455,10 @@ public final class RadioBrowserRepository implements StationRepository {
             return Boolean.FALSE;
         }
         return null;
+    }
+
+    private interface StationRequest {
+        @NonNull
+        List<RadioBrowserStationDto> fetch(@NonNull RadioBrowserApi api) throws IOException;
     }
 }

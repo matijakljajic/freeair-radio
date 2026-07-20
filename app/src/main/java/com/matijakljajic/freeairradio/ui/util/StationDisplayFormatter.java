@@ -14,7 +14,7 @@ public final class StationDisplayFormatter {
 
     @NonNull
     public static String formatStationDetails(@NonNull Station station) {
-        String countryDisplay = formatCountryForDisplay(station.getCountry());
+        String countryDisplay = formatCountryForDisplay(station.getCountryName());
         String tags = formatTags(station);
         if (isUnknown(tags)) {
             return countryDisplay;

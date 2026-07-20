@@ -1,5 +1,6 @@
 package com.matijakljajic.freeairradio.ui.homepage;
 
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -8,7 +9,6 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.StringRes;
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -29,20 +29,21 @@ final class HomePageHeaderAdapter extends RecyclerView.Adapter<HomePageHeaderAda
 
     @NonNull
     private final Listener listener;
-    @StringRes
-    private int titleResId = R.string.station_list_title_now_popular;
+    @NonNull
+    private CharSequence titleText;
     private boolean sourceMenuExpanded;
 
     HomePageHeaderAdapter(@NonNull Listener listener) {
         this.listener = listener;
+        this.titleText = "";
         setHasStableIds(true);
     }
 
-    void setTitleResId(@StringRes int titleResId) {
-        if (this.titleResId == titleResId) {
+    void setTitleText(@NonNull CharSequence titleText) {
+        if (TextUtils.equals(this.titleText, titleText)) {
             return;
         }
-        this.titleResId = titleResId;
+        this.titleText = titleText;
         notifyItemChanged(0);
     }
 
@@ -69,7 +70,7 @@ final class HomePageHeaderAdapter extends RecyclerView.Adapter<HomePageHeaderAda
 
     @Override
     public void onBindViewHolder(@NonNull HeaderViewHolder holder, int position) {
-        holder.bind(titleResId, sourceMenuExpanded, listener);
+        holder.bind(titleText, sourceMenuExpanded, listener);
     }
 
     @Override
@@ -95,10 +96,10 @@ final class HomePageHeaderAdapter extends RecyclerView.Adapter<HomePageHeaderAda
             addStationButton = itemView.findViewById(R.id.homepage_add_station_button);
         }
 
-        void bind(@StringRes int titleResId,
+        void bind(@NonNull CharSequence titleText,
                   boolean sourceMenuExpanded,
                   @NonNull Listener listener) {
-            titleView.setText(titleResId);
+            titleView.setText(titleText);
             sourceButton.setOnClickListener(listener::onSourceClicked);
             addStationButton.setOnClickListener(v -> listener.onAddStationClicked());
             rotateChevron(sourceMenuExpanded);

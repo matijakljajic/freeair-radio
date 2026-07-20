@@ -23,9 +23,11 @@ import androidx.core.content.ContextCompat;
 import com.google.android.material.radiobutton.MaterialRadioButton;
 import com.matijakljajic.freeairradio.BuildConfig;
 import com.matijakljajic.freeairradio.R;
+import com.matijakljajic.freeairradio.data.remote.radiobrowser.RadioBrowserRepository;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerDirectory;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerSettings;
 import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
+import com.matijakljajic.freeairradio.data.repository.StationRepository;
 import com.matijakljajic.freeairradio.playback.AudioInterruptionSettings;
 import com.matijakljajic.freeairradio.ui.homepage.HomePageSource;
 import com.matijakljajic.freeairradio.ui.shell.ShellChromeAwareFragment;
@@ -49,9 +51,13 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     @Nullable
     private LibraryRepository libraryRepository;
     @Nullable
+    private StationRepository stationRepository;
+    @Nullable
     private AppThemeSettings appThemeSettings;
     @Nullable
     private HomePageSettings homePageSettings;
+    @Nullable
+    private TopStationsLocationSettings topStationsLocationSettings;
     @Nullable
     private AudioInterruptionSettings audioInterruptionSettings;
     @Nullable
@@ -62,6 +68,8 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     private RadioGroup homePageDefaultSelectionGroup;
     @Nullable
     private RadioGroup audioInterruptionSelectionGroup;
+    @Nullable
+    private Button topStationsLocationButton;
     @Nullable
     private TextView serverStatusText;
     @Nullable
@@ -80,6 +88,9 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     private Button clearLocalStationsButton;
     @Nullable
     private Button clearRecentlyPlayedButton;
+    @Nullable
+    private List<String> availableTopStationsCountryCodes;
+    private boolean topStationsCountryCodesLoading;
     private int serverLoadRequestId;
 
     @Override
@@ -131,8 +142,10 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     private void initDependencies() {
         serverSettings = new RadioBrowserServerSettings(requireContext());
         libraryRepository = LibraryRepository.getInstance(requireContext());
+        stationRepository = new RadioBrowserRepository(requireContext().getApplicationContext());
         appThemeSettings = new AppThemeSettings(requireContext());
         homePageSettings = new HomePageSettings(requireContext());
+        topStationsLocationSettings = new TopStationsLocationSettings(requireContext());
         audioInterruptionSettings = new AudioInterruptionSettings(requireContext());
     }
 
@@ -142,6 +155,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         themeSelectionGroup = view.findViewById(R.id.theme_selection_group);
         homePageDefaultSelectionGroup = view.findViewById(R.id.homepage_default_selection_group);
         audioInterruptionSelectionGroup = view.findViewById(R.id.audio_interruption_selection_group);
+        topStationsLocationButton = view.findViewById(R.id.top_stations_location_button);
         versionText = view.findViewById(R.id.settings_version_text);
         supportEmailText = view.findViewById(R.id.settings_support_email_text);
         supportStarButton = view.findViewById(R.id.settings_support_star_button);
@@ -176,6 +190,9 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         if (audioInterruptionSelectionGroup != null) {
             audioInterruptionSelectionGroup.setOnCheckedChangeListener(null);
         }
+        if (topStationsLocationButton != null) {
+            topStationsLocationButton.setOnClickListener(null);
+        }
         if (supportEmailText != null) {
             supportEmailText.setOnClickListener(null);
         }
@@ -202,13 +219,16 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     private void clearReferences() {
         serverSettings = null;
         libraryRepository = null;
+        stationRepository = null;
         appThemeSettings = null;
         homePageSettings = null;
+        topStationsLocationSettings = null;
         audioInterruptionSettings = null;
         serverSelectionGroup = null;
         themeSelectionGroup = null;
         homePageDefaultSelectionGroup = null;
         audioInterruptionSelectionGroup = null;
+        topStationsLocationButton = null;
         serverStatusText = null;
         supportEmailText = null;
         versionText = null;
@@ -218,6 +238,8 @@ public class SettingsFragment extends ShellChromeAwareFragment {
         clearFavoritesButton = null;
         clearLocalStationsButton = null;
         clearRecentlyPlayedButton = null;
+        availableTopStationsCountryCodes = null;
+        topStationsCountryCodesLoading = false;
         settingsRootView = null;
     }
 
@@ -243,6 +265,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
 
     private void bindHomePageSection() {
         bindHomePageDefaultSelection();
+        bindTopStationsLocationSelection();
     }
 
     private void bindServerSection() {
@@ -290,6 +313,16 @@ public class SettingsFragment extends ShellChromeAwareFragment {
 
             homePageSettings.setDefaultSource(source);
         });
+    }
+
+    private void bindTopStationsLocationSelection() {
+        if (topStationsLocationButton == null || topStationsLocationSettings == null) {
+            return;
+        }
+
+        syncSelectedTopStationsLocation();
+        topStationsLocationButton.setOnClickListener(v -> onTopStationsLocationClicked());
+        loadTopStationsCountryCodesIfNeeded();
     }
 
     private void bindAudioInterruptionSelection() {
@@ -377,6 +410,19 @@ public class SettingsFragment extends ShellChromeAwareFragment {
                 homePageDefaultSelectionGroup.check(R.id.homepage_default_selection_now_popular);
                 break;
         }
+    }
+
+    private void syncSelectedTopStationsLocation() {
+        if (topStationsLocationButton == null || topStationsLocationSettings == null) {
+            return;
+        }
+
+        topStationsLocationButton.setText(
+                TopStationsGeography.getSelectionLabel(
+                        requireContext(),
+                        topStationsLocationSettings.getSelection()
+                )
+        );
     }
 
     private void syncSelectedAudioInterruptionMode() {
@@ -477,6 +523,64 @@ public class SettingsFragment extends ShellChromeAwareFragment {
 
             loadServerChoicesAsync(true);
         });
+    }
+
+    private void onTopStationsLocationClicked() {
+        if (availableTopStationsCountryCodes == null) {
+            if (!topStationsCountryCodesLoading) {
+                loadTopStationsCountryCodesIfNeeded();
+            }
+            showToast(R.string.settings_top_stations_location_loading);
+            return;
+        }
+
+        showTopStationsLocationDialog(availableTopStationsCountryCodes);
+    }
+
+    private void loadTopStationsCountryCodesIfNeeded() {
+        if (stationRepository == null
+                || topStationsCountryCodesLoading
+                || availableTopStationsCountryCodes != null) {
+            return;
+        }
+
+        topStationsCountryCodesLoading = true;
+        stationRepository.loadAvailableCountryCodes(new StationRepository.CountryCodesCallback() {
+            @Override
+            public void onCountryCodesLoaded(@NonNull List<String> countryCodes) {
+                topStationsCountryCodesLoading = false;
+                availableTopStationsCountryCodes = countryCodes;
+            }
+
+            @Override
+            public void onError(@NonNull Throwable throwable) {
+                topStationsCountryCodesLoading = false;
+                availableTopStationsCountryCodes = null;
+                if (!isAdded()) {
+                    return;
+                }
+                showToast(R.string.settings_top_stations_location_load_failed);
+            }
+        });
+    }
+
+    private void showTopStationsLocationDialog(@NonNull List<String> availableCountryCodes) {
+        if (!isAdded() || topStationsLocationSettings == null) {
+            return;
+        }
+
+        TopStationsLocationDialog.show(
+                this,
+                availableCountryCodes,
+                topStationsLocationSettings.getSelection(),
+                selection -> {
+                    if (topStationsLocationSettings == null) {
+                        return;
+                    }
+                    topStationsLocationSettings.setSelection(selection);
+                    syncSelectedTopStationsLocation();
+                }
+        );
     }
 
     private void bindLibraryResetButton(@Nullable Button button,
