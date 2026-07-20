@@ -1,6 +1,6 @@
 # FreeAir Radio
 
-[![Direct Download](https://img.shields.io/badge/Download-2ea44f?style=for-the-badge)](https://github.com/matijakljajic/freeair-radio/releases/download/v0.9.1-beta1/freeairradio-v0.9.1-beta1.apk) [![Developer](https://img.shields.io/badge/Developer-2ea44f?style=for-the-badge)](https://matijakljajic.github.io/) [![Views](https://img.shields.io/endpoint?style=for-the-badge&color=2ea44f&label=Views&url=https%3A%2F%2Fhits.dwyl.com%2Fmatijakljajic%2Ffreeair-radio.json)](https://github.com/matijakljajic/freeair-radio) [![Stars](https://img.shields.io/github/stars/matijakljajic/freeair-radio?style=for-the-badge&color=2ea44f&label=Stars)](https://github.com/matijakljajic/freeair-radio/stargazers)
+[![Direct Download](https://img.shields.io/badge/Download-2ea44f?style=for-the-badge)](https://github.com/matijakljajic/freeair-radio/releases/download/v0.9.2-beta1/freeairradio-v0.9.2-beta1.apk) [![Developer](https://img.shields.io/badge/Developer-2ea44f?style=for-the-badge)](https://matijakljajic.github.io/) [![Views](https://img.shields.io/endpoint?style=for-the-badge&color=2ea44f&label=Views&url=https%3A%2F%2Fhits.dwyl.com%2Fmatijakljajic%2Ffreeair-radio.json)](https://github.com/matijakljajic/freeair-radio) [![Stars](https://img.shields.io/github/stars/matijakljajic/freeair-radio?style=for-the-badge&color=2ea44f&label=Stars)](https://github.com/matijakljajic/freeair-radio/stargazers)
 
 FreeAir Radio is an Android internet radio client. It uses [*radio-browser*](https://www.radio-browser.info/) for station discovery.
 
