@@ -35,6 +35,9 @@ public class PlaybackMetadataMapperTest {
         assertEquals("Radio Caroline", presentedMetadata.station);
         assertEquals("Bajaga", presentedMetadata.artist);
         assertEquals("Moji drugovi će misliti da je gotovo", presentedMetadata.title);
+        assertEquals("Moji drugovi će misliti da je gotovo", presentedMetadata.displayTitle);
+        assertEquals("Bajaga", presentedMetadata.subtitle);
+        assertEquals("Radio Caroline", presentedMetadata.description);
         assertTrue(((HeartRating) presentedMetadata.userRating).isHeart());
     }
 
@@ -57,6 +60,8 @@ public class PlaybackMetadataMapperTest {
         assertEquals("Radio Caroline", presentedMetadata.station);
         assertEquals("Bajaga", presentedMetadata.artist);
         assertEquals("Moji drugovi će misliti da je gotovo", presentedMetadata.title);
+        assertEquals("Moji drugovi će misliti da je gotovo", presentedMetadata.displayTitle);
+        assertEquals("Bajaga", presentedMetadata.subtitle);
         assertFalse(((HeartRating) presentedMetadata.userRating).isHeart());
     }
 
@@ -78,6 +83,9 @@ public class PlaybackMetadataMapperTest {
         assertEquals("Radio Caroline", presentedMetadata.station);
         assertEquals("Bajaga", presentedMetadata.artist);
         assertEquals("Moji drugovi će misliti da je gotovo", presentedMetadata.title);
+        assertEquals("Moji drugovi će misliti da je gotovo", presentedMetadata.displayTitle);
+        assertEquals("Bajaga", presentedMetadata.subtitle);
+        assertEquals("Radio Caroline", presentedMetadata.description);
     }
 
     @Test
@@ -97,7 +105,10 @@ public class PlaybackMetadataMapperTest {
 
         assertEquals("Radio Caroline", presentedMetadata.station);
         assertNull(presentedMetadata.artist);
-        assertNull(presentedMetadata.title);
+        assertEquals("Radio Caroline", presentedMetadata.title);
+        assertEquals("Radio Caroline", presentedMetadata.displayTitle);
+        assertNull(presentedMetadata.subtitle);
+        assertEquals("Radio Caroline", presentedMetadata.description);
     }
 
     private static Station createStation(String name) {

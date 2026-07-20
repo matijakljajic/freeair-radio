@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import com.matijakljajic.freeairradio.data.local.entity.FavoriteStationEntity;
+import com.matijakljajic.freeairradio.data.local.entity.StationSnapshotFields;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
 
@@ -32,19 +33,21 @@ public class StationMapperTest {
                 .build();
         FavoriteStationEntity existingEntity = new FavoriteStationEntity(
                 station.getId(),
-                station.getName(),
-                station.getStreamUrl(),
-                station.getResolvedStreamUrl(),
-                station.getHomepage(),
-                station.getFavicon(),
-                station.getCountry(),
-                station.getCountryCode(),
-                station.getLanguage(),
-                station.getTags(),
-                station.getCodec(),
-                station.getBitrate(),
-                station.getHls(),
-                station.getOrigin().name(),
+                new StationSnapshotFields(
+                        station.getName(),
+                        station.getStreamUrl(),
+                        station.getResolvedStreamUrl(),
+                        station.getHomepage(),
+                        station.getFavicon(),
+                        station.getCountry(),
+                        station.getCountryCode(),
+                        station.getLanguage(),
+                        station.getTags(),
+                        station.getCodec(),
+                        station.getBitrate(),
+                        station.getHls(),
+                        station.getOrigin().name()
+                ),
                 123L,
                 456L,
                 789L
@@ -54,19 +57,19 @@ public class StationMapperTest {
                 StationMapper.toFavoriteStationEntity(station, existingEntity, 123L, 999L);
 
         assertEquals("RADIO_BROWSER:test-station", mappedEntity.id);
-        assertEquals("Radio Test", mappedEntity.name);
-        assertEquals("https://example.com/live", mappedEntity.streamUrl);
-        assertEquals("https://cdn.example.com/live", mappedEntity.resolvedStreamUrl);
-        assertEquals("https://example.com", mappedEntity.homepage);
-        assertEquals("https://example.com/icon.png", mappedEntity.favicon);
-        assertEquals("Croatia", mappedEntity.country);
-        assertEquals("HR", mappedEntity.countryCode);
-        assertEquals("Croatian", mappedEntity.language);
-        assertEquals("news, talk", mappedEntity.tags);
-        assertEquals("MP3", mappedEntity.codec);
-        assertEquals(192, mappedEntity.bitrate);
-        assertEquals(Boolean.FALSE, mappedEntity.hls);
-        assertEquals("RADIO_BROWSER", mappedEntity.origin);
+        assertEquals("Radio Test", mappedEntity.station.name);
+        assertEquals("https://example.com/live", mappedEntity.station.streamUrl);
+        assertEquals("https://cdn.example.com/live", mappedEntity.station.resolvedStreamUrl);
+        assertEquals("https://example.com", mappedEntity.station.homepage);
+        assertEquals("https://example.com/icon.png", mappedEntity.station.favicon);
+        assertEquals("Croatia", mappedEntity.station.country);
+        assertEquals("HR", mappedEntity.station.countryCode);
+        assertEquals("Croatian", mappedEntity.station.language);
+        assertEquals("news, talk", mappedEntity.station.tags);
+        assertEquals("MP3", mappedEntity.station.codec);
+        assertEquals(192, mappedEntity.station.bitrate);
+        assertEquals(Boolean.FALSE, mappedEntity.station.hls);
+        assertEquals("RADIO_BROWSER", mappedEntity.station.origin);
         assertEquals(123L, mappedEntity.displayOrder);
         assertEquals(123L, mappedEntity.addedAt);
         assertEquals(999L, mappedEntity.updatedAt);
@@ -76,19 +79,21 @@ public class StationMapperTest {
     public void toStation_fallsBackToLocalOriginFromIdPrefixWhenOriginIsMalformed() {
         FavoriteStationEntity entity = new FavoriteStationEntity(
                 "LOCAL:test-station",
-                "Local Test",
-                "https://example.com/live",
-                null,
-                "",
-                "",
-                "Serbia",
-                "RS",
-                "Serbian",
-                "",
-                "",
-                128,
-                null,
-                "not-a-valid-origin",
+                new StationSnapshotFields(
+                        "Local Test",
+                        "https://example.com/live",
+                        null,
+                        "",
+                        "",
+                        "Serbia",
+                        "RS",
+                        "Serbian",
+                        "",
+                        "",
+                        128,
+                        null,
+                        "not-a-valid-origin"
+                ),
                 5L,
                 111L,
                 222L

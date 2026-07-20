@@ -33,15 +33,20 @@ import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.session.CommandButton;
+import androidx.media3.session.LibraryResult;
+import androidx.media3.session.MediaLibraryService;
+import androidx.media3.session.MediaLibraryService.LibraryParams;
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession;
 import androidx.media3.session.MediaSession;
+import androidx.media3.session.MediaSession.MediaItemsWithStartPosition;
 import androidx.media3.session.MediaStyleNotificationHelper;
 import androidx.media3.session.SessionCommand;
 import androidx.media3.session.SessionCommands;
-import androidx.media3.session.MediaSessionService;
 import androidx.media3.session.SessionResult;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.matijakljajic.freeairradio.artwork.StationArtworkBitmapLoader;
 import com.matijakljajic.freeairradio.artwork.StationArtworkResolver;
 import com.matijakljajic.freeairradio.R;
@@ -64,14 +69,16 @@ import com.matijakljajic.freeairradio.util.AppLog;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings("unused")
 @UnstableApi
-public class RadioPlaybackService extends MediaSessionService {
+public class RadioPlaybackService extends MediaLibraryService {
 
     private static final String TAG = "RadioPlaybackService";
     private static final String PLAYBACK_NOTIFICATION_CHANNEL_ID = "radio_playback";
@@ -86,8 +93,18 @@ public class RadioPlaybackService extends MediaSessionService {
             CommandButton.SLOT_OVERFLOW
     };
     @NonNull
-    private static final SessionCommands ACTIVE_SESSION_COMMANDS = new SessionCommands.Builder()
+    private static final SessionCommands BASE_SESSION_COMMANDS = new SessionCommands.Builder()
+            .add(SessionCommand.COMMAND_CODE_LIBRARY_GET_LIBRARY_ROOT)
+            .add(SessionCommand.COMMAND_CODE_LIBRARY_SUBSCRIBE)
+            .add(SessionCommand.COMMAND_CODE_LIBRARY_UNSUBSCRIBE)
+            .add(SessionCommand.COMMAND_CODE_LIBRARY_GET_CHILDREN)
+            .add(SessionCommand.COMMAND_CODE_LIBRARY_GET_ITEM)
+            .add(SessionCommand.COMMAND_CODE_LIBRARY_SEARCH)
+            .add(SessionCommand.COMMAND_CODE_LIBRARY_GET_SEARCH_RESULT)
             .add(SessionCommand.COMMAND_CODE_SESSION_SET_RATING)
+            .build();
+    @NonNull
+    private static final SessionCommands ACTIVE_SESSION_COMMANDS = BASE_SESSION_COMMANDS.buildUpon()
             .add(TOGGLE_FAVORITE_COMMAND)
             .build();
 
@@ -95,7 +112,7 @@ public class RadioPlaybackService extends MediaSessionService {
     private ExoPlayer player;
 
     @Nullable
-    private MediaSession mediaSession;
+    private MediaLibrarySession mediaSession;
     @Nullable
     private SessionPlayer sessionPlayer;
     @Nullable
@@ -116,18 +133,24 @@ public class RadioPlaybackService extends MediaSessionService {
     private final FavoriteStationNavigator favoriteStationNavigator = new FavoriteStationNavigator();
     @NonNull
     private final CurrentPlaybackState currentPlaybackState = CurrentPlaybackState.getInstance();
+    @NonNull
+    private final RadioPlaybackLibraryCatalog playbackLibraryCatalog = new RadioPlaybackLibraryCatalog();
+    @NonNull
+    private final Map<String, List<Station>> browseSearchStationsByQuery = new ConcurrentHashMap<>();
     @Nullable
     private StationRepository stationRepository;
     @Nullable
     private LibraryRepository libraryRepository;
     @Nullable
     private AudioInterruptionSettings audioInterruptionSettings;
+    @Nullable
+    private PlaybackResumptionStore playbackResumptionStore;
     @NonNull
     private final NowPlayingObserver nowPlayingObserver = new NowPlayingObserver(this::handleObservedNowPlayingChange);
     @NonNull
     private final LibraryRepository.FavoritesListener favoritesListener = this::refreshFavoritePresentation;
     @NonNull
-    private final MediaSession.Callback mediaSessionCallback = new MediaSession.Callback() {
+    private final MediaLibrarySession.Callback mediaSessionCallback = new MediaLibrarySession.Callback() {
         @NonNull
         @Override
         public MediaSession.ConnectionResult onConnect(@NonNull MediaSession session,
@@ -162,7 +185,12 @@ public class RadioPlaybackService extends MediaSessionService {
             if (PlaybackSessionContract.COMMAND_TOGGLE_FAVORITE.equals(customCommand.customAction)) {
                 return Futures.immediateFuture(handleFavoriteToggle());
             }
-            return MediaSession.Callback.super.onCustomCommand(session, controller, customCommand, args);
+            return MediaLibrarySession.Callback.super.onCustomCommand(
+                    session,
+                    controller,
+                    customCommand,
+                    args
+            );
         }
 
         @NonNull
@@ -174,7 +202,294 @@ public class RadioPlaybackService extends MediaSessionService {
             if (rating instanceof HeartRating) {
                 return Futures.immediateFuture(applyFavoriteRating((HeartRating) rating));
             }
-            return MediaSession.Callback.super.onSetRating(session, controller, rating);
+            return MediaLibrarySession.Callback.super.onSetRating(session, controller, rating);
+        }
+
+        @NonNull
+        @Override
+        public ListenableFuture<LibraryResult<MediaItem>> onGetLibraryRoot(
+                @NonNull MediaLibrarySession session,
+                @NonNull MediaSession.ControllerInfo browser,
+                @Nullable LibraryParams params) {
+            String rootMediaId = playbackLibraryCatalog.getLibraryRootMediaId(params);
+            AppLog.d(TAG, "Library root requested"
+                    + " package=" + browser.getPackageName()
+                    + " rootMediaId=" + rootMediaId
+                    + " recent=" + (params != null && params.isRecent)
+                    + " suggested=" + (params != null && params.isSuggested));
+            MediaItem rootItem = playbackLibraryCatalog.buildBrowseNodeItem(
+                    RadioPlaybackService.this,
+                    rootMediaId
+            );
+            if (rootItem == null) {
+                return Futures.immediateFuture(
+                        LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+                );
+            }
+            return Futures.immediateFuture(
+                    LibraryResult.ofItem(
+                            rootItem,
+                            playbackLibraryCatalog.buildRootLibraryParams(params)
+                    )
+            );
+        }
+
+        @NonNull
+        @Override
+        public ListenableFuture<LibraryResult<MediaItem>> onGetItem(
+                @NonNull MediaLibrarySession session,
+                @NonNull MediaSession.ControllerInfo browser,
+                @NonNull String mediaId) {
+            MediaItem browseNodeItem = playbackLibraryCatalog.buildBrowseNodeItem(
+                    RadioPlaybackService.this,
+                    mediaId
+            );
+            if (browseNodeItem != null) {
+                return Futures.immediateFuture(LibraryResult.ofItem(browseNodeItem, null));
+            }
+
+            Station station = playbackLibraryCatalog.resolveRequestedStation(mediaId);
+            if (station == null) {
+                return Futures.immediateFuture(
+                        LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+                );
+            }
+
+            return Futures.immediateFuture(LibraryResult.ofItem(buildPlayableStationMediaItem(station), null));
+        }
+
+        @NonNull
+        @Override
+        public ListenableFuture<LibraryResult<com.google.common.collect.ImmutableList<MediaItem>>> onGetChildren(
+                @NonNull MediaLibrarySession session,
+                @NonNull MediaSession.ControllerInfo browser,
+                @NonNull String parentId,
+                int page,
+                int pageSize,
+                @Nullable LibraryParams params) {
+            AppLog.d(TAG, "Library children requested"
+                    + " package=" + browser.getPackageName()
+                    + " parentId=" + parentId
+                    + " page=" + page
+                    + " pageSize=" + pageSize
+                    + " recent=" + (params != null && params.isRecent)
+                    + " suggested=" + (params != null && params.isSuggested));
+            if (RadioPlaybackLibraryCatalog.BROWSE_ROOT_ID.equals(parentId)) {
+                return Futures.immediateFuture(
+                        LibraryResult.ofItemList(
+                                applyPaging(
+                                        playbackLibraryCatalog.buildRootChildren(RadioPlaybackService.this),
+                                        page,
+                                        pageSize
+                                ),
+                                params
+                        )
+                );
+            }
+
+            if (RadioPlaybackLibraryCatalog.BROWSE_TOP_ID.equals(parentId)) {
+                if (stationRepository == null) {
+                    return Futures.immediateFuture(
+                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_INVALID_STATE)
+                    );
+                }
+                StationRepository repository = stationRepository;
+                return loadBrowseStations("browse top stations", page, pageSize, params, repository::loadTopStations);
+            }
+
+            if (RadioPlaybackLibraryCatalog.BROWSE_FAVORITES_ID.equals(parentId)) {
+                if (libraryRepository == null) {
+                    return Futures.immediateFuture(
+                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_INVALID_STATE)
+                    );
+                }
+                LibraryRepository repository = libraryRepository;
+                return loadBrowseStations("browse favorite stations", page, pageSize, params, repository::loadFavoriteStations);
+            }
+
+            if (RadioPlaybackLibraryCatalog.BROWSE_RECENT_ID.equals(parentId)) {
+                if (libraryRepository == null) {
+                    return Futures.immediateFuture(
+                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_INVALID_STATE)
+                    );
+                }
+                LibraryRepository repository = libraryRepository;
+                return loadBrowseStations(
+                        "browse recently played stations",
+                        page,
+                        pageSize,
+                        playbackLibraryCatalog.buildRecentLibraryParams(params),
+                        repository::loadRecentlyPlayedStations);
+            }
+
+            if (RadioPlaybackLibraryCatalog.BROWSE_LOCAL_ID.equals(parentId)) {
+                if (libraryRepository == null) {
+                    return Futures.immediateFuture(
+                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_INVALID_STATE)
+                    );
+                }
+                LibraryRepository repository = libraryRepository;
+                return loadBrowseStations("browse local stations", page, pageSize, params, repository::loadLocalStations);
+            }
+
+            return Futures.immediateFuture(
+                    LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+            );
+        }
+
+        @NonNull
+        @Override
+        public ListenableFuture<LibraryResult<Void>> onSearch(
+                @NonNull MediaLibrarySession session,
+                @NonNull MediaSession.ControllerInfo browser,
+                @NonNull String query,
+                @Nullable LibraryParams params) {
+            String normalizedQuery = normalizeBrowseSearchQuery(query);
+            AppLog.d(TAG, "Library search requested"
+                    + " package=" + browser.getPackageName()
+                    + " query=" + AppLog.value(normalizedQuery));
+            if (normalizedQuery.isEmpty()) {
+                return Futures.immediateFuture(LibraryResult.ofVoid(params));
+            }
+            if (stationRepository == null) {
+                return Futures.immediateFuture(
+                        LibraryResult.ofError(LibraryResult.RESULT_ERROR_INVALID_STATE, params)
+                );
+            }
+
+            SettableFuture<LibraryResult<Void>> future = SettableFuture.create();
+            stationRepository.searchStationsByName(normalizedQuery, new StationRepository.LoadCallback() {
+                @Override
+                public void onStationsLoaded(@NonNull List<Station> stations) {
+                    browseSearchStationsByQuery.put(normalizedQuery, new ArrayList<>(stations));
+                    AppLog.d(TAG, "Library search loaded"
+                            + " query=" + AppLog.value(normalizedQuery)
+                            + " resultCount=" + stations.size());
+                    session.notifySearchResultChanged(browser, normalizedQuery, stations.size(), params);
+                    future.set(LibraryResult.ofVoid(params));
+                }
+
+                @Override
+                public void onError(@NonNull Throwable throwable) {
+                    Log.w(TAG, "Library search failed"
+                            + " query=" + AppLog.value(normalizedQuery), throwable);
+                    browseSearchStationsByQuery.put(normalizedQuery, Collections.emptyList());
+                    session.notifySearchResultChanged(browser, normalizedQuery, 0, params);
+                    future.set(LibraryResult.ofVoid(params));
+                }
+            });
+            return future;
+        }
+
+        @NonNull
+        @Override
+        public ListenableFuture<LibraryResult<com.google.common.collect.ImmutableList<MediaItem>>> onGetSearchResult(
+                @NonNull MediaLibrarySession session,
+                @NonNull MediaSession.ControllerInfo browser,
+                @NonNull String query,
+                int page,
+                int pageSize,
+                @Nullable LibraryParams params) {
+            String normalizedQuery = normalizeBrowseSearchQuery(query);
+            AppLog.d(TAG, "Library search results requested"
+                    + " package=" + browser.getPackageName()
+                    + " query=" + AppLog.value(normalizedQuery)
+                    + " page=" + page
+                    + " pageSize=" + pageSize);
+            if (normalizedQuery.isEmpty()) {
+                return Futures.immediateFuture(
+                        LibraryResult.ofItemList(Collections.emptyList(), params)
+                );
+            }
+
+            List<Station> cachedStations = browseSearchStationsByQuery.get(normalizedQuery);
+            if (cachedStations != null) {
+                return Futures.immediateFuture(
+                        LibraryResult.ofItemList(
+                                applyPaging(buildPlayableStationMediaItems(cachedStations), page, pageSize),
+                                params
+                        )
+                );
+            }
+
+            if (stationRepository == null) {
+                return Futures.immediateFuture(
+                        LibraryResult.ofError(LibraryResult.RESULT_ERROR_INVALID_STATE, params)
+                );
+            }
+
+            SettableFuture<LibraryResult<com.google.common.collect.ImmutableList<MediaItem>>> future =
+                    SettableFuture.create();
+            stationRepository.searchStationsByName(normalizedQuery, new StationRepository.LoadCallback() {
+                @Override
+                public void onStationsLoaded(@NonNull List<Station> stations) {
+                    browseSearchStationsByQuery.put(normalizedQuery, new ArrayList<>(stations));
+                    AppLog.d(TAG, "Library search results loaded"
+                            + " query=" + AppLog.value(normalizedQuery)
+                            + " resultCount=" + stations.size());
+                    future.set(LibraryResult.ofItemList(
+                            applyPaging(buildPlayableStationMediaItems(stations), page, pageSize),
+                            params
+                    ));
+                }
+
+                @Override
+                public void onError(@NonNull Throwable throwable) {
+                    Log.w(TAG, "Library search results failed"
+                            + " query=" + AppLog.value(normalizedQuery), throwable);
+                    browseSearchStationsByQuery.put(normalizedQuery, Collections.emptyList());
+                    future.set(LibraryResult.ofItemList(Collections.emptyList(), params));
+                }
+            });
+            return future;
+        }
+
+        @NonNull
+        @Override
+        public ListenableFuture<List<MediaItem>> onAddMediaItems(
+                @NonNull MediaSession mediaSession,
+                @NonNull MediaSession.ControllerInfo controller,
+                @NonNull List<MediaItem> mediaItems) {
+            List<MediaItem> resolvedItems = new ArrayList<>(mediaItems.size());
+            for (MediaItem mediaItem : mediaItems) {
+                Station station = playbackLibraryCatalog.resolveRequestedStation(mediaItem);
+                if (station == null) {
+                    return MediaLibrarySession.Callback.super.onAddMediaItems(
+                            mediaSession,
+                            controller,
+                            mediaItems
+                    );
+                }
+                resolvedItems.add(buildPlayableStationMediaItem(station));
+            }
+            return Futures.immediateFuture(resolvedItems);
+        }
+
+        @NonNull
+        @Override
+        public ListenableFuture<MediaItemsWithStartPosition> onPlaybackResumption(
+                @NonNull MediaSession mediaSession,
+                @NonNull MediaSession.ControllerInfo controller,
+                boolean isForPlayback) {
+            Station station = getResumptionStation();
+            if (station == null) {
+                return MediaLibrarySession.Callback.super.onPlaybackResumption(
+                        mediaSession,
+                        controller,
+                        isForPlayback
+                );
+            }
+
+            MediaItem mediaItem = isForPlayback
+                    ? buildPlayableStationMediaItem(station)
+                    : buildResumptionPreviewMediaItem(station);
+            return Futures.immediateFuture(
+                    new MediaItemsWithStartPosition(
+                            Collections.singletonList(mediaItem),
+                            0,
+                            C.TIME_UNSET
+                    )
+            );
         }
     };
     @NonNull
@@ -294,7 +609,7 @@ public class RadioPlaybackService extends MediaSessionService {
 
     @Nullable
     @Override
-    public MediaSession onGetSession(@NonNull MediaSession.ControllerInfo controllerInfo) {
+    public MediaLibrarySession onGetSession(@NonNull MediaSession.ControllerInfo controllerInfo) {
         return mediaSession;
     }
 
@@ -340,6 +655,9 @@ public class RadioPlaybackService extends MediaSessionService {
         restorePlayerVolumeIfNeeded();
         clearTemporaryFocusLossState();
         cancelCurrentPlayback();
+        if (sessionPlayer != null) {
+            sessionPlayer.clearServiceManagedPlaybackPending();
+        }
         currentStation = null;
         if (audioFocusHandler != null) {
             audioFocusHandler.abandonFocus();
@@ -396,8 +714,7 @@ public class RadioPlaybackService extends MediaSessionService {
         player.setAudioAttributes(buildPlayerAudioAttributes(), false);
         player.addListener(playerListener);
         sessionPlayer = new SessionPlayer(player);
-        mediaSession = new MediaSession.Builder(this, sessionPlayer)
-                .setCallback(mediaSessionCallback)
+        mediaSession = new MediaLibrarySession.Builder(this, sessionPlayer, mediaSessionCallback)
                 .setSessionActivity(buildContentIntent())
                 .build();
         addSession(mediaSession);
@@ -433,6 +750,7 @@ public class RadioPlaybackService extends MediaSessionService {
         stationRepository = new RadioBrowserRepository(getApplicationContext());
         libraryRepository = LibraryRepository.getInstance(getApplicationContext());
         audioInterruptionSettings = new AudioInterruptionSettings(getApplicationContext());
+        playbackResumptionStore = new PlaybackResumptionStore(getApplicationContext());
         libraryRepository.addFavoritesListener(favoritesListener);
     }
 
@@ -449,6 +767,76 @@ public class RadioPlaybackService extends MediaSessionService {
             player.release();
             player = null;
         }
+    }
+
+    @NonNull
+    private ListenableFuture<LibraryResult<com.google.common.collect.ImmutableList<MediaItem>>> loadBrowseStations(
+            @NonNull String action,
+            int page,
+            int pageSize,
+            @Nullable LibraryParams params,
+            @NonNull StationLoadStarter loadStarter) {
+        SettableFuture<LibraryResult<com.google.common.collect.ImmutableList<MediaItem>>> future =
+                SettableFuture.create();
+        loadStarter.load(new StationRepository.LoadCallback() {
+            @Override
+            public void onStationsLoaded(@NonNull List<Station> stations) {
+                AppLog.d(TAG, "Library children loaded"
+                        + " action=" + action
+                        + " stationCount=" + stations.size()
+                        + " page=" + page
+                        + " pageSize=" + pageSize);
+                future.set(LibraryResult.ofItemList(
+                        applyPaging(buildPlayableStationMediaItems(stations), page, pageSize),
+                        params
+                ));
+            }
+
+            @Override
+            public void onError(@NonNull Throwable throwable) {
+                Log.w(TAG, "Library children failed"
+                        + " action=" + action, throwable);
+                future.set(LibraryResult.ofItemList(Collections.emptyList(), params));
+            }
+        });
+        return future;
+    }
+
+    @NonNull
+    private MediaItem buildPlayableStationMediaItem(@NonNull Station station) {
+        return playbackLibraryCatalog.buildPlayableStationMediaItem(station, isFavorite(station));
+    }
+
+    @NonNull
+    private MediaItem buildResumptionPreviewMediaItem(@NonNull Station station) {
+        return playbackLibraryCatalog.buildResumptionPreviewMediaItem(station, isFavorite(station));
+    }
+
+    @NonNull
+    private List<MediaItem> buildPlayableStationMediaItems(@NonNull List<Station> stations) {
+        List<MediaItem> items = new ArrayList<>(stations.size());
+        for (Station station : stations) {
+            items.add(buildPlayableStationMediaItem(station));
+        }
+        return items;
+    }
+
+    @NonNull
+    private static String normalizeBrowseSearchQuery(@NonNull String query) {
+        return query.trim();
+    }
+
+    @NonNull
+    private static <T> List<T> applyPaging(@NonNull List<T> items, int page, int pageSize) {
+        if (items.isEmpty()) {
+            return Collections.emptyList();
+        }
+        int fromIndex = Math.max(0, page) * Math.max(1, pageSize);
+        if (fromIndex >= items.size()) {
+            return Collections.emptyList();
+        }
+        int toIndex = Math.min(items.size(), fromIndex + Math.max(1, pageSize));
+        return new ArrayList<>(items.subList(fromIndex, toIndex));
     }
 
     @Nullable
@@ -501,6 +889,9 @@ public class RadioPlaybackService extends MediaSessionService {
     }
 
     private void resetActivePlayback() {
+        if (sessionPlayer != null) {
+            sessionPlayer.clearServiceManagedPlaybackPending();
+        }
         clearNowPlayingObservation(currentPlaybackGeneration);
         currentPlaybackGeneration = 0L;
         clearResolvedPlaybackState();
@@ -529,6 +920,9 @@ public class RadioPlaybackService extends MediaSessionService {
     }
 
     private void handleDeniedPlaybackStart() {
+        if (sessionPlayer != null) {
+            sessionPlayer.clearServiceManagedPlaybackPending();
+        }
         if (currentStation == null
                 && currentPlaybackState.getPlaybackStatus() == CurrentPlaybackState.PlaybackStatus.IDLE) {
             stopSelf();
@@ -691,13 +1085,26 @@ public class RadioPlaybackService extends MediaSessionService {
     }
 
     private void resolveAndPlayStation(@NonNull Station station, int sequence) {
-        ResolutionResult resolutionResult = streamResolver.resolveUrls(station);
-        mainHandler.post(() -> {
-            if (!isCurrentPlaySequence(sequence)) {
-                return;
-            }
-            applyResolvedPlayback(station, resolutionResult, sequence);
-        });
+        try {
+            ResolutionResult resolutionResult = streamResolver.resolveUrls(station);
+            mainHandler.post(() -> {
+                if (!isCurrentPlaySequence(sequence)) {
+                    return;
+                }
+                applyResolvedPlayback(station, resolutionResult, sequence);
+            });
+        } catch (Throwable throwable) {
+            Log.w(TAG, "Could not resolve playback for " + station.getName(), throwable);
+            mainHandler.post(() -> {
+                if (!isCurrentPlaySequence(sequence)) {
+                    return;
+                }
+                if (sessionPlayer != null) {
+                    sessionPlayer.clearServiceManagedPlaybackPending();
+                }
+                markCurrentStationStatus(CurrentPlaybackState.PlaybackStatus.ERROR);
+            });
+        }
     }
 
     private boolean isCurrentPlaySequence(long sequence) {
@@ -730,6 +1137,9 @@ public class RadioPlaybackService extends MediaSessionService {
                 + candidateIndex
                 + " url="
                 + AppLog.redactUrl(playableStreamUrl));
+        if (sessionPlayer != null) {
+            sessionPlayer.clearServiceManagedPlaybackPending();
+        }
         stopAndClearPlayer();
         player.setMediaItem(buildStationMediaItem(station, playableStreamUrl));
         currentPlaybackState.setPlaybackStatus(station, CurrentPlaybackState.PlaybackStatus.CONNECTING);
@@ -759,7 +1169,9 @@ public class RadioPlaybackService extends MediaSessionService {
     private MediaItem buildStationMediaItem(@NonNull Station station, @NonNull String streamUrl) {
         return new MediaItem.Builder()
                 .setUri(Uri.parse(streamUrl))
-                .setMediaMetadata(buildBaseMediaMetadata(station))
+                .setMediaMetadata(
+                        playbackLibraryCatalog.buildPlaybackStationMetadata(station, isFavorite(station))
+                )
                 .build();
     }
 
@@ -900,25 +1312,20 @@ public class RadioPlaybackService extends MediaSessionService {
     }
 
     @NonNull
-    private MediaMetadata buildBaseMediaMetadata(@NonNull Station station) {
-        MediaMetadata.Builder builder = new MediaMetadata.Builder()
-                .setStation(station.getName())
-                .setUserRating(new HeartRating(isFavorite(station)));
-        Uri artworkUri = PlaybackMetadataMapper.resolveStationArtworkUri(station);
-        if (artworkUri != null) {
-            builder.setArtworkUri(artworkUri);
-        }
-        return builder.build();
-    }
-
-    @NonNull
     private SessionCommands buildControllerSessionCommands(@Nullable Station station) {
-        return station == null ? SessionCommands.EMPTY : ACTIVE_SESSION_COMMANDS;
+        return station == null ? BASE_SESSION_COMMANDS : ACTIVE_SESSION_COMMANDS;
     }
 
     @NonNull
     private Player.Commands buildControllerPlayerCommands(@NonNull MediaSession session) {
-        return session.getPlayer().getAvailableCommands();
+        Player.Commands.Builder commandsBuilder = session.getPlayer().getAvailableCommands().buildUpon();
+        commandsBuilder
+                .add(Player.COMMAND_PLAY_PAUSE)
+                .add(Player.COMMAND_PREPARE)
+                .add(Player.COMMAND_SET_MEDIA_ITEM);
+        applyFavoriteNavigationCommands(commandsBuilder);
+        applyStopCommand(commandsBuilder);
+        return commandsBuilder.build();
     }
 
     @NonNull
@@ -985,6 +1392,19 @@ public class RadioPlaybackService extends MediaSessionService {
         if (libraryRepository != null) {
             libraryRepository.recordRecentlyPlayed(currentStation);
         }
+        if (playbackResumptionStore != null) {
+            playbackResumptionStore.saveLastPlayedStation(currentStation);
+        }
+    }
+
+    @Nullable
+    private Station getResumptionStation() {
+        if (currentStation != null) {
+            return currentStation;
+        }
+        return playbackResumptionStore != null
+                ? playbackResumptionStore.getLastPlayedStation()
+                : null;
     }
 
     @NonNull
@@ -1206,12 +1626,17 @@ public class RadioPlaybackService extends MediaSessionService {
         commandsBuilder.remove(Player.COMMAND_STOP);
     }
 
+    private interface StationLoadStarter {
+        void load(@NonNull StationRepository.LoadCallback callback);
+    }
+
     private final class SessionPlayer extends ForwardingPlayer {
 
         @NonNull
         private final List<Player.Listener> listeners = new ArrayList<>();
         @Nullable
         private MediaMetadata lastDispatchedMetadata;
+        private boolean serviceManagedPlaybackPending;
 
         private SessionPlayer(@NonNull Player player) {
             super(player);
@@ -1229,6 +1654,72 @@ public class RadioPlaybackService extends MediaSessionService {
         public void removeListener(@NonNull Player.Listener listener) {
             super.removeListener(listener);
             listeners.remove(listener);
+        }
+
+        @Override
+        public void setMediaItem(@NonNull MediaItem mediaItem) {
+            if (requestServiceManagedPlayback(Collections.singletonList(mediaItem))) {
+                return;
+            }
+            super.setMediaItem(mediaItem);
+        }
+
+        @Override
+        public void setMediaItem(@NonNull MediaItem mediaItem, long startPositionMs) {
+            if (requestServiceManagedPlayback(Collections.singletonList(mediaItem))) {
+                return;
+            }
+            super.setMediaItem(mediaItem, startPositionMs);
+        }
+
+        @Override
+        public void setMediaItem(@NonNull MediaItem mediaItem, boolean resetPosition) {
+            if (requestServiceManagedPlayback(Collections.singletonList(mediaItem))) {
+                return;
+            }
+            super.setMediaItem(mediaItem, resetPosition);
+        }
+
+        @Override
+        public void setMediaItems(@NonNull List<MediaItem> mediaItems) {
+            if (requestServiceManagedPlayback(mediaItems)) {
+                return;
+            }
+            super.setMediaItems(mediaItems);
+        }
+
+        @Override
+        public void setMediaItems(@NonNull List<MediaItem> mediaItems, boolean resetPosition) {
+            if (requestServiceManagedPlayback(mediaItems)) {
+                return;
+            }
+            super.setMediaItems(mediaItems, resetPosition);
+        }
+
+        @Override
+        public void setMediaItems(@NonNull List<MediaItem> mediaItems,
+                                  int startIndex,
+                                  long startPositionMs) {
+            if (requestServiceManagedPlayback(mediaItems)) {
+                return;
+            }
+            super.setMediaItems(mediaItems, startIndex, startPositionMs);
+        }
+
+        @Override
+        public void prepare() {
+            if (serviceManagedPlaybackPending) {
+                return;
+            }
+            super.prepare();
+        }
+
+        @Override
+        public void play() {
+            if (serviceManagedPlaybackPending) {
+                return;
+            }
+            super.play();
         }
 
         @NonNull
@@ -1291,6 +1782,23 @@ public class RadioPlaybackService extends MediaSessionService {
             for (Player.Listener listener : new ArrayList<>(listeners)) {
                 listener.onMediaMetadataChanged(presentedMetadata);
             }
+        }
+
+        private boolean requestServiceManagedPlayback(@NonNull List<MediaItem> mediaItems) {
+            if (mediaItems.isEmpty()) {
+                return false;
+            }
+            Station station = playbackLibraryCatalog.resolveRequestedStation(mediaItems.get(0));
+            if (station == null) {
+                return false;
+            }
+            RadioPlaybackService.this.play(station);
+            serviceManagedPlaybackPending = true;
+            return true;
+        }
+
+        private void clearServiceManagedPlaybackPending() {
+            serviceManagedPlaybackPending = false;
         }
     }
 }

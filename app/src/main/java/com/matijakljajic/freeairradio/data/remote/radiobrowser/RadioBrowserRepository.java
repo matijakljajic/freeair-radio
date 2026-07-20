@@ -18,6 +18,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -26,8 +28,14 @@ import retrofit2.Response;
 public final class RadioBrowserRepository implements StationRepository {
 
     private static final int DEFAULT_LIMIT = 50;
-    private static final long SERVER_DISCOVERY_TIMEOUT_MILLIS = 7000L;
+    private static final int MAX_SERVER_ATTEMPTS = 3;
     private static final String RADIO_BROWSER_ID_PREFIX = "RADIO_BROWSER:";
+    @NonNull
+    private static final ExecutorService WORKER_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "RadioBrowserRepository");
+        thread.setDaemon(true);
+        return thread;
+    });
     @NonNull
     private final RadioBrowserClient client;
     @NonNull
@@ -74,15 +82,14 @@ public final class RadioBrowserRepository implements StationRepository {
     private void enqueueStationsAsync(@NonNull String action,
                                       @NonNull LoadCallback callback,
                                       @NonNull RequestFactory requestFactory) {
-        startWorker("RadioBrowserStationLoad",
-                () -> enqueueStations(action, callback, requestFactory, 0));
+        startWorker(() -> enqueueStations(action, callback, requestFactory, 0));
     }
 
     private void enqueueStations(@NonNull String action,
                                  @NonNull LoadCallback callback,
                                  @NonNull RequestFactory requestFactory,
                                  int attempt) {
-        String baseUrl = awaitSelectedBaseUrl(callback);
+        String baseUrl = getSelectedBaseUrl(callback);
         if (baseUrl == null) {
             return;
         }
@@ -93,11 +100,12 @@ public final class RadioBrowserRepository implements StationRepository {
             public void onResponse(@NonNull Call<List<RadioBrowserStationDto>> call,
                                    @NonNull Response<List<RadioBrowserStationDto>> response) {
                 if (!response.isSuccessful()) {
-                    if (attempt == 0 && serverSelector.rotateToNextServer(baseUrl)) {
-                        enqueueStations(action, callback, requestFactory, attempt + 1);
+                    IOException error = new IOException("Failed to " + action + ": " + response.code());
+                    if (shouldRetryWithAnotherServer(attempt)) {
+                        retryStationsAsync(action, callback, requestFactory, attempt, baseUrl, error);
                         return;
                     }
-                    postError(callback, new IOException("Failed to " + action + ": " + response.code()));
+                    postError(callback, error);
                     return;
                 }
                 serverSelector.rememberSuccess(baseUrl);
@@ -106,8 +114,8 @@ public final class RadioBrowserRepository implements StationRepository {
 
             @Override
             public void onFailure(@NonNull Call<List<RadioBrowserStationDto>> call, @NonNull Throwable t) {
-                if (attempt == 0 && serverSelector.rotateToNextServer(baseUrl)) {
-                    enqueueStations(action, callback, requestFactory, attempt + 1);
+                if (shouldRetryWithAnotherServer(attempt)) {
+                    retryStationsAsync(action, callback, requestFactory, attempt, baseUrl, t);
                     return;
                 }
                 postError(callback, t);
@@ -115,16 +123,40 @@ public final class RadioBrowserRepository implements StationRepository {
         });
     }
 
-    private void enqueueClickAsync(@NonNull String stationUuid) {
-        startWorker("RadioBrowserStationClick", () -> enqueueClick(stationUuid));
+    private boolean shouldRetryWithAnotherServer(int attempt) {
+        return attempt + 1 < MAX_SERVER_ATTEMPTS;
     }
 
-    private void startWorker(@NonNull String name, @NonNull Runnable work) {
-        new Thread(work, name).start();
+    private boolean selectAlternativeServer(@Nullable String failedBaseUrl) {
+        return serverSelector.rotateToNextServer(failedBaseUrl)
+                || serverSelector.refreshAndRotate(failedBaseUrl);
+    }
+
+    private void retryStationsAsync(@NonNull String action,
+                                    @NonNull LoadCallback callback,
+                                    @NonNull RequestFactory requestFactory,
+                                    int attempt,
+                                    @Nullable String failedBaseUrl,
+                                    @NonNull Throwable error) {
+        startWorker(() -> {
+            if (selectAlternativeServer(failedBaseUrl)) {
+                enqueueStations(action, callback, requestFactory, attempt + 1);
+                return;
+            }
+            postError(callback, error);
+        });
+    }
+
+    private void enqueueClickAsync(@NonNull String stationUuid) {
+        startWorker(() -> enqueueClick(stationUuid));
+    }
+
+    private void startWorker(@NonNull Runnable work) {
+        WORKER_EXECUTOR.execute(work);
     }
 
     private void enqueueClick(@NonNull String stationUuid) {
-        String baseUrl = awaitSelectedBaseUrl(null);
+        String baseUrl = getSelectedBaseUrl(null);
         if (baseUrl == null) {
             return;
         }
@@ -151,14 +183,7 @@ public final class RadioBrowserRepository implements StationRepository {
     }
 
     @Nullable
-    private String awaitSelectedBaseUrl(@Nullable StationRepository.LoadCallback callback) {
-        if (!serverSelector.awaitReady(SERVER_DISCOVERY_TIMEOUT_MILLIS)) {
-            if (callback != null) {
-                postError(callback, new IOException("Timed out waiting for Radio Browser servers"));
-            }
-            return null;
-        }
-
+    private String getSelectedBaseUrl(@Nullable StationRepository.LoadCallback callback) {
         String baseUrl = serverSelector.getSelectedBaseUrl();
         if (baseUrl == null && callback != null) {
             postError(callback, new IOException("No Radio Browser servers available"));

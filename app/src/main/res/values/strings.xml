@@ -10,6 +10,7 @@
     <string name="nav_settings">Settings</string>
     <string name="station_list_title_now_popular">Now Popular</string>
     <string name="station_list_title_favorites">Favorites</string>
+    <string name="station_list_title_recently_played">Recently Played</string>
     <string name="station_list_title_local_stations">Locally Added</string>
     <string name="homepage_add_station">Add local station</string>
     <string name="station_search_hint">Search stations</string>
