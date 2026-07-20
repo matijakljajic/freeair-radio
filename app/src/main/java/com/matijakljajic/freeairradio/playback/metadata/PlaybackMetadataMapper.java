@@ -41,13 +41,26 @@ public final class PlaybackMetadataMapper {
         }
 
         NowPlaying nowPlaying = resolvePresentedNowPlaying(rawMetadata, stationName, currentNowPlaying);
+        String presentedTitle = stationName;
+        String presentedSubtitle = null;
         if (nowPlaying != null) {
             if (nowPlaying.getTitle() != null) {
-                builder.setTitle(nowPlaying.getTitle());
+                presentedTitle = nowPlaying.getTitle();
             }
             if (nowPlaying.getArtist() != null) {
                 builder.setArtist(nowPlaying.getArtist());
+                presentedSubtitle = nowPlaying.getArtist();
             }
+        }
+        if (presentedTitle != null) {
+            builder.setTitle(presentedTitle);
+            builder.setDisplayTitle(presentedTitle);
+        }
+        if (presentedSubtitle != null) {
+            builder.setSubtitle(presentedSubtitle);
+        }
+        if (stationName != null) {
+            builder.setDescription(stationName);
         }
 
         return builder.build();

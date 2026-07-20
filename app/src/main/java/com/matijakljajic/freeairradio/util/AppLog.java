@@ -21,7 +21,27 @@ public final class AppLog {
 
     public static void d(@NonNull String tag, @NonNull String message) {
         if (BuildConfig.DEBUG) {
-            Log.d(tag, message);
+            try {
+                Log.d(tag, message);
+            } catch (RuntimeException | NoClassDefFoundError ignored) {
+                // Allow plain JVM unit tests to exercise code paths that log.
+            }
+        }
+    }
+
+    public static void w(@NonNull String tag, @NonNull String message) {
+        try {
+            Log.w(tag, message);
+        } catch (RuntimeException | NoClassDefFoundError ignored) {
+            // Allow plain JVM unit tests to exercise code paths that log.
+        }
+    }
+
+    public static void w(@NonNull String tag, @NonNull String message, @NonNull Throwable throwable) {
+        try {
+            Log.w(tag, message, throwable);
+        } catch (RuntimeException | NoClassDefFoundError ignored) {
+            // Allow plain JVM unit tests to exercise code paths that log.
         }
     }
 

@@ -8,6 +8,7 @@ import com.matijakljajic.freeairradio.BuildConfig;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
@@ -28,6 +29,9 @@ public final class RadioBrowserClient {
 
     private RadioBrowserClient() {
         okHttpClient = new OkHttpClient.Builder()
+                .callTimeout(8, TimeUnit.SECONDS)
+                .connectTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(8, TimeUnit.SECONDS)
                 .addInterceptor(createHeaderInterceptor())
                 .build();
     }

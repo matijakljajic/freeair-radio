@@ -12,49 +12,53 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("unused")
 public final class RadioBrowserServerSelector {
 
     private static final String TAG = "RadioBrowserServerSelector";
+    interface ServerDiscovery {
+        @NonNull
+        List<String> refresh();
+    }
+
     @NonNull
     private final Object lock = new Object();
     @Nullable
     private final String preferredBaseUrl;
     @NonNull
+    private final ServerDiscovery serverDiscovery;
+    @NonNull
     private List<String> baseUrls;
     private int selectedIndex;
-    @NonNull
-    private final CountDownLatch readyLatch;
 
     public RadioBrowserServerSelector(@NonNull Context context) {
-        this(new RadioBrowserServerSettings(context).getPreferredBaseUrl(), true);
+        this(
+                new RadioBrowserServerSettings(context).getPreferredBaseUrl(),
+                true,
+                RadioBrowserServerDirectory.getCachedServers(),
+                RadioBrowserServerDirectory::refresh
+        );
     }
 
     RadioBrowserServerSelector(@NonNull List<String> baseUrls) {
-        this(null, false);
-        synchronized (lock) {
-            this.baseUrls = buildInitialBaseUrls(baseUrls, null);
-            this.selectedIndex = 0;
-        }
+        this(null, false, baseUrls, () -> baseUrls);
     }
 
-    private RadioBrowserServerSelector(@Nullable String preferredBaseUrl,
-                                       boolean refreshAsync) {
+    RadioBrowserServerSelector(@Nullable String preferredBaseUrl,
+                               boolean refreshAsync,
+                               @NonNull List<String> cachedBaseUrls,
+                               @NonNull ServerDiscovery serverDiscovery) {
         this.preferredBaseUrl = normalizeBaseUrl(preferredBaseUrl);
-        List<String> cachedBaseUrls = RadioBrowserServerDirectory.getCachedServers();
+        this.serverDiscovery = serverDiscovery;
         this.baseUrls = buildStartupBaseUrls(cachedBaseUrls, this.preferredBaseUrl);
         this.selectedIndex = 0;
-        this.readyLatch = new CountDownLatch(1);
-        readyLatch.countDown();
         AppLog.d(TAG, "Initialized server selector"
                 + " preferred=" + AppLog.value(this.preferredBaseUrl)
                 + " startupSource=" + (cachedBaseUrls.isEmpty() ? "bootstrap" : "cache")
                 + " serverCount=" + this.baseUrls.size()
                 + " selected=" + AppLog.value(getSelectedBaseUrl()));
-        if (refreshAsync && cachedBaseUrls.isEmpty()) {
+        if (refreshAsync) {
             refreshAsync();
         }
     }
@@ -92,7 +96,7 @@ public final class RadioBrowserServerSelector {
                 failedIndex = selectedIndex;
             }
             selectedIndex = (failedIndex + 1) % baseUrls.size();
-            android.util.Log.w(TAG, "Rotated Radio Browser server after failure"
+            AppLog.w(TAG, "Rotated Radio Browser server after failure"
                     + " failed=" + AppLog.value(failedBaseUrl)
                     + " next=" + baseUrls.get(selectedIndex)
                     + " serverCount=" + baseUrls.size());
@@ -100,41 +104,53 @@ public final class RadioBrowserServerSelector {
         }
     }
 
-    public boolean awaitReady(long timeoutMillis) {
-        try {
-            boolean ready = readyLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
-            if (!ready) {
-                android.util.Log.w(TAG, "Server selector timed out waiting for refresh"
-                        + " timeoutMs=" + timeoutMillis
-                        + " selected=" + AppLog.value(getSelectedBaseUrl()));
+    public boolean refreshAndRotate(@Nullable String failedBaseUrl) {
+        List<String> discoveredBaseUrls = serverDiscovery.refresh();
+        synchronized (lock) {
+            List<String> refreshedBaseUrls = buildInitialBaseUrls(discoveredBaseUrls, preferredBaseUrl);
+            if (refreshedBaseUrls.isEmpty()) {
+                AppLog.w(TAG, "Server refresh returned no usable base urls after failure"
+                        + " failed=" + AppLog.value(failedBaseUrl));
+                return false;
             }
-            return ready;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            android.util.Log.w(TAG, "Server selector wait interrupted", e);
-            return false;
+
+            String normalizedFailedBaseUrl = normalizeBaseUrl(failedBaseUrl);
+            int failedIndex = normalizedFailedBaseUrl == null
+                    ? -1
+                    : refreshedBaseUrls.indexOf(normalizedFailedBaseUrl);
+            if (failedIndex >= 0 && refreshedBaseUrls.size() < 2) {
+                AppLog.w(TAG, "Server refresh returned only the failed base url"
+                        + " failed=" + AppLog.value(failedBaseUrl));
+                return false;
+            }
+
+            baseUrls = refreshedBaseUrls;
+            selectedIndex = failedIndex >= 0
+                    ? (failedIndex + 1) % refreshedBaseUrls.size()
+                    : 0;
+            AppLog.d(TAG, "Refreshed and selected Radio Browser server after failure"
+                    + " failed=" + AppLog.value(failedBaseUrl)
+                    + " serverCount=" + baseUrls.size()
+                    + " selected=" + baseUrls.get(selectedIndex));
+            return true;
         }
     }
 
     private void refreshAsync() {
         AppLog.d(TAG, "Refreshing Radio Browser servers in background");
         Thread refreshThread = new Thread(() -> {
-            try {
-                List<String> discoveredBaseUrls = RadioBrowserServerDirectory.refresh();
-                synchronized (lock) {
-                    List<String> refreshedBaseUrls = buildInitialBaseUrls(discoveredBaseUrls, preferredBaseUrl);
-                    if (!refreshedBaseUrls.isEmpty()) {
-                        baseUrls = refreshedBaseUrls;
-                        selectedIndex = 0;
-                        AppLog.d(TAG, "Refreshed Radio Browser servers"
-                                + " serverCount=" + baseUrls.size()
-                                + " selected=" + baseUrls.get(selectedIndex));
-                    } else {
-                        android.util.Log.w(TAG, "Server refresh returned no base urls");
-                    }
+            List<String> discoveredBaseUrls = serverDiscovery.refresh();
+            synchronized (lock) {
+                List<String> refreshedBaseUrls = buildInitialBaseUrls(discoveredBaseUrls, preferredBaseUrl);
+                if (!refreshedBaseUrls.isEmpty()) {
+                    baseUrls = refreshedBaseUrls;
+                    selectedIndex = 0;
+                    AppLog.d(TAG, "Refreshed Radio Browser servers"
+                            + " serverCount=" + baseUrls.size()
+                            + " selected=" + baseUrls.get(selectedIndex));
+                } else {
+                    AppLog.w(TAG, "Server refresh returned no base urls");
                 }
-            } finally {
-                readyLatch.countDown();
             }
         }, "RadioBrowserServerRefresh");
         refreshThread.setDaemon(true);
