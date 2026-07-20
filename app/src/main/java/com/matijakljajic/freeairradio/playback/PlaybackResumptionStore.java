@@ -48,7 +48,7 @@ public final class PlaybackResumptionStore {
         putNullableString(editor, KEY_RESOLVED_STREAM_URL, station.getResolvedStreamUrl());
         putNullableString(editor, KEY_HOMEPAGE, station.getHomepage());
         putNullableString(editor, KEY_FAVICON, station.getFavicon());
-        editor.putString(KEY_COUNTRY, station.getCountry());
+        editor.putString(KEY_COUNTRY, station.getCountryName());
         editor.putString(KEY_COUNTRY_CODE, station.getCountryCode());
         editor.putString(KEY_LANGUAGE, station.getLanguage());
         editor.putString(KEY_TAGS, station.getTags());
@@ -77,7 +77,7 @@ public final class PlaybackResumptionStore {
         builder.setResolvedStreamUrl(sharedPreferences.getString(KEY_RESOLVED_STREAM_URL, null));
         builder.setHomepage(sharedPreferences.getString(KEY_HOMEPAGE, null));
         builder.setFavicon(sharedPreferences.getString(KEY_FAVICON, null));
-        builder.setCountry(sharedPreferences.getString(KEY_COUNTRY, null));
+        builder.setCountryName(sharedPreferences.getString(KEY_COUNTRY, null));
         builder.setCountryCode(sharedPreferences.getString(KEY_COUNTRY_CODE, null));
         builder.setLanguage(sharedPreferences.getString(KEY_LANGUAGE, null));
         builder.setTags(sharedPreferences.getString(KEY_TAGS, null));

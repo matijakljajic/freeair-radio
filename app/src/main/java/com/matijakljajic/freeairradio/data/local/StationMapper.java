@@ -132,7 +132,7 @@ public final class StationMapper {
                 .setResolvedStreamUrl(station.resolvedStreamUrl)
                 .setHomepage(station.homepage)
                 .setFavicon(station.favicon)
-                .setCountry(station.country)
+                .setCountryName(station.country)
                 .setCountryCode(station.countryCode)
                 .setLanguage(station.language)
                 .setTags(station.tags)
@@ -150,7 +150,7 @@ public final class StationMapper {
                 station.getResolvedStreamUrl(),
                 station.getHomepage(),
                 station.getFavicon(),
-                station.getCountry(),
+                station.getCountryName(),
                 station.getCountryCode(),
                 station.getLanguage(),
                 station.getTags(),

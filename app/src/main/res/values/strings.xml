@@ -39,6 +39,7 @@
     <string name="local_station_error_homepage_invalid">Use a valid http or https homepage URL.</string>
     <string name="local_station_error_save_failed">Could not save local station.</string>
     <string name="local_station_error_delete_failed">Could not delete local station.</string>
+    <string name="dialog_select">Select</string>
     <string name="station_details_country">Country</string>
     <string name="station_details_language">Language</string>
     <string name="station_details_tags">Tags</string>
@@ -74,6 +75,14 @@
     <string name="settings_audio_interruption_keep_playing">Keep radio playing over other app audio</string>
     <string name="settings_homepage_default_section_title">Homepage default</string>
     <string name="settings_homepage_default_section_summary">Choose which list opens first on the homepage.</string>
+    <string name="settings_top_stations_location_section_title">Top stations location</string>
+    <string name="settings_top_stations_location_section_summary">Choose whether Now Popular uses the worldwide list, a continent, a subregion, or one country.</string>
+    <string name="settings_top_stations_location_worldwide">Worldwide</string>
+    <string name="settings_top_stations_location_loading">Loading locations…</string>
+    <string name="settings_top_stations_location_load_failed">Could not load locations.</string>
+    <string name="settings_top_stations_location_picker_hint">Location</string>
+    <string name="settings_top_stations_location_invalid">Choose one of the available locations.</string>
+    <string name="station_list_title_top_stations">Top stations</string>
     <string name="settings_reset_section_title">Reset stored lists</string>
     <string name="settings_reset_section_summary">Delete all items from one stored list at a time.</string>
     <string name="settings_clear_favorites_button">Clear favorites</string>

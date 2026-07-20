@@ -15,14 +15,23 @@ import androidx.fragment.app.DialogFragment;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.local.LocalStationIdFactory;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
+import com.matijakljajic.freeairradio.data.remote.radiobrowser.RadioBrowserRepository;
 import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
+import com.matijakljajic.freeairradio.data.repository.StationRepository;
+import com.matijakljajic.freeairradio.ui.settings.TopStationsGeography;
 import com.matijakljajic.freeairradio.ui.util.DialogWindowHelper;
+import com.matijakljajic.freeairradio.ui.util.DropdownMenuHelper;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class LocalStationEditorFragment extends DialogFragment {
 
@@ -44,7 +53,7 @@ public class LocalStationEditorFragment extends DialogFragment {
     @Nullable
     private TextInputEditText homepageEditText;
     @Nullable
-    private TextInputEditText countryEditText;
+    private MaterialAutoCompleteTextView countryEditText;
     @Nullable
     private TextInputEditText languageEditText;
     @Nullable
@@ -61,6 +70,10 @@ public class LocalStationEditorFragment extends DialogFragment {
     private MaterialButton closeButton;
     @Nullable
     private LibraryRepository libraryRepository;
+    @Nullable
+    private StationRepository stationRepository;
+    @NonNull
+    private List<String> supportedCountryCodes = Collections.emptyList();
     @Nullable
     private Station editedStation;
     private boolean saving;
@@ -86,6 +99,7 @@ public class LocalStationEditorFragment extends DialogFragment {
         View contentView = getLayoutInflater().inflate(R.layout.dialog_local_station_editor, null, false);
         bindViews(contentView);
         populateFields(editedStation);
+        loadSupportedCountries();
         bindButtons(editedStation);
 
         return new MaterialAlertDialogBuilder(requireContext())
@@ -116,6 +130,8 @@ public class LocalStationEditorFragment extends DialogFragment {
         favoriteButton = null;
         closeButton = null;
         libraryRepository = null;
+        stationRepository = null;
+        supportedCountryCodes = Collections.emptyList();
         editedStation = null;
         saving = false;
         super.onDestroyView();
@@ -123,6 +139,7 @@ public class LocalStationEditorFragment extends DialogFragment {
 
     private void bindViews(@NonNull View contentView) {
         libraryRepository = LibraryRepository.getInstance(requireContext());
+        stationRepository = new RadioBrowserRepository(requireContext().getApplicationContext());
         nameInputLayout = contentView.findViewById(R.id.local_station_name_input_layout);
         streamUrlInputLayout = contentView.findViewById(R.id.local_station_stream_url_input_layout);
         homepageInputLayout = contentView.findViewById(R.id.local_station_homepage_input_layout);
@@ -139,6 +156,56 @@ public class LocalStationEditorFragment extends DialogFragment {
         closeButton = contentView.findViewById(R.id.local_station_close_button);
     }
 
+    private void loadSupportedCountries() {
+        StationRepository repository = stationRepository;
+        if (repository == null) {
+            return;
+        }
+
+        repository.loadAvailableCountryCodes(new StationRepository.CountryCodesCallback() {
+            @Override
+            public void onCountryCodesLoaded(@NonNull List<String> countryCodes) {
+                if (!isAdded()) {
+                    return;
+                }
+                supportedCountryCodes = countryCodes;
+                bindSupportedCountryOptions();
+                normalizeVisibleCountry();
+            }
+
+            @Override
+            public void onError(@NonNull Throwable throwable) {
+                if (!isAdded()) {
+                    return;
+                }
+                supportedCountryCodes = Collections.emptyList();
+            }
+        });
+    }
+
+    private void bindSupportedCountryOptions() {
+        MaterialAutoCompleteTextView countryView = countryEditText;
+        if (countryView == null) {
+            return;
+        }
+
+        List<TopStationsGeography.CountryOption> countryOptions =
+                TopStationsGeography.getAllCountryOptions(supportedCountryCodes);
+        List<String> labels = new ArrayList<>(countryOptions.size());
+        for (TopStationsGeography.CountryOption countryOption : countryOptions) {
+            labels.add(countryOption.label);
+        }
+        DropdownMenuHelper.bindOptions(countryView, labels);
+    }
+
+    private void normalizeVisibleCountry() {
+        TopStationsGeography.CountryOption countryOption = resolveCountryOption();
+        if (countryOption == null || countryEditText == null) {
+            return;
+        }
+        countryEditText.setText(countryOption.label, false);
+    }
+
     private void populateFields(@Nullable Station station) {
         if (titleTextView != null) {
             titleTextView.setText(station == null
@@ -152,7 +219,7 @@ public class LocalStationEditorFragment extends DialogFragment {
         setText(nameEditText, station.getName());
         setText(streamUrlEditText, station.getStreamUrl());
         setText(homepageEditText, station.getHomepage());
-        setText(countryEditText, station.getCountry());
+        setText(countryEditText, station.getCountryName());
         setText(languageEditText, station.getLanguage());
         setText(tagsEditText, station.getTags());
     }
@@ -266,6 +333,13 @@ public class LocalStationEditorFragment extends DialogFragment {
     private Station buildStation(@NonNull String name,
                                  @NonNull String streamUrl,
                                  @Nullable String homepage) {
+        TopStationsGeography.CountryOption normalizedCountry = resolveCountryOption();
+        String countryName = normalizedCountry != null
+                ? normalizedCountry.label
+                : readOptionalText(countryEditText);
+        String countryCode = normalizedCountry != null
+                ? normalizedCountry.countryCode
+                : readExistingCountryCode(countryName);
         return Station.builder(
                         editedStation != null ? editedStation.getId() : LocalStationIdFactory.create(),
                         name,
@@ -273,7 +347,8 @@ public class LocalStationEditorFragment extends DialogFragment {
                         StationOrigin.LOCAL_USER
                 )
                 .setHomepage(homepage)
-                .setCountry(readOptionalText(countryEditText))
+                .setCountryName(countryName)
+                .setCountryCode(countryCode)
                 .setLanguage(readOptionalText(languageEditText))
                 .setTags(readOptionalText(tagsEditText))
                 .build();
@@ -319,26 +394,48 @@ public class LocalStationEditorFragment extends DialogFragment {
         }
     }
 
-    private void setText(@Nullable TextInputEditText editText, @Nullable String value) {
-        if (editText == null || value == null || Station.UNKNOWN.equals(value)) {
+    private void setText(@Nullable TextView textView, @Nullable String value) {
+        if (textView == null || value == null || Station.UNKNOWN.equals(value)) {
             return;
         }
-        editText.setText(value);
+        textView.setText(value);
     }
 
     @Nullable
-    private String readOptionalText(@Nullable TextInputEditText editText) {
-        if (editText == null || editText.getText() == null) {
+    private String readOptionalText(@Nullable TextView textView) {
+        if (textView == null || textView.getText() == null) {
             return null;
         }
-        String value = editText.getText().toString().trim();
+        String value = textView.getText().toString().trim();
         return value.isEmpty() ? null : value;
     }
 
     @NonNull
-    private String readRequiredText(@Nullable TextInputEditText editText) {
-        String value = readOptionalText(editText);
+    private String readRequiredText(@Nullable TextView textView) {
+        String value = readOptionalText(textView);
         return value != null ? value : "";
+    }
+
+    @Nullable
+    private TopStationsGeography.CountryOption resolveCountryOption() {
+        if (supportedCountryCodes.isEmpty()) {
+            return null;
+        }
+        return TopStationsGeography.findClosestCountryOption(
+                readOptionalText(countryEditText),
+                supportedCountryCodes
+        );
+    }
+
+    @Nullable
+    private String readExistingCountryCode(@Nullable String countryName) {
+        if (editedStation == null
+                || countryName == null
+                || Station.UNKNOWN.equals(editedStation.getCountryCode())
+                || !countryName.equalsIgnoreCase(editedStation.getCountryName())) {
+            return null;
+        }
+        return editedStation.getCountryCode();
     }
 
     private boolean isSupportedUrl(@NonNull String rawUrl) {

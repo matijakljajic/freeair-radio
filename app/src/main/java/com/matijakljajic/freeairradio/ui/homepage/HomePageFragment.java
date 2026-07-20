@@ -19,14 +19,18 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
+import com.matijakljajic.freeairradio.data.repository.StationRepository;
 import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
 import com.matijakljajic.freeairradio.ui.localstations.LocalStationEditorFragment;
 import com.matijakljajic.freeairradio.ui.settings.HomePageSettings;
+import com.matijakljajic.freeairradio.ui.settings.TopStationsGeography;
+import com.matijakljajic.freeairradio.ui.settings.TopStationsLocationSettings;
 import com.matijakljajic.freeairradio.ui.stations.StationAdapter;
 import com.matijakljajic.freeairradio.ui.stations.StationFeedFragment;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @SuppressWarnings("unused")
@@ -41,6 +45,8 @@ public class HomePageFragment extends StationFeedFragment {
     private final LibraryRepository.FavoritesListener favoritesListener = this::refreshFavoritesIfVisible;
     @NonNull
     private HomePageSettings homePageSettings;
+    @NonNull
+    private TopStationsLocationSettings topStationsLocationSettings;
 
     @Nullable
     private RecyclerView homepageRecyclerView;
@@ -67,6 +73,7 @@ public class HomePageFragment extends StationFeedFragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         homePageSettings = new HomePageSettings(requireContext());
+        topStationsLocationSettings = new TopStationsLocationSettings(requireContext());
         currentSource = resolveInitialSource(savedInstanceState);
         libraryRepository = LibraryRepository.getInstance(requireContext());
         bindLocalStationEditorResults();
@@ -151,7 +158,33 @@ public class HomePageFragment extends StationFeedFragment {
     }
 
     private void loadPopularStations() {
-        loadTopStations(R.string.station_list_empty, R.string.station_list_error);
+        TopStationsLocationSettings.Selection selection = topStationsLocationSettings.getSelection();
+        if (selection.scope == TopStationsLocationSettings.Scope.WORLDWIDE) {
+            loadTopStations(R.string.station_list_empty, R.string.station_list_error);
+            return;
+        }
+
+        loadStations(
+                (repository, callback) -> repository.loadAvailableCountryCodes(new StationRepository.CountryCodesCallback() {
+                    @Override
+                    public void onCountryCodesLoaded(@NonNull List<String> countryCodes) {
+                        List<String> resolvedCountryCodes =
+                                TopStationsGeography.resolveCountryCodes(selection, countryCodes);
+                        if (resolvedCountryCodes.isEmpty()) {
+                            callback.onStationsLoaded(Collections.emptyList());
+                            return;
+                        }
+                        repository.loadTopStationsByCountryCodes(resolvedCountryCodes, callback);
+                    }
+
+                    @Override
+                    public void onError(@NonNull Throwable throwable) {
+                        callback.onError(throwable);
+                    }
+                }),
+                R.string.station_list_empty,
+                R.string.station_list_error
+        );
     }
 
     private void bindLocalStationEditorResults() {
@@ -524,8 +557,16 @@ public class HomePageFragment extends StationFeedFragment {
 
     private void updateHeaderTitle() {
         if (headerAdapter != null) {
-            headerAdapter.setTitleResId(currentSource.getTitleResId());
+            headerAdapter.setTitleText(buildHeaderTitle());
         }
+    }
+
+    @NonNull
+    private CharSequence buildHeaderTitle() {
+        if (currentSource != HomePageSource.NOW_POPULAR) {
+            return getText(currentSource.getTitleResId());
+        }
+        return getText(R.string.station_list_title_top_stations);
     }
 
     private void updateHeaderStateInset() {

@@ -45,6 +45,9 @@ public final class RadioBrowserStationDto {
     @SerializedName("bitrate")
     private int bitrate;
 
+    @SerializedName("clickcount")
+    private int clickCount;
+
     @SerializedName("hls")
     private String hls;
 
@@ -105,6 +108,10 @@ public final class RadioBrowserStationDto {
 
     public int getBitrate() {
         return bitrate;
+    }
+
+    public int getClickCount() {
+        return clickCount;
     }
 
     @Nullable

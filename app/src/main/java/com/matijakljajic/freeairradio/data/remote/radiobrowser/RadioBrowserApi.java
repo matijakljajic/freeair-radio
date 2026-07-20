@@ -1,5 +1,6 @@
 package com.matijakljajic.freeairradio.data.remote.radiobrowser;
 
+import com.matijakljajic.freeairradio.data.remote.radiobrowser.dto.RadioBrowserCountryCodeDto;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.dto.RadioBrowserStationDto;
 
 import java.util.List;
@@ -16,6 +17,21 @@ public interface RadioBrowserApi {
     Call<List<RadioBrowserStationDto>> loadTopStations(
             @Query("limit") int limit,
             @Query("hidebroken") boolean hideBroken
+    );
+
+    @GET("json/stations/bycountrycodeexact/{countryCode}")
+    Call<List<RadioBrowserStationDto>> loadTopStationsByCountryCode(
+            @Path("countryCode") String countryCode,
+            @Query("limit") int limit,
+            @Query("hidebroken") boolean hideBroken,
+            @Query("order") String order,
+            @Query("reverse") boolean reverse
+    );
+
+    @GET("json/countrycodes")
+    Call<List<RadioBrowserCountryCodeDto>> loadCountryCodes(
+            @Query("hidebroken") boolean hideBroken,
+            @Query("order") String order
     );
 
     @GET("json/stations/search")

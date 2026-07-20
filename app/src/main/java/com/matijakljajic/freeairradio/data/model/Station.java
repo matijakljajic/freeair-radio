@@ -21,7 +21,7 @@ public class Station implements Serializable {
     private final String homepage;
     @Nullable
     private final String favicon;
-    private final String country;
+    private final String countryName;
     private final String countryCode;
     private final String language;
     private final String tags;
@@ -38,7 +38,7 @@ public class Station implements Serializable {
         this.resolvedStreamUrl = normalizeNullable(builder.resolvedStreamUrl);
         this.homepage = normalizeNullable(builder.homepage);
         this.favicon = normalizeNullable(builder.favicon);
-        this.country = normalizeUnknown(builder.country);
+        this.countryName = normalizeUnknown(builder.countryName);
         this.countryCode = normalizeUnknown(builder.countryCode);
         this.language = normalizeUnknown(builder.language);
         this.tags = normalizeUnknown(builder.tags);
@@ -88,8 +88,8 @@ public class Station implements Serializable {
         return resolvedStreamUrl != null ? resolvedStreamUrl : streamUrl;
     }
 
-    public String getCountry() {
-        return country;
+    public String getCountryName() {
+        return countryName;
     }
 
     public String getCountryCode() {
@@ -137,7 +137,7 @@ public class Station implements Serializable {
                 && Objects.equals(resolvedStreamUrl, station.resolvedStreamUrl)
                 && Objects.equals(homepage, station.homepage)
                 && Objects.equals(favicon, station.favicon)
-                && country.equals(station.country)
+                && countryName.equals(station.countryName)
                 && countryCode.equals(station.countryCode)
                 && language.equals(station.language)
                 && tags.equals(station.tags)
@@ -148,7 +148,7 @@ public class Station implements Serializable {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, streamUrl, resolvedStreamUrl, homepage, favicon, country, countryCode, language, tags, codec, bitrate, hls, origin);
+        return Objects.hash(id, name, streamUrl, resolvedStreamUrl, homepage, favicon, countryName, countryCode, language, tags, codec, bitrate, hls, origin);
     }
 
     @NonNull
@@ -160,7 +160,7 @@ public class Station implements Serializable {
                 ", resolvedStreamUrl='" + resolvedStreamUrl + '\'' +
                 ", homepage='" + homepage + '\'' +
                 ", favicon='" + favicon + '\'' +
-                ", country='" + country + '\'' +
+                ", countryName='" + countryName + '\'' +
                 ", countryCode='" + countryCode + '\'' +
                 ", language='" + language + '\'' +
                 ", tags='" + tags + '\'' +
@@ -207,7 +207,7 @@ public class Station implements Serializable {
         @Nullable
         private String favicon;
         @Nullable
-        private String country;
+        private String countryName;
         @Nullable
         private String countryCode;
         @Nullable
@@ -249,8 +249,8 @@ public class Station implements Serializable {
         }
 
         @NonNull
-        public Builder setCountry(@Nullable String country) {
-            this.country = country;
+        public Builder setCountryName(@Nullable String countryName) {
+            this.countryName = countryName;
             return this;
         }
 

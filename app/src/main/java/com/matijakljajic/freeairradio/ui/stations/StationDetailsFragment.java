@@ -67,7 +67,7 @@ public class StationDetailsFragment extends DialogFragment {
     private void bindContent(@NonNull View contentView, @NonNull Station station) {
         ((TextView) contentView.findViewById(R.id.station_details_name)).setText(station.getName());
         row(contentView, R.id.row_country)
-                .bindCompactText(R.string.station_details_country, station.getCountry());
+                .bindCompactText(R.string.station_details_country, station.getCountryName());
         row(contentView, R.id.row_language)
                 .bindCompactText(R.string.station_details_language, station.getLanguage());
         row(contentView, R.id.row_codec)

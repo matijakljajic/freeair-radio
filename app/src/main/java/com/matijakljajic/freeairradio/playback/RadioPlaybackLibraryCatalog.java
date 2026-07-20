@@ -195,8 +195,8 @@ final class RadioPlaybackLibraryCatalog {
                 .setIsBrowsable(false)
                 .setIsPlayable(true)
                 .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION);
-        if (isKnownValue(station.getCountry())) {
-            builder.setArtist(station.getCountry());
+        if (isKnownValue(station.getCountryName())) {
+            builder.setArtist(station.getCountryName());
         }
         applyStationArtwork(builder, station);
         if (favorite) {
