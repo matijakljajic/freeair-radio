@@ -129,6 +129,14 @@
             android:layout_height="match_parent"
             tools:layout="@layout/fragment_recently_listened" />
 
+        <View
+            android:id="@+id/player_overlay_bottom_fade_inverted"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/top_content_filter"
+            android:importantForAccessibility="no" />
+
         <FrameLayout
             android:id="@+id/expanded_player_container"
             android:layout_width="match_parent"

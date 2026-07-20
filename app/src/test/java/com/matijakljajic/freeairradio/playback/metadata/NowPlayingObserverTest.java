@@ -55,7 +55,7 @@ public class NowPlayingObserverTest {
     public void nowPlayingBuildDisplayTextPrefersArtistAndTitle() {
         NowPlaying nowPlaying = new NowPlaying("Artist", "Track");
 
-        assertEquals("Artist - Track", nowPlaying.buildDisplayText());
+        assertEquals("Artist – Track", nowPlaying.buildDisplayText());
     }
 
     @Test
@@ -69,6 +69,6 @@ public class NowPlayingObserverTest {
     public void nowPlayingDecodesNumericCharacterReferences() {
         NowPlaying nowPlaying = new NowPlaying("Bajaga", "Moji drugovi &#263;e misliti da je gotovo");
 
-        assertEquals("Bajaga - Moji drugovi će misliti da je gotovo", nowPlaying.buildDisplayText());
+        assertEquals("Bajaga – Moji drugovi će misliti da je gotovo", nowPlaying.buildDisplayText());
     }
 }

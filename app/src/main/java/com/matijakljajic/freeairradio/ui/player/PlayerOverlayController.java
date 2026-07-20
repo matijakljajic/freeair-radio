@@ -38,6 +38,8 @@ public final class PlayerOverlayController {
     private final View expandedPlayerContainerView;
     @Nullable
     private final View recentHistoryContainerView;
+    @Nullable
+    private final View recentHistoryBottomFadeView;
     @NonNull
     private final OnBackPressedCallback backPressedCallback;
     @NonNull
@@ -56,7 +58,8 @@ public final class PlayerOverlayController {
                                    @Nullable View overlayScrimView,
                                    @Nullable View collapsedPlayerContainerView,
                                    @Nullable View expandedPlayerContainerView,
-                                   @Nullable View recentHistoryContainerView) {
+                                   @Nullable View recentHistoryContainerView,
+                                   @Nullable View recentHistoryBottomFadeView) {
         this.activity = activity;
         this.rootView = rootView;
         this.overlayContainerView = overlayContainerView;
@@ -64,6 +67,7 @@ public final class PlayerOverlayController {
         this.collapsedPlayerContainerView = collapsedPlayerContainerView;
         this.expandedPlayerContainerView = expandedPlayerContainerView;
         this.recentHistoryContainerView = recentHistoryContainerView;
+        this.recentHistoryBottomFadeView = recentHistoryBottomFadeView;
         this.backPressedCallback = new OnBackPressedCallback(false) {
             @Override
             public void handleOnBackPressed() {
@@ -166,7 +170,8 @@ public final class PlayerOverlayController {
                 && overlayScrimView != null
                 && collapsedPlayerContainerView != null
                 && expandedPlayerContainerView != null
-                && recentHistoryContainerView != null;
+                && recentHistoryContainerView != null
+                && recentHistoryBottomFadeView != null;
     }
 
     private void configureExpandedPlayerPosition() {
@@ -207,6 +212,7 @@ public final class PlayerOverlayController {
         int desiredBottomMargin = Math.max(0, rootView.getHeight() - getCollapsedPlayerBottomInRoot());
         if (marginLayoutParams.topMargin == 0
                 && marginLayoutParams.bottomMargin == desiredBottomMargin) {
+            applyRecentHistoryBottomFadeHeight(desiredBottomMargin);
             applyRecentHistoryContentInsets(desiredTopInset);
             return;
         }
@@ -214,6 +220,7 @@ public final class PlayerOverlayController {
         marginLayoutParams.topMargin = 0;
         marginLayoutParams.bottomMargin = desiredBottomMargin;
         recentHistoryContainerView.setLayoutParams(marginLayoutParams);
+        applyRecentHistoryBottomFadeHeight(desiredBottomMargin);
         applyRecentHistoryContentInsets(desiredTopInset);
     }
 
@@ -344,7 +351,8 @@ public final class PlayerOverlayController {
         if (overlayContainerView == null
                 || overlayScrimView == null
                 || recentHistoryContainerView == null
-                || expandedPlayerContainerView == null) {
+                || expandedPlayerContainerView == null
+                || recentHistoryBottomFadeView == null) {
             return;
         }
 
@@ -352,6 +360,7 @@ public final class PlayerOverlayController {
         overlayScrimView.setAlpha(1f);
         recentHistoryContainerView.setClipBounds(null);
         expandedPlayerContainerView.setTranslationY(0f);
+        applyRecentHistoryBottomFadeHeight(0);
     }
 
     private int getRecentHistoryTopInset() {
@@ -398,6 +407,20 @@ public final class PlayerOverlayController {
             return;
         }
         recentHistoryContainerView.post(this::updateRecentHistoryBounds);
+    }
+
+    private void applyRecentHistoryBottomFadeHeight(int bottomFadeHeightPx) {
+        if (recentHistoryBottomFadeView == null) {
+            return;
+        }
+
+        ViewGroup.LayoutParams layoutParams = recentHistoryBottomFadeView.getLayoutParams();
+        if (layoutParams.height == bottomFadeHeightPx) {
+            return;
+        }
+
+        layoutParams.height = bottomFadeHeightPx;
+        recentHistoryBottomFadeView.setLayoutParams(layoutParams);
     }
 
     @Nullable

@@ -3,8 +3,8 @@
     <string name="player_no_station_selected">No station selected</string>
     <string name="player_play_button">Play station</string>
     <string name="player_stop_button">Stop playback</string>
-    <string name="player_favorite_button">Favorite station</string>
-    <string name="player_unfavorite_button">Unfavorite station</string>
+    <string name="player_favorite_button">Favorite</string>
+    <string name="player_unfavorite_button">Unfavorite</string>
     <string name="nav_home">Homepage</string>
     <string name="nav_search">Search</string>
     <string name="nav_settings">Settings</string>
