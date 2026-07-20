@@ -12,11 +12,28 @@ The project started as a university Android course app. It's influenced partly b
 
 ## Current Features
 
-- Browse and search internet radio stations from Radio Browser
-- Play radio streams through Media3, designed to support Android’s
-  system media and Android Auto
-- Show now-playing metadata when the stream provides it
-- Save favorites, local stations, and recently played history
+### Find and play
+
+- Browse and search internet radio stations from Radio Browser.
+- Play stations in the background with media controls and Android Auto support.
+- See the current song when a station provides now-playing metadata.
+
+### Manage stations
+
+- Add, edit, play, and remove your own local stations.
+- Favorite stations and use the media controls to move to the previous or next favorite.
+- Press and hold a station item to open its details.
+- On the Favorites list, press and hold the left side of a station item to reorder favorites.
+
+### Listening history
+
+- View recently played stations by clicking on the in-app miniplayer.
+- View songs you listened to on stations which provided that metadata.
+
+### Surprise yourself
+
+- Enable/disable shake-to-random in Settings.
+- On the homepage, shake the phone three times to play a random station from the currently visible list.
 
 ## Status
 
@@ -24,7 +41,6 @@ FreeAir Radio is currently in beta. Core browsing, playback, persistence, metada
 
 ### What's planned
 
-- shake-to-random station loading
 - tablet layouts
 - recording-related features
 
