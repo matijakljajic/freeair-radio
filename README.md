@@ -6,6 +6,10 @@ FreeAir Radio is an Android internet radio client. It uses [*radio-browser*](htt
 
 The project started as a university Android course app. It's influenced partly by [*Shortwave*](https://apps.gnome.org/Shortwave/) and [*PowerAmp*](https://powerampapp.com/).
 
+## Screenshots
+
+![Screenshots](screenshots/readme-gallery.png)
+
 ## Current Features
 
 - Browse and search internet radio stations from Radio Browser
