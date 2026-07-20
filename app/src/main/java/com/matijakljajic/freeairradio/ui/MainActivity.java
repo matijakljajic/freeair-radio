@@ -119,7 +119,8 @@ public class MainActivity extends AppCompatActivity implements
                 findViewById(R.id.player_overlay_scrim),
                 findViewById(R.id.player_fragment_container),
                 findViewById(R.id.expanded_player_container),
-                findViewById(R.id.recently_listened_fragment_container)
+                findViewById(R.id.recently_listened_fragment_container),
+                findViewById(R.id.player_overlay_bottom_fade_inverted)
         );
     }
 

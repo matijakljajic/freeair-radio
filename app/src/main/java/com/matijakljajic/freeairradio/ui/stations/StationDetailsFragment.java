@@ -11,9 +11,11 @@ import androidx.annotation.Nullable;
 import androidx.core.os.BundleCompat;
 import androidx.fragment.app.DialogFragment;
 
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
+import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
 import com.matijakljajic.freeairradio.ui.util.DialogWindowHelper;
 import com.matijakljajic.freeairradio.ui.util.StationDisplayFormatter;
 
@@ -34,9 +36,11 @@ public class StationDetailsFragment extends DialogFragment {
     @Override
     public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
         Station station = requireStation();
+        LibraryRepository libraryRepository = LibraryRepository.getInstance(requireContext());
         View contentView = getLayoutInflater()
                 .inflate(R.layout.dialog_station_details, null, false);
         bindContent(contentView, station);
+        bindFavoriteButton(contentView, station, libraryRepository);
         contentView.findViewById(R.id.station_details_ok_button).setOnClickListener(v -> dismiss());
 
         return new MaterialAlertDialogBuilder(requireContext())
@@ -76,6 +80,19 @@ public class StationDetailsFragment extends DialogFragment {
         bindLinkRow(contentView, R.id.row_stream_url, R.string.station_details_stream_url, station.getStreamUrl());
     }
 
+    private void bindFavoriteButton(@NonNull View contentView,
+                                    @NonNull Station station,
+                                    @NonNull LibraryRepository libraryRepository) {
+        MaterialButton favoriteButton = contentView.findViewById(R.id.station_details_favorite_button);
+        boolean initialFavorite = libraryRepository.isFavorite(station);
+        updateFavoriteButton(favoriteButton, initialFavorite);
+        favoriteButton.setOnClickListener(v -> {
+            boolean nextFavorite = !libraryRepository.isFavorite(station);
+            libraryRepository.setFavorite(station, nextFavorite);
+            updateFavoriteButton(favoriteButton, nextFavorite);
+        });
+    }
+
     private void bindLinkRow(@NonNull View contentView, int rowId, int labelStringId, @Nullable String value) {
         row(contentView, rowId).bindTallLink(
                 labelStringId,
@@ -87,6 +104,12 @@ public class StationDetailsFragment extends DialogFragment {
     @NonNull
     private StationDetailRowView row(@NonNull View contentView, int rowId) {
         return contentView.findViewById(rowId);
+    }
+
+    private void updateFavoriteButton(@NonNull MaterialButton button, boolean favorite) {
+        button.setText(favorite
+                ? R.string.player_unfavorite_button
+                : R.string.player_favorite_button);
     }
 
     private void openUrl(@NonNull String value) {

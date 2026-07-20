@@ -58,7 +58,7 @@ public final class NowPlaying {
         if (title == null) {
             return artist;
         }
-        return artist == null ? title : artist + " - " + title;
+        return artist == null ? title : artist + " – " + title;
     }
 
     boolean hasTrackInfo() {

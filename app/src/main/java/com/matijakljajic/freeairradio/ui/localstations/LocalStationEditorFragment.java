@@ -56,6 +56,8 @@ public class LocalStationEditorFragment extends DialogFragment {
     @Nullable
     private MaterialButton deleteButton;
     @Nullable
+    private MaterialButton favoriteButton;
+    @Nullable
     private MaterialButton closeButton;
     @Nullable
     private LibraryRepository libraryRepository;
@@ -111,6 +113,7 @@ public class LocalStationEditorFragment extends DialogFragment {
         titleTextView = null;
         saveButton = null;
         deleteButton = null;
+        favoriteButton = null;
         closeButton = null;
         libraryRepository = null;
         editedStation = null;
@@ -132,6 +135,7 @@ public class LocalStationEditorFragment extends DialogFragment {
         titleTextView = contentView.findViewById(R.id.local_station_editor_title);
         saveButton = contentView.findViewById(R.id.local_station_save_button);
         deleteButton = contentView.findViewById(R.id.local_station_delete_button);
+        favoriteButton = contentView.findViewById(R.id.local_station_favorite_button);
         closeButton = contentView.findViewById(R.id.local_station_close_button);
     }
 
@@ -161,9 +165,37 @@ public class LocalStationEditorFragment extends DialogFragment {
             deleteButton.setVisibility(station != null ? View.VISIBLE : View.GONE);
             deleteButton.setOnClickListener(v -> deleteStation());
         }
+        if (favoriteButton != null) {
+            if (station == null || libraryRepository == null) {
+                favoriteButton.setVisibility(View.GONE);
+            } else {
+                favoriteButton.setVisibility(View.VISIBLE);
+                updateFavoriteButton(libraryRepository.isFavorite(station));
+                favoriteButton.setOnClickListener(v -> toggleFavorite(station));
+            }
+        }
         if (closeButton != null) {
             closeButton.setOnClickListener(v -> dismiss());
         }
+    }
+
+    private void toggleFavorite(@NonNull Station station) {
+        if (libraryRepository == null) {
+            return;
+        }
+
+        boolean nextFavorite = !libraryRepository.isFavorite(station);
+        libraryRepository.setFavorite(station, nextFavorite);
+        updateFavoriteButton(nextFavorite);
+    }
+
+    private void updateFavoriteButton(boolean favorite) {
+        if (favoriteButton == null) {
+            return;
+        }
+        favoriteButton.setText(favorite
+                ? R.string.player_unfavorite_button
+                : R.string.player_favorite_button);
     }
 
     private void attemptSave() {

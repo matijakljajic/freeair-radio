@@ -155,6 +155,15 @@
             />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/local_station_favorite_button"
+            style="@style/Widget.FreeAirRadio.DialogSecondaryButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/dialog_secondary_button_margin_top"
+            android:text="@string/player_favorite_button"
+            android:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/local_station_close_button"
             style="@style/Widget.FreeAirRadio.DialogSecondaryButton"
             android:layout_width="match_parent"
