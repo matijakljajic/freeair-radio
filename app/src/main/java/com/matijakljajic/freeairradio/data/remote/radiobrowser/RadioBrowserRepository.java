@@ -26,12 +26,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import retrofit2.Response;
 
 public final class RadioBrowserRepository implements StationRepository {
 
     private static final int DEFAULT_LIMIT = 50;
+    private static final int MAX_PARALLEL_COUNTRY_REQUESTS = 4;
     private static final int MAX_SERVER_ATTEMPTS = 3;
     private static final String RADIO_BROWSER_ID_PREFIX = "RADIO_BROWSER:";
     private static final String ORDER_CLICK_COUNT = "clickcount";
@@ -220,19 +223,47 @@ public final class RadioBrowserRepository implements StationRepository {
                                                                         @NonNull List<String> countryCodes)
             throws IOException {
         Map<String, RadioBrowserStationDto> mergedStations = new LinkedHashMap<>();
+        ExecutorService countryRequestExecutor = Executors.newFixedThreadPool(
+                Math.min(MAX_PARALLEL_COUNTRY_REQUESTS, countryCodes.size())
+        );
+        List<Future<List<RadioBrowserStationDto>>> countryRequests = new ArrayList<>();
+        IOException firstFailure = null;
 
-        for (String countryCode : countryCodes) {
-            List<RadioBrowserStationDto> stations = fetchStations(
-                    api.loadTopStationsByCountryCode(
-                            countryCode,
-                            DEFAULT_LIMIT,
-                            true,
-                            ORDER_CLICK_COUNT,
-                            true
-                    ),
-                    "load top stations for " + countryCode
-            );
-            mergeStations(mergedStations, stations);
+        try {
+            for (String countryCode : countryCodes) {
+                countryRequests.add(countryRequestExecutor.submit(() -> fetchStations(
+                        api.loadTopStationsByCountryCode(
+                                countryCode,
+                                DEFAULT_LIMIT,
+                                true,
+                                ORDER_CLICK_COUNT,
+                                true
+                        ),
+                        "load top stations for " + countryCode
+                )));
+            }
+
+            for (Future<List<RadioBrowserStationDto>> countryRequest : countryRequests) {
+                try {
+                    mergeStations(mergedStations, countryRequest.get());
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Regional station load was interrupted", exception);
+                } catch (ExecutionException exception) {
+                    if (firstFailure == null) {
+                        Throwable cause = exception.getCause();
+                        firstFailure = cause instanceof IOException
+                                ? (IOException) cause
+                                : new IOException("Failed to load regional top stations", cause);
+                    }
+                }
+            }
+        } finally {
+            countryRequestExecutor.shutdownNow();
+        }
+
+        if (mergedStations.isEmpty() && firstFailure != null) {
+            throw firstFailure;
         }
 
         List<RadioBrowserStationDto> sortedStations = new ArrayList<>(mergedStations.values());

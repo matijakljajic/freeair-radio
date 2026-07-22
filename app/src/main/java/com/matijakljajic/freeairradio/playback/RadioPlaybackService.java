@@ -627,6 +627,7 @@ public class RadioPlaybackService extends MediaLibraryService {
             return;
         }
         AppLog.d(TAG, "Play requested for " + station.getName());
+        promoteToForeground(buildConnectingNotification(station));
         if (audioFocusHandler == null || !audioFocusHandler.requestFocus()) {
             Log.w(TAG, "Audio focus denied for " + station.getName());
             handleDeniedPlaybackStart();
@@ -881,7 +882,6 @@ public class RadioPlaybackService extends MediaLibraryService {
         setConnectingMediaPlaceholder(station);
         currentPlaybackState.setCurrentStation(station);
         resolveArtworkForStation(station);
-        promoteToForeground(buildConnectingNotification(station));
     }
 
     private void resolvePlaybackAsync(@NonNull Station station, int sequence) {
@@ -925,6 +925,7 @@ public class RadioPlaybackService extends MediaLibraryService {
         }
         if (currentStation == null
                 && currentPlaybackState.getPlaybackStatus() == CurrentPlaybackState.PlaybackStatus.IDLE) {
+            stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
         }
     }
