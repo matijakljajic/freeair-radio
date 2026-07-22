@@ -54,8 +54,8 @@ android {
         applicationId = "com.matijakljajic.freeairradio"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "v0.9.2-beta1"
+        versionCode = 4
+        versionName = "v0.9.3-beta1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
