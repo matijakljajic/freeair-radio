@@ -135,7 +135,6 @@ jobs:
           for apk in app/build/outputs/apk/release/*.apk; do
             versioned_apk="app/build/outputs/apk/release/freeairradio-${VERSION_NAME}.apk"
             mv "$apk" "$versioned_apk"
-            cp "$versioned_apk" "app/build/outputs/apk/release/freeairradio-latest.apk"
           done
 
           for aab in app/build/outputs/bundle/release/*.aab; do
