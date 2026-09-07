@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:orientation="horizontal"
+    tools:context=".ui.MainActivity">
+
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <include layout="@layout/view_main_shell" />
+
+    </FrameLayout>
+
+    <View
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:background="?attr/colorOutline"
+        android:importantForAccessibility="no" />
+
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="?attr/colorSurface">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fitsSystemWindows="true"
+            android:paddingTop="@dimen/history_pane_gradient_height"
+            android:paddingBottom="@dimen/history_pane_gradient_height">
+
+            <androidx.fragment.app.FragmentContainerView
+                android:id="@+id/recently_listened_fragment_container"
+                android:name="com.matijakljajic.freeairradio.ui.history.RecentlyListenedFragment"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                tools:layout="@layout/fragment_recently_listened" />
+
+        </FrameLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/history_pane_gradient_height"
+            android:layout_gravity="top"
+            android:background="@drawable/top_content_filter"
+            android:importantForAccessibility="no" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/history_pane_gradient_height"
+            android:layout_gravity="bottom"
+            android:background="@drawable/bottom_content_filter"
+            android:importantForAccessibility="no" />
+
+    </FrameLayout>
+
+</LinearLayout>
