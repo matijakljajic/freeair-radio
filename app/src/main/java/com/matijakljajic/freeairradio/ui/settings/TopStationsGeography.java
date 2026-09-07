@@ -324,7 +324,7 @@ public final class TopStationsGeography {
         String label = new Locale.Builder()
                 .setRegion(countryCode)
                 .build()
-                .getDisplayCountry(Locale.getDefault());
+                .getDisplayCountry(Locale.ENGLISH);
         if (label == null) {
             return countryCode;
         }
