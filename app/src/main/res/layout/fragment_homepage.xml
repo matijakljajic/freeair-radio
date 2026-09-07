@@ -5,9 +5,16 @@
     android:layout_height="match_parent"
     android:clipChildren="false"
     android:clipToPadding="false"
-    android:paddingStart="8dp"
-    android:paddingEnd="8dp">
+    android:paddingStart="@dimen/screen_content_horizontal_padding"
+    android:paddingEnd="@dimen/screen_content_horizontal_padding">
 
-    <include layout="@layout/view_station_feed_content" />
+    <com.matijakljajic.freeairradio.ui.util.ContentWidthFrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center_horizontal">
+
+        <include layout="@layout/view_station_feed_content" />
+
+    </com.matijakljajic.freeairradio.ui.util.ContentWidthFrameLayout>
 
 </FrameLayout>

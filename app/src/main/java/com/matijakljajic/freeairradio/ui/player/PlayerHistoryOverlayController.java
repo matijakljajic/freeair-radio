@@ -14,12 +14,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.fragment.app.Fragment;
 
 import com.matijakljajic.freeairradio.ui.history.RecentlyListenedFragment;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
-public final class PlayerOverlayController {
+public final class PlayerHistoryOverlayController {
 
     private static final long OVERLAY_FADE_DURATION_MS = 220L;
     private static final long PLAYER_MOVE_DURATION_MS = 260L;
@@ -38,8 +39,7 @@ public final class PlayerOverlayController {
     private final View expandedPlayerContainerView;
     @Nullable
     private final View recentHistoryContainerView;
-    @Nullable
-    private final View recentHistoryBottomFadeView;
+    private final int expandedPlayerBaseTopMarginPx;
     @NonNull
     private final OnBackPressedCallback backPressedCallback;
     @NonNull
@@ -47,19 +47,20 @@ public final class PlayerOverlayController {
     @NonNull
     private final View.OnLayoutChangeListener collapsedPlayerLayoutChangeListener;
     @NonNull
+    private final View.OnLayoutChangeListener rootLayoutChangeListener;
+    @NonNull
     private final Rect recentHistoryClipBounds = new Rect();
     @Nullable
     private ValueAnimator playerRevealAnimator;
     private boolean overlayVisible;
 
-    public PlayerOverlayController(@NonNull AppCompatActivity activity,
-                                   @NonNull View rootView,
-                                   @Nullable View overlayContainerView,
-                                   @Nullable View overlayScrimView,
-                                   @Nullable View collapsedPlayerContainerView,
-                                   @Nullable View expandedPlayerContainerView,
-                                   @Nullable View recentHistoryContainerView,
-                                   @Nullable View recentHistoryBottomFadeView) {
+    public PlayerHistoryOverlayController(@NonNull AppCompatActivity activity,
+                                          @NonNull View rootView,
+                                          @Nullable View overlayContainerView,
+                                          @Nullable View overlayScrimView,
+                                          @Nullable View collapsedPlayerContainerView,
+                                          @Nullable View expandedPlayerContainerView,
+                                          @Nullable View recentHistoryContainerView) {
         this.activity = activity;
         this.rootView = rootView;
         this.overlayContainerView = overlayContainerView;
@@ -67,7 +68,7 @@ public final class PlayerOverlayController {
         this.collapsedPlayerContainerView = collapsedPlayerContainerView;
         this.expandedPlayerContainerView = expandedPlayerContainerView;
         this.recentHistoryContainerView = recentHistoryContainerView;
-        this.recentHistoryBottomFadeView = recentHistoryBottomFadeView;
+        this.expandedPlayerBaseTopMarginPx = getTopMargin(expandedPlayerContainerView);
         this.backPressedCallback = new OnBackPressedCallback(false) {
             @Override
             public void handleOnBackPressed() {
@@ -80,10 +81,14 @@ public final class PlayerOverlayController {
         this.collapsedPlayerLayoutChangeListener =
                 (view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
                         updateRecentHistoryBounds();
+        this.rootLayoutChangeListener =
+                (view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
+                        updateRecentHistoryBounds();
     }
 
     public void attach() {
         activity.getOnBackPressedDispatcher().addCallback(activity, backPressedCallback);
+        rootView.addOnLayoutChangeListener(rootLayoutChangeListener);
         if (expandedPlayerContainerView != null) {
             expandedPlayerContainerView.addOnLayoutChangeListener(expandedPlayerLayoutChangeListener);
         }
@@ -101,6 +106,7 @@ public final class PlayerOverlayController {
 
     public void detach() {
         backPressedCallback.remove();
+        rootView.removeOnLayoutChangeListener(rootLayoutChangeListener);
         if (expandedPlayerContainerView != null) {
             expandedPlayerContainerView.removeOnLayoutChangeListener(expandedPlayerLayoutChangeListener);
         }
@@ -170,8 +176,7 @@ public final class PlayerOverlayController {
                 && overlayScrimView != null
                 && collapsedPlayerContainerView != null
                 && expandedPlayerContainerView != null
-                && recentHistoryContainerView != null
-                && recentHistoryBottomFadeView != null;
+                && recentHistoryContainerView != null;
     }
 
     private void configureExpandedPlayerPosition() {
@@ -185,8 +190,7 @@ public final class PlayerOverlayController {
         }
 
         ViewGroup.MarginLayoutParams marginLayoutParams = (ViewGroup.MarginLayoutParams) layoutParams;
-        int desiredTopMargin = getStatusBarInsetTop()
-                + UiDimensions.px(rootView.getContext(), R.dimen.top_content_gap);
+        int desiredTopMargin = getStatusBarInsetTop() + expandedPlayerBaseTopMarginPx;
         if (marginLayoutParams.topMargin == desiredTopMargin) {
             return;
         }
@@ -212,7 +216,6 @@ public final class PlayerOverlayController {
         int desiredBottomMargin = Math.max(0, rootView.getHeight() - getCollapsedPlayerBottomInRoot());
         if (marginLayoutParams.topMargin == 0
                 && marginLayoutParams.bottomMargin == desiredBottomMargin) {
-            applyRecentHistoryBottomFadeHeight(desiredBottomMargin);
             applyRecentHistoryContentInsets(desiredTopInset);
             return;
         }
@@ -220,7 +223,6 @@ public final class PlayerOverlayController {
         marginLayoutParams.topMargin = 0;
         marginLayoutParams.bottomMargin = desiredBottomMargin;
         recentHistoryContainerView.setLayoutParams(marginLayoutParams);
-        applyRecentHistoryBottomFadeHeight(desiredBottomMargin);
         applyRecentHistoryContentInsets(desiredTopInset);
     }
 
@@ -237,15 +239,18 @@ public final class PlayerOverlayController {
     }
 
     private int getExpandedPlayerTop() {
-        if (expandedPlayerContainerView == null) {
+        return getTopMargin(expandedPlayerContainerView);
+    }
+
+    private int getTopMargin(@Nullable View view) {
+        if (view == null) {
             return 0;
         }
 
-        ViewGroup.LayoutParams layoutParams = expandedPlayerContainerView.getLayoutParams();
-        if (!(layoutParams instanceof ViewGroup.MarginLayoutParams)) {
-            return 0;
-        }
-        return ((ViewGroup.MarginLayoutParams) layoutParams).topMargin;
+        ViewGroup.LayoutParams layoutParams = view.getLayoutParams();
+        return layoutParams instanceof ViewGroup.MarginLayoutParams
+                ? ((ViewGroup.MarginLayoutParams) layoutParams).topMargin
+                : 0;
     }
 
     private int getCollapsedPlayerBottomInRoot() {
@@ -351,8 +356,7 @@ public final class PlayerOverlayController {
         if (overlayContainerView == null
                 || overlayScrimView == null
                 || recentHistoryContainerView == null
-                || expandedPlayerContainerView == null
-                || recentHistoryBottomFadeView == null) {
+                || expandedPlayerContainerView == null) {
             return;
         }
 
@@ -360,7 +364,6 @@ public final class PlayerOverlayController {
         overlayScrimView.setAlpha(1f);
         recentHistoryContainerView.setClipBounds(null);
         expandedPlayerContainerView.setTranslationY(0f);
-        applyRecentHistoryBottomFadeHeight(0);
     }
 
     private int getRecentHistoryTopInset() {
@@ -370,7 +373,7 @@ public final class PlayerOverlayController {
 
         return getExpandedPlayerTop()
                 + expandedPlayerContainerView.getHeight()
-                + UiDimensions.px(rootView.getContext(), R.dimen.player_overlay_history_gap);
+                + UiDimensions.px(rootView.getContext(), R.dimen.player_history_overlay_gap);
     }
 
     private int getRecentHistoryClipTop() {
@@ -382,23 +385,9 @@ public final class PlayerOverlayController {
     }
 
     private void applyRecentHistoryContentInsets(int topInset) {
-        if (recentHistoryContainerView == null) {
-            return;
-        }
-
         RecentlyListenedFragment fragment = findRecentlyListenedFragment();
         if (fragment != null) {
             fragment.setContentTopInsetPx(topInset);
-        }
-
-        View emptyView = recentHistoryContainerView.findViewById(R.id.recently_listened_empty_view);
-        if (emptyView != null && emptyView.getPaddingTop() != topInset) {
-            emptyView.setPadding(
-                    emptyView.getPaddingLeft(),
-                    topInset,
-                    emptyView.getPaddingRight(),
-                    emptyView.getPaddingBottom()
-            );
         }
     }
 
@@ -409,28 +398,13 @@ public final class PlayerOverlayController {
         recentHistoryContainerView.post(this::updateRecentHistoryBounds);
     }
 
-    private void applyRecentHistoryBottomFadeHeight(int bottomFadeHeightPx) {
-        if (recentHistoryBottomFadeView == null) {
-            return;
-        }
-
-        ViewGroup.LayoutParams layoutParams = recentHistoryBottomFadeView.getLayoutParams();
-        if (layoutParams.height == bottomFadeHeightPx) {
-            return;
-        }
-
-        layoutParams.height = bottomFadeHeightPx;
-        recentHistoryBottomFadeView.setLayoutParams(layoutParams);
-    }
-
     @Nullable
     private RecentlyListenedFragment findRecentlyListenedFragment() {
-        if (activity.getSupportFragmentManager().findFragmentById(R.id.recently_listened_fragment_container)
-                instanceof RecentlyListenedFragment) {
-            return (RecentlyListenedFragment) activity.getSupportFragmentManager()
-                    .findFragmentById(R.id.recently_listened_fragment_container);
-        }
-        return null;
+        Fragment fragment = activity.getSupportFragmentManager()
+                .findFragmentById(R.id.recently_listened_fragment_container);
+        return fragment instanceof RecentlyListenedFragment
+                ? (RecentlyListenedFragment) fragment
+                : null;
     }
 
     private void resetRecentHistoryState() {

@@ -9,6 +9,8 @@ import android.view.WindowManager;
 
 import androidx.annotation.Nullable;
 
+import com.matijakljajic.freeairradio.R;
+
 public final class DialogWindowHelper {
 
     private DialogWindowHelper() {
@@ -25,7 +27,20 @@ public final class DialogWindowHelper {
         }
 
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        window.setGravity(Gravity.CENTER_HORIZONTAL);
-        window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
+        int windowWidthPx = window.getDecorView().getRootView().getWidth();
+        if (windowWidthPx <= 0) {
+            windowWidthPx = dialog.getContext().getResources().getDisplayMetrics().widthPixels;
+        }
+        int horizontalMarginPx = dialog.getContext().getResources()
+                .getDimensionPixelSize(R.dimen.dialog_horizontal_margin);
+        int maximumWidthPx = dialog.getContext().getResources()
+                .getDimensionPixelSize(R.dimen.dialog_max_width);
+        int availableWidthPx = Math.max(0, windowWidthPx - (horizontalMarginPx * 2));
+
+        window.setGravity(Gravity.CENTER);
+        window.setLayout(
+                Math.min(availableWidthPx, maximumWidthPx),
+                WindowManager.LayoutParams.WRAP_CONTENT
+        );
     }
 }

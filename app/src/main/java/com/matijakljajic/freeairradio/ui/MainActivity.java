@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
@@ -23,17 +24,17 @@ import com.matijakljajic.freeairradio.playback.RadioPlayer;
 import com.matijakljajic.freeairradio.ui.settings.AppThemeSettings;
 import com.matijakljajic.freeairradio.ui.homepage.HomePageFragment;
 import com.matijakljajic.freeairradio.ui.player.PlayerFragment;
-import com.matijakljajic.freeairradio.ui.player.PlayerOverlayController;
+import com.matijakljajic.freeairradio.ui.player.PlayerHistoryOverlayController;
 import com.matijakljajic.freeairradio.ui.settings.SettingsFragment;
-import com.matijakljajic.freeairradio.ui.shell.ShellChromeController;
-import com.matijakljajic.freeairradio.ui.shell.ShellChromeHost;
+import com.matijakljajic.freeairradio.ui.shell.AppShellController;
+import com.matijakljajic.freeairradio.ui.shell.AppShellHost;
 import com.matijakljajic.freeairradio.ui.stations.StationFeedFragment;
 import com.matijakljajic.freeairradio.ui.stations.StationSearchFragment;
 
 @SuppressWarnings("unused")
 public class MainActivity extends AppCompatActivity implements
         StationFeedFragment.OnStationSelectedListener,
-        ShellChromeHost,
+        AppShellHost,
         PlayerFragment.PlayerSurfaceHost {
 
     private static final int REQUEST_CODE_POST_NOTIFICATIONS = 1001;
@@ -47,11 +48,11 @@ public class MainActivity extends AppCompatActivity implements
     @Nullable
     private MaterialButtonToggleGroup navToggleGroup;
     @Nullable
-    private ShellChromeController shellChromeController;
+    private AppShellController appShellController;
     @Nullable
     private RadioPlayer radioPlayer;
     @Nullable
-    private PlayerOverlayController playerOverlayController;
+    private PlayerHistoryOverlayController playerHistoryOverlayController;
     private boolean suppressNavCallbacks;
 
     @Override
@@ -63,7 +64,7 @@ public class MainActivity extends AppCompatActivity implements
         restoreState(savedInstanceState);
         bindViews();
         bindNavigation();
-        attachShellChrome();
+        attachAppShell();
         requestNotificationPermissionIfNeeded();
         refreshRadioBrowserServers();
         selectTab(currentTab, true);
@@ -105,23 +106,25 @@ public class MainActivity extends AppCompatActivity implements
     private void bindViews() {
         navToggleGroup = findViewById(R.id.main_nav_toggle_group);
         radioPlayer = new RadioPlayer(this);
-        shellChromeController = new ShellChromeController(
+        appShellController = new AppShellController(
                 findViewById(R.id.main),
                 findViewById(R.id.status_bar_filter),
                 findViewById(R.id.bottom_content_filter),
-                findViewById(R.id.player_shell_container),
-                findViewById(R.id.search_shell_overlay_container)
+                findViewById(R.id.bottom_controls_container),
+                findViewById(R.id.search_overlay_container)
         );
-        playerOverlayController = new PlayerOverlayController(
-                this,
-                findViewById(R.id.main),
-                findViewById(R.id.player_overlay_container),
-                findViewById(R.id.player_overlay_scrim),
-                findViewById(R.id.player_fragment_container),
-                findViewById(R.id.expanded_player_container),
-                findViewById(R.id.recently_listened_fragment_container),
-                findViewById(R.id.player_overlay_bottom_fade_inverted)
-        );
+        View playerHistoryOverlay = findViewById(R.id.player_history_overlay_container);
+        if (playerHistoryOverlay != null) {
+            playerHistoryOverlayController = new PlayerHistoryOverlayController(
+                    this,
+                    findViewById(R.id.main),
+                    playerHistoryOverlay,
+                    findViewById(R.id.player_history_overlay_scrim),
+                    findViewById(R.id.player_fragment_container),
+                    findViewById(R.id.expanded_player_container),
+                    findViewById(R.id.recently_listened_fragment_container)
+            );
+        }
     }
 
     private void bindNavigation() {
@@ -144,12 +147,12 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
 
-    private void attachShellChrome() {
-        if (shellChromeController != null) {
-            shellChromeController.attach();
+    private void attachAppShell() {
+        if (appShellController != null) {
+            appShellController.attach();
         }
-        if (playerOverlayController != null) {
-            playerOverlayController.attach();
+        if (playerHistoryOverlayController != null) {
+            playerHistoryOverlayController.attach();
         }
     }
 
@@ -174,49 +177,49 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     protected void onDestroy() {
-        detachShellChrome();
+        detachAppShell();
         radioPlayer = null;
         super.onDestroy();
     }
 
-    private void detachShellChrome() {
-        if (playerOverlayController != null) {
-            playerOverlayController.detach();
+    private void detachAppShell() {
+        if (playerHistoryOverlayController != null) {
+            playerHistoryOverlayController.detach();
         }
-        if (shellChromeController != null) {
-            shellChromeController.detach();
+        if (appShellController != null) {
+            appShellController.detach();
         }
     }
 
     @Override
     public void onPlayerSurfaceTap(boolean expanded) {
-        if (playerOverlayController == null) {
+        if (playerHistoryOverlayController == null) {
             return;
         }
 
         if (expanded) {
-            playerOverlayController.close();
+            playerHistoryOverlayController.close();
         } else {
-            playerOverlayController.open();
+            playerHistoryOverlayController.open();
         }
     }
 
     @Override
     public void onPlayerSurfaceSwipe(boolean expanded, boolean upward) {
-        if (playerOverlayController == null) {
+        if (playerHistoryOverlayController == null) {
             return;
         }
 
         if (!expanded && upward) {
-            playerOverlayController.open();
+            playerHistoryOverlayController.open();
         } else if (expanded && !upward) {
-            playerOverlayController.close();
+            playerHistoryOverlayController.close();
         }
     }
 
     @Nullable
-    public ShellChromeController getShellChromeController() {
-        return shellChromeController;
+    public AppShellController getAppShellController() {
+        return appShellController;
     }
 
     private void selectTab(@NonNull Tab tab) {
@@ -240,16 +243,16 @@ public class MainActivity extends AppCompatActivity implements
     private void replaceMainFragment(@NonNull Tab tab) {
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.main_content_fragment_container, tab.createFragment())
-                .setTransition(ShellChromeController.DEFAULT_SHELL_TRANSITION_TYPE)
+                .setTransition(AppShellController.DEFAULT_TRANSITION_TYPE)
                 .runOnCommit(() -> applyTabShellState(tab))
                 .commit();
     }
 
     private void applyTabShellState(@NonNull Tab tab) {
-        if (shellChromeController != null) {
-            shellChromeController.setFloaterShellVisible(
-                    tab.showsFloaterShell,
-                    ShellChromeController.DEFAULT_SHELL_TRANSITION_TYPE,
+        if (appShellController != null) {
+            appShellController.setSearchBarVisible(
+                    tab.showsSearchBar,
+                    AppShellController.DEFAULT_TRANSITION_TYPE,
                     0L
             );
         }
@@ -309,11 +312,11 @@ public class MainActivity extends AppCompatActivity implements
         };
 
         final int buttonId;
-        final boolean showsFloaterShell;
+        final boolean showsSearchBar;
 
-        Tab(int buttonId, boolean showsFloaterShell) {
+        Tab(int buttonId, boolean showsSearchBar) {
             this.buttonId = buttonId;
-            this.showsFloaterShell = showsFloaterShell;
+            this.showsSearchBar = showsSearchBar;
         }
 
         @Nullable

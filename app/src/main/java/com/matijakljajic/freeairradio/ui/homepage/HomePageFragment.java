@@ -96,16 +96,7 @@ public class HomePageFragment extends StationFeedFragment {
         bindShakeDetection();
         bindLocalStationEditorResults();
         bindHeaderAdapter();
-        bindStationFeed(
-                view,
-                R.id.station_feed_recycler_view,
-                R.id.station_feed_loading_view,
-                R.id.station_feed_error_container,
-                R.id.station_feed_error_text,
-                R.id.station_feed_empty_view,
-                R.id.station_feed_retry_button,
-                this::refreshCurrentSource
-        );
+        bindStationFeed(view, this::refreshCurrentSource);
         homepageRecyclerView = getRecyclerView();
         attachRecyclerChrome();
         bindFavoritesReorder();
@@ -323,7 +314,7 @@ public class HomePageFragment extends StationFeedFragment {
         if (homepageRecyclerView == null) {
             return;
         }
-        attachShellContentPadding(
+        attachAppShellContentPadding(
                 homepageRecyclerView,
                 UiDimensions.px(requireContext(), R.dimen.top_content_gap)
         );
@@ -331,7 +322,7 @@ public class HomePageFragment extends StationFeedFragment {
 
     private void detachRecyclerChrome() {
         if (homepageRecyclerView != null) {
-            detachShellContentPadding(homepageRecyclerView);
+            detachAppShellContentPadding(homepageRecyclerView);
         }
     }
 

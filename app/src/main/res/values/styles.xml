@@ -31,6 +31,28 @@
         <item name="strokeWidth">1dp</item>
     </style>
 
+    <style name="Widget.FreeAirRadio.SettingsCard" parent="">
+        <item name="cardBackgroundColor">?attr/colorSurface</item>
+        <item name="cardCornerRadius">20dp</item>
+        <item name="cardUseCompatPadding">false</item>
+        <item name="strokeColor">?attr/colorOutline</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.FreeAirRadio.SettingsCardContent" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:padding">16dp</item>
+    </style>
+
+    <style name="Widget.FreeAirRadio.SettingsRadioButton" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="buttonTint">?attr/colorPrimary</item>
+    </style>
+
     <style name="TextAppearance.FreeAirRadio.DialogTitle" parent="TextAppearance.Material3.HeadlineSmall">
         <item name="android:textStyle">bold</item>
     </style>

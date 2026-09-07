@@ -15,21 +15,21 @@ import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
 @SuppressWarnings("unused")
-public class PlayerShellContainer extends LinearLayout {
+public class BottomControlsContainer extends LinearLayout {
 
     private int lastAppliedBottomMarginPx = Integer.MIN_VALUE;
 
-    public PlayerShellContainer(@NonNull Context context) {
+    public BottomControlsContainer(@NonNull Context context) {
         super(context);
         init();
     }
 
-    public PlayerShellContainer(@NonNull Context context, @Nullable AttributeSet attrs) {
+    public BottomControlsContainer(@NonNull Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
         init();
     }
 
-    public PlayerShellContainer(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+    public BottomControlsContainer(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init();
     }

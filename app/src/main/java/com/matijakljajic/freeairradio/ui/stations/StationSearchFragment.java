@@ -13,11 +13,11 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.matijakljajic.freeairradio.R;
-import com.matijakljajic.freeairradio.ui.shell.ShellChromeAwareFragment;
-import com.matijakljajic.freeairradio.ui.shell.ShellChromeController;
+import com.matijakljajic.freeairradio.ui.shell.AppShellAwareFragment;
+import com.matijakljajic.freeairradio.ui.shell.AppShellController;
 
 @SuppressWarnings("unused")
-public class StationSearchFragment extends ShellChromeAwareFragment {
+public class StationSearchFragment extends AppShellAwareFragment {
 
     private static final String STATE_QUERY = "state_query";
     @Nullable
@@ -25,7 +25,7 @@ public class StationSearchFragment extends ShellChromeAwareFragment {
     @Nullable
     private View searchButton;
     @Nullable
-    private StationListFragment stationListFragment;
+    private StationSearchResultsFragment searchResultsFragment;
     @NonNull
     private String currentQuery = "";
 
@@ -46,7 +46,7 @@ public class StationSearchFragment extends ShellChromeAwareFragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        bindStationListFragment();
+        bindSearchResultsFragment();
         bindSearchShell();
     }
 
@@ -58,9 +58,9 @@ public class StationSearchFragment extends ShellChromeAwareFragment {
 
     @Override
     public void onDestroyView() {
-        ShellChromeController shellChromeController = getShellChromeController();
-        if (shellChromeController != null) {
-            shellChromeController.setFloaterStationListFragment(null);
+        AppShellController appShellController = getAppShellController();
+        if (appShellController != null) {
+            appShellController.setSearchResultsFragment(null);
         }
         if (searchInput != null) {
             searchInput.setOnEditorActionListener(null);
@@ -70,36 +70,36 @@ public class StationSearchFragment extends ShellChromeAwareFragment {
         }
         searchInput = null;
         searchButton = null;
-        stationListFragment = null;
+        searchResultsFragment = null;
         super.onDestroyView();
     }
 
-    private void bindStationListFragment() {
-        stationListFragment = findOrCreateStationListFragment();
-        if (stationListFragment == null) {
+    private void bindSearchResultsFragment() {
+        searchResultsFragment = findOrCreateSearchResultsFragment();
+        if (searchResultsFragment == null) {
             return;
         }
 
-        ShellChromeController shellChromeController = getShellChromeController();
-        if (shellChromeController != null) {
-            shellChromeController.setFloaterStationListFragment(stationListFragment);
+        AppShellController appShellController = getAppShellController();
+        if (appShellController != null) {
+            appShellController.setSearchResultsFragment(searchResultsFragment);
         }
         submitCurrentQueryIfNeeded();
     }
 
     @Nullable
-    private StationListFragment findOrCreateStationListFragment() {
+    private StationSearchResultsFragment findOrCreateSearchResultsFragment() {
         FragmentManager childFragmentManager = getChildFragmentManager();
-        Fragment fragment = childFragmentManager.findFragmentById(R.id.station_search_list_container);
+        Fragment fragment = childFragmentManager.findFragmentById(R.id.station_search_results_container);
         if (fragment == null) {
-            fragment = new StationListFragment();
+            fragment = new StationSearchResultsFragment();
             childFragmentManager.beginTransaction()
-                    .replace(R.id.station_search_list_container, fragment)
+                    .replace(R.id.station_search_results_container, fragment)
                     .commitNow();
         }
 
-        if (fragment instanceof StationListFragment) {
-            return (StationListFragment) fragment;
+        if (fragment instanceof StationSearchResultsFragment) {
+            return (StationSearchResultsFragment) fragment;
         }
         return null;
     }
@@ -111,8 +111,8 @@ public class StationSearchFragment extends ShellChromeAwareFragment {
     }
 
     private void submitCurrentQueryIfNeeded() {
-        if (stationListFragment != null) {
-            stationListFragment.submitQuery(currentQuery);
+        if (searchResultsFragment != null) {
+            searchResultsFragment.submitQuery(currentQuery);
         }
     }
 
@@ -138,13 +138,13 @@ public class StationSearchFragment extends ShellChromeAwareFragment {
     }
 
     private void bindSearchShell() {
-        ShellChromeController shellChromeController = getShellChromeController();
-        if (shellChromeController == null) {
+        AppShellController appShellController = getAppShellController();
+        if (appShellController == null) {
             return;
         }
 
-        searchInput = shellChromeController.getSearchInput();
-        searchButton = shellChromeController.getSearchButton();
+        searchInput = appShellController.getSearchInput();
+        searchButton = appShellController.getSearchButton();
         bindSearchInput();
         bindSearchButton();
     }

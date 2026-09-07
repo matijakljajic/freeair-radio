@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <dimen name="content_max_width">10000dp</dimen>
+    <dimen name="screen_content_horizontal_padding">8dp</dimen>
+    <dimen name="station_feed_horizontal_padding">16dp</dimen>
+    <dimen name="player_horizontal_margin">10dp</dimen>
+    <dimen name="search_bar_horizontal_margin">16dp</dimen>
+    <dimen name="dialog_max_width">10000dp</dimen>
+    <dimen name="dialog_horizontal_margin">16dp</dimen>
     <dimen name="top_content_gap">10dp</dimen>
     <dimen name="list_bottom_padding">16dp</dimen>
     <dimen name="search_top_gap">10dp</dimen>
@@ -26,8 +33,8 @@
     <dimen name="dialog_primary_button_margin_top">18dp</dimen>
     <dimen name="dialog_secondary_button_margin_top">10dp</dimen>
     <dimen name="dialog_pill_corner_radius">999dp</dimen>
-    <dimen name="player_overlay_history_gap">12dp</dimen>
-    <dimen name="player_overlay_history_edge_fade_height">24dp</dimen>
-    <dimen name="player_overlay_history_enter_offset">20dp</dimen>
+    <dimen name="player_history_overlay_gap">12dp</dimen>
+    <dimen name="player_history_overlay_edge_fade_height">24dp</dimen>
+    <dimen name="history_pane_gradient_height">48dp</dimen>
     <dimen name="player_surface_swipe_threshold">36dp</dimen>
 </resources>

@@ -2,7 +2,7 @@ package com.matijakljajic.freeairradio.ui.shell;
 
 import androidx.annotation.Nullable;
 
-public interface ShellChromeHost {
+public interface AppShellHost {
     @Nullable
-    ShellChromeController getShellChromeController();
+    AppShellController getAppShellController();
 }

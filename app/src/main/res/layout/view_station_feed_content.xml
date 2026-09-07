@@ -10,8 +10,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
+        android:paddingStart="@dimen/station_feed_horizontal_padding"
+        android:paddingEnd="@dimen/station_feed_horizontal_padding"
         tools:listitem="@layout/item_station" />
 
     <LinearLayout

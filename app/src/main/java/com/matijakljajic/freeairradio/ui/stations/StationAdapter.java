@@ -41,10 +41,6 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.StationV
     private List<Station> dragStations = Collections.emptyList();
     private boolean dragReordering;
 
-    public StationAdapter(OnStationInteractionListener onStationInteractionListener) {
-        this(onStationInteractionListener, null);
-    }
-
     public StationAdapter(@NonNull OnStationInteractionListener onStationInteractionListener,
                           @Nullable DragHandleListener dragHandleListener) {
         this.onStationInteractionListener = onStationInteractionListener;

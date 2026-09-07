@@ -52,7 +52,6 @@ public final class RecentlyListenedFragment extends Fragment {
         libraryRepository = LibraryRepository.getInstance(requireContext());
         recyclerView = view.findViewById(R.id.recently_listened_recycler_view);
         emptyView = view.findViewById(R.id.recently_listened_empty_view);
-        bottomFadeView = view.findViewById(R.id.recently_listened_bottom_fade);
         adapter = new RecentlyListenedAdapter();
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         recyclerView.addItemDecoration(topSpacingDecoration);

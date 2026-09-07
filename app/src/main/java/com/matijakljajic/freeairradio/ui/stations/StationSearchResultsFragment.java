@@ -13,19 +13,19 @@ import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
 @SuppressWarnings("unused")
-public class StationListFragment extends StationFeedFragment {
+public class StationSearchResultsFragment extends StationFeedFragment {
 
     private static final String STATE_QUERY = "state_query";
 
     @Nullable
-    private View playerShellView;
+    private View bottomControlsView;
     @Nullable
     private RecyclerView stationRecyclerView;
     @NonNull
     private String currentQuery = "";
     private int searchTopPaddingPx;
     private int bottomRecyclerGapPx;
-    private final View.OnLayoutChangeListener playerShellLayoutChangeListener =
+    private final View.OnLayoutChangeListener bottomControlsLayoutChangeListener =
             (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateRecyclerPadding();
 
     public void setSearchTopPaddingPx(int searchTopPaddingPx) {
@@ -58,24 +58,15 @@ public class StationListFragment extends StationFeedFragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_station_list, container, false);
+        return inflater.inflate(R.layout.view_station_feed_content, container, false);
     }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        bindStationFeed(
-                view,
-                R.id.station_feed_recycler_view,
-                R.id.station_feed_loading_view,
-                R.id.station_feed_error_container,
-                R.id.station_feed_error_text,
-                R.id.station_feed_empty_view,
-                R.id.station_feed_retry_button,
-                this::refreshCurrentQuery
-        );
+        bindStationFeed(view, this::refreshCurrentQuery);
         stationRecyclerView = getRecyclerView();
-        bindPlayerShellObserver();
+        bindBottomControlsObserver();
         updateRecyclerPadding();
         view.post(this::refreshCurrentQuery);
     }
@@ -95,23 +86,23 @@ public class StationListFragment extends StationFeedFragment {
 
     @Override
     public void onDestroyView() {
-        unbindPlayerShellObserver();
+        unbindBottomControlsObserver();
         stationRecyclerView = null;
         clearStationFeed();
         super.onDestroyView();
     }
 
-    private void bindPlayerShellObserver() {
-        playerShellView = requireActivity().findViewById(R.id.player_shell_container);
-        if (playerShellView != null) {
-            playerShellView.addOnLayoutChangeListener(playerShellLayoutChangeListener);
+    private void bindBottomControlsObserver() {
+        bottomControlsView = requireActivity().findViewById(R.id.bottom_controls_container);
+        if (bottomControlsView != null) {
+            bottomControlsView.addOnLayoutChangeListener(bottomControlsLayoutChangeListener);
         }
     }
 
-    private void unbindPlayerShellObserver() {
-        if (playerShellView != null) {
-            playerShellView.removeOnLayoutChangeListener(playerShellLayoutChangeListener);
-            playerShellView = null;
+    private void unbindBottomControlsObserver() {
+        if (bottomControlsView != null) {
+            bottomControlsView.removeOnLayoutChangeListener(bottomControlsLayoutChangeListener);
+            bottomControlsView = null;
         }
     }
 
@@ -145,7 +136,7 @@ public class StationListFragment extends StationFeedFragment {
     }
 
     private int resolveBottomRecyclerPaddingPx() {
-        return getPlayerShellHeight() + resolveBottomRecyclerGapPx();
+        return getBottomControlsHeight() + resolveBottomRecyclerGapPx();
     }
 
     private int resolveBottomRecyclerGapPx() {
@@ -155,13 +146,13 @@ public class StationListFragment extends StationFeedFragment {
         return UiDimensions.px(requireContext(), R.dimen.list_bottom_padding);
     }
 
-    private int getPlayerShellHeight() {
-        if (playerShellView == null) {
+    private int getBottomControlsHeight() {
+        if (bottomControlsView == null) {
             return 0;
         }
 
-        ViewGroup.LayoutParams layoutParams = playerShellView.getLayoutParams();
-        int height = playerShellView.getHeight();
+        ViewGroup.LayoutParams layoutParams = bottomControlsView.getLayoutParams();
+        int height = bottomControlsView.getHeight();
         if (layoutParams instanceof ViewGroup.MarginLayoutParams) {
             ViewGroup.MarginLayoutParams marginLayoutParams = (ViewGroup.MarginLayoutParams) layoutParams;
             height += marginLayoutParams.topMargin + marginLayoutParams.bottomMargin;

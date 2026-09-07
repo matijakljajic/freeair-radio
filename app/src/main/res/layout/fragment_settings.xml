@@ -9,11 +9,20 @@
     android:fillViewport="true"
     android:scrollbars="none">
 
-    <LinearLayout
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:layout_height="wrap_content">
+
+        <com.matijakljajic.freeairradio.ui.util.ContentWidthFrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/station_feed_horizontal_padding">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -41,18 +50,7 @@
             tools:ignore="VisualLintSystemUi">
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/settings_support_section_kicker"
-                    android:textAppearance="?attr/textAppearanceLabelMedium"
-                    android:textColor="?attr/colorOnPrimaryContainer"
-                    android:textStyle="bold" />
+                style="@style/Widget.FreeAirRadio.SettingsCardContent">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -105,22 +103,15 @@
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.FreeAirRadio.SettingsCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            app:cardBackgroundColor="?attr/colorSurface"
-            app:cardCornerRadius="20dp"
-            app:cardUseCompatPadding="false"
-            app:strokeColor="?attr/colorOutline"
-            app:strokeWidth="1dp"
             tools:ignore="VisualLintSystemUi">
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:animateLayoutChanges="true"
-                android:padding="16dp">
+                style="@style/Widget.FreeAirRadio.SettingsCardContent"
+                android:animateLayoutChanges="true">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -146,48 +137,32 @@
                     android:orientation="vertical">
 
                     <com.google.android.material.radiobutton.MaterialRadioButton
+                        style="@style/Widget.FreeAirRadio.SettingsRadioButton"
                         android:id="@+id/homepage_default_selection_now_popular"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/station_list_title_now_popular"
-                        android:textColor="?attr/colorOnSurface"
-                        app:buttonTint="?attr/colorPrimary" />
+                        android:text="@string/station_list_title_now_popular" />
 
                     <com.google.android.material.radiobutton.MaterialRadioButton
+                        style="@style/Widget.FreeAirRadio.SettingsRadioButton"
                         android:id="@+id/homepage_default_selection_favorites"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/station_list_title_favorites"
-                        android:textColor="?attr/colorOnSurface"
-                        app:buttonTint="?attr/colorPrimary" />
+                        android:text="@string/station_list_title_favorites" />
 
                     <com.google.android.material.radiobutton.MaterialRadioButton
+                        style="@style/Widget.FreeAirRadio.SettingsRadioButton"
                         android:id="@+id/homepage_default_selection_local_stations"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/station_list_title_local_stations"
-                        android:textColor="?attr/colorOnSurface"
-                        app:buttonTint="?attr/colorPrimary" />
+                        android:text="@string/station_list_title_local_stations" />
                 </RadioGroup>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.FreeAirRadio.SettingsCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            app:cardBackgroundColor="?attr/colorSurface"
-            app:cardCornerRadius="20dp"
-            app:cardUseCompatPadding="false"
-            app:strokeColor="?attr/colorOutline"
-            app:strokeWidth="1dp"
             tools:ignore="VisualLintSystemUi">
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                style="@style/Widget.FreeAirRadio.SettingsCardContent">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -215,21 +190,14 @@
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.FreeAirRadio.SettingsCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            app:cardBackgroundColor="?attr/colorSurface"
-            app:cardCornerRadius="20dp"
-            app:cardUseCompatPadding="false"
-            app:strokeColor="?attr/colorOutline"
-            app:strokeWidth="1dp"
             tools:ignore="VisualLintSystemUi">
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                style="@style/Widget.FreeAirRadio.SettingsCardContent">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -257,22 +225,15 @@
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.FreeAirRadio.SettingsCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            app:cardBackgroundColor="?attr/colorSurface"
-            app:cardCornerRadius="20dp"
-            app:cardUseCompatPadding="false"
-            app:strokeColor="?attr/colorOutline"
-            app:strokeWidth="1dp"
             tools:ignore="VisualLintSystemUi">
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:animateLayoutChanges="true"
-                android:orientation="vertical"
-                android:padding="16dp">
+                style="@style/Widget.FreeAirRadio.SettingsCardContent"
+                android:animateLayoutChanges="true">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -298,41 +259,28 @@
                     android:orientation="vertical">
 
                     <com.google.android.material.radiobutton.MaterialRadioButton
+                        style="@style/Widget.FreeAirRadio.SettingsRadioButton"
                         android:id="@+id/audio_interruption_selection_respect"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/settings_audio_interruption_respect"
-                        android:textColor="?attr/colorOnSurface"
-                        app:buttonTint="?attr/colorPrimary" />
+                        android:text="@string/settings_audio_interruption_respect" />
 
                     <com.google.android.material.radiobutton.MaterialRadioButton
+                        style="@style/Widget.FreeAirRadio.SettingsRadioButton"
                         android:id="@+id/audio_interruption_selection_keep_playing"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/settings_audio_interruption_keep_playing"
-                        android:textColor="?attr/colorOnSurface"
-                        app:buttonTint="?attr/colorPrimary" />
+                        android:text="@string/settings_audio_interruption_keep_playing" />
                 </RadioGroup>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.FreeAirRadio.SettingsCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            app:cardBackgroundColor="?attr/colorSurface"
-            app:cardCornerRadius="20dp"
-            app:cardUseCompatPadding="false"
-            app:strokeColor="?attr/colorOutline"
-            app:strokeWidth="1dp"
             tools:ignore="VisualLintSystemUi">
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:animateLayoutChanges="true"
-                android:padding="16dp">
+                style="@style/Widget.FreeAirRadio.SettingsCardContent"
+                android:animateLayoutChanges="true">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -367,12 +315,9 @@
                     android:orientation="vertical">
 
                     <com.google.android.material.radiobutton.MaterialRadioButton
+                        style="@style/Widget.FreeAirRadio.SettingsRadioButton"
                         android:id="@+id/server_selection_auto"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/settings_server_auto"
-                        android:textColor="?attr/colorOnSurface"
-                        app:buttonTint="?attr/colorPrimary" />
+                        android:text="@string/settings_server_auto" />
                 </RadioGroup>
 
                 <com.google.android.material.button.MaterialButton
@@ -386,22 +331,15 @@
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.FreeAirRadio.SettingsCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            app:cardBackgroundColor="?attr/colorSurface"
-            app:cardCornerRadius="20dp"
-            app:cardUseCompatPadding="false"
-            app:strokeColor="?attr/colorOutline"
-            app:strokeWidth="1dp"
             tools:ignore="VisualLintSystemUi">
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:animateLayoutChanges="true"
-                android:orientation="vertical"
-                android:padding="16dp">
+                style="@style/Widget.FreeAirRadio.SettingsCardContent"
+                android:animateLayoutChanges="true">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -427,48 +365,32 @@
                     android:orientation="vertical">
 
                     <com.google.android.material.radiobutton.MaterialRadioButton
+                        style="@style/Widget.FreeAirRadio.SettingsRadioButton"
                         android:id="@+id/theme_selection_auto"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/settings_theme_auto"
-                        android:textColor="?attr/colorOnSurface"
-                        app:buttonTint="?attr/colorPrimary" />
+                        android:text="@string/settings_theme_auto" />
 
                     <com.google.android.material.radiobutton.MaterialRadioButton
+                        style="@style/Widget.FreeAirRadio.SettingsRadioButton"
                         android:id="@+id/theme_selection_light"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/settings_theme_light"
-                        android:textColor="?attr/colorOnSurface"
-                        app:buttonTint="?attr/colorPrimary" />
+                        android:text="@string/settings_theme_light" />
 
                     <com.google.android.material.radiobutton.MaterialRadioButton
+                        style="@style/Widget.FreeAirRadio.SettingsRadioButton"
                         android:id="@+id/theme_selection_dark"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/settings_theme_dark"
-                        android:textColor="?attr/colorOnSurface"
-                        app:buttonTint="?attr/colorPrimary" />
+                        android:text="@string/settings_theme_dark" />
                 </RadioGroup>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.FreeAirRadio.SettingsCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            app:cardBackgroundColor="?attr/colorSurface"
-            app:cardCornerRadius="20dp"
-            app:cardUseCompatPadding="false"
-            app:strokeColor="?attr/colorOutline"
-            app:strokeWidth="1dp"
             tools:ignore="VisualLintSystemUi">
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                style="@style/Widget.FreeAirRadio.SettingsCardContent">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -522,5 +444,9 @@
             android:textColor="?attr/colorOnSurfaceVariant"
             tools:text="0.9.1-beta1" />
 
-    </LinearLayout>
+            </LinearLayout>
+
+        </com.matijakljajic.freeairradio.ui.util.ContentWidthFrameLayout>
+
+    </FrameLayout>
 </ScrollView>

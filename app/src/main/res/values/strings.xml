@@ -58,7 +58,6 @@
     <string name="settings_server_status_empty">No servers available.</string>
     <string name="settings_server_auto">Automatic</string>
     <string name="settings_server_reset">Reset discovery</string>
-    <string name="settings_support_section_kicker">Support the project</string>
     <string name="settings_support_section_title">Enjoying FreeAir Radio?</string>
     <string name="settings_support_section_summary">A GitHub star shows you like the app, and that means a lot.</string>
     <string name="settings_support_star_button">Star the project on GitHub</string>

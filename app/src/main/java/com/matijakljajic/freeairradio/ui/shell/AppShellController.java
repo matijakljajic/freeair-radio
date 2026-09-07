@@ -1,6 +1,5 @@
 package com.matijakljajic.freeairradio.ui.shell;
 
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
@@ -20,14 +19,13 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.card.MaterialCardView;
 import com.matijakljajic.freeairradio.R;
-import com.matijakljajic.freeairradio.ui.stations.StationListFragment;
+import com.matijakljajic.freeairradio.ui.stations.StationSearchResultsFragment;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
-public final class ShellChromeController {
+public final class AppShellController {
 
-    public static final int DEFAULT_SHELL_TRANSITION_TYPE = FragmentTransaction.TRANSIT_FRAGMENT_CLOSE;
-    // Matches the default duration of the parent fragment close transition.
-    public static final long DEFAULT_SHELL_TRANSITION_DURATION_MS = 300L;
+    public static final int DEFAULT_TRANSITION_TYPE = FragmentTransaction.TRANSIT_FRAGMENT_CLOSE;
+    public static final long DEFAULT_TRANSITION_DURATION_MS = 300L;
 
     @NonNull
     private final View rootView;
@@ -36,19 +34,19 @@ public final class ShellChromeController {
     @Nullable
     private final View bottomContentFilterView;
     @Nullable
-    private final View playerShellContainerView;
+    private final View bottomControlsContainerView;
     @Nullable
-    private final ViewGroup floaterShellOverlayContainer;
-    private final View.OnLayoutChangeListener playerShellLayoutChangeListener;
-    private final View.OnLayoutChangeListener floaterShellLayoutChangeListener;
+    private final ViewGroup searchOverlayContainer;
+    private final View.OnLayoutChangeListener bottomControlsLayoutChangeListener;
+    private final View.OnLayoutChangeListener searchBarLayoutChangeListener;
     @Nullable
-    private MaterialCardView floaterShellView;
+    private MaterialCardView searchBarView;
     @Nullable
     private EditText searchInput;
     @Nullable
     private View searchButton;
     @Nullable
-    private StationListFragment floaterStationListFragment;
+    private StationSearchResultsFragment searchResultsFragment;
     @Nullable
     private View contentPaddingView;
     private int statusBarInsetPx;
@@ -59,54 +57,55 @@ public final class ShellChromeController {
     private int contentPaddingBaseTopPx;
     private int contentPaddingBaseRightPx;
     private int contentPaddingBaseBottomPx;
-    private boolean floaterShellVisible;
+    private int searchBarBaseTopMarginPx;
+    private boolean searchBarVisible;
 
-    public ShellChromeController(@NonNull View rootView,
-                                 @Nullable View statusBarFilterView,
-                                 @Nullable View bottomContentFilterView,
-                                 @Nullable View playerShellContainerView,
-                                 @Nullable ViewGroup floaterShellOverlayContainer) {
+    public AppShellController(@NonNull View rootView,
+                              @Nullable View statusBarFilterView,
+                              @Nullable View bottomContentFilterView,
+                              @Nullable View bottomControlsContainerView,
+                              @Nullable ViewGroup searchOverlayContainer) {
         this.rootView = rootView;
         this.statusBarFilterView = statusBarFilterView;
         this.bottomContentFilterView = bottomContentFilterView;
-        this.playerShellContainerView = playerShellContainerView;
-        this.floaterShellOverlayContainer = floaterShellOverlayContainer;
-        this.playerShellLayoutChangeListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateBottomContentFilter();
-        this.floaterShellLayoutChangeListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateFloaterShellLayout();
+        this.bottomControlsContainerView = bottomControlsContainerView;
+        this.searchOverlayContainer = searchOverlayContainer;
+        this.bottomControlsLayoutChangeListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateBottomContentFilter();
+        this.searchBarLayoutChangeListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateSearchBarLayout();
     }
 
     public void attach() {
-        attachPlayerShellListener();
-        ensureFloaterShell();
+        attachBottomControlsListener();
+        bindSearchBar();
         installWindowInsetsListener();
         updateTopContentFilter();
         updateBottomContentFilter();
-        applyFloaterShellVisibility(false, DEFAULT_SHELL_TRANSITION_TYPE, 0L);
-        updateFloaterShellLayout();
+        applySearchBarVisibility(false, DEFAULT_TRANSITION_TYPE, 0L);
+        updateSearchBarLayout();
     }
 
     public void detach() {
-        detachPlayerShellListener();
-        removeFloaterShellView();
+        detachBottomControlsListener();
+        unbindSearchBar();
         ViewCompat.setOnApplyWindowInsetsListener(rootView, null);
         clearAttachedReferences();
     }
 
-    public void setFloaterShellVisible(boolean visible, int transitionType, long transitionDelayMs) {
-        if (floaterShellVisible == visible) {
+    public void setSearchBarVisible(boolean visible, int transitionType, long transitionDelayMs) {
+        if (searchBarVisible == visible) {
             return;
         }
-        floaterShellVisible = visible;
-        applyFloaterShellVisibility(true, transitionType, transitionDelayMs);
-        updateFloaterShellLayout();
+        searchBarVisible = visible;
+        applySearchBarVisibility(true, transitionType, transitionDelayMs);
+        updateSearchBarLayout();
         if (!visible) {
             setTopContentFilterHeightPx(0);
         }
     }
 
-    public void setFloaterStationListFragment(@Nullable StationListFragment stationListFragment) {
-        floaterStationListFragment = stationListFragment;
-        updateFloaterShellLayout();
+    public void setSearchResultsFragment(@Nullable StationSearchResultsFragment searchResultsFragment) {
+        this.searchResultsFragment = searchResultsFragment;
+        updateSearchBarLayout();
     }
 
     public void attachContentPaddingView(@NonNull View contentPaddingView,
@@ -136,93 +135,80 @@ public final class ShellChromeController {
         return searchButton;
     }
 
-    private void ensureFloaterShell() {
-        if (floaterShellView != null || floaterShellOverlayContainer == null) {
+    private void bindSearchBar() {
+        if (searchBarView != null || searchOverlayContainer == null) {
             return;
         }
 
-        View shellView = LayoutInflater.from(rootView.getContext())
-                .inflate(R.layout.view_station_search_shell, floaterShellOverlayContainer, false);
-        floaterShellOverlayContainer.addView(shellView);
-        floaterShellView = (MaterialCardView) shellView;
-        searchInput = floaterShellView.findViewById(R.id.station_search_input);
-        searchButton = floaterShellView.findViewById(R.id.station_search_button);
-        floaterShellView.addOnLayoutChangeListener(floaterShellLayoutChangeListener);
+        searchBarView = searchOverlayContainer.findViewById(R.id.station_search_bar);
+        if (searchBarView == null) {
+            return;
+        }
+        searchInput = searchBarView.findViewById(R.id.station_search_input);
+        searchButton = searchBarView.findViewById(R.id.station_search_button);
+        searchBarBaseTopMarginPx = getTopMargin(searchBarView);
+        searchBarView.addOnLayoutChangeListener(searchBarLayoutChangeListener);
     }
 
-    private void applyFloaterShellVisibility(boolean animate,
-                                             int transitionType,
-                                             long transitionDelayMs) {
-        if (floaterShellView == null) {
+    private void applySearchBarVisibility(boolean animate,
+                                          int transitionType,
+                                          long transitionDelayMs) {
+        if (searchBarView == null) {
             return;
         }
         if (!animate) {
-            floaterShellView.setVisibility(floaterShellVisible ? View.VISIBLE : View.GONE);
+            searchBarView.setVisibility(searchBarVisible ? View.VISIBLE : View.GONE);
             return;
         }
-        setShellVisibilityWithTransition(floaterShellView, floaterShellOverlayContainer, floaterShellVisible, transitionType, transitionDelayMs);
+        setSearchBarVisibilityWithTransition(searchBarView, searchOverlayContainer, searchBarVisible, transitionType, transitionDelayMs);
     }
 
-    private void setShellVisibilityWithTransition(@Nullable View shellView,
-                                                   @Nullable ViewGroup transitionContainer,
-                                                   boolean visible,
-                                                   int transitionType,
-                                                   long transitionDelayMs) {
-        if (shellView == null) {
+    private void setSearchBarVisibilityWithTransition(@Nullable View searchBar,
+                                                       @Nullable ViewGroup transitionContainer,
+                                                       boolean visible,
+                                                       int transitionType,
+                                                       long transitionDelayMs) {
+        if (searchBar == null) {
             return;
         }
         if (transitionContainer != null) {
-            TransitionManager.beginDelayedTransition(transitionContainer, createShellTransition(transitionType, transitionDelayMs));
+            TransitionManager.beginDelayedTransition(transitionContainer, createSearchBarTransition(transitionType, transitionDelayMs));
         }
-        shellView.setVisibility(visible ? View.VISIBLE : View.GONE);
+        searchBar.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
 
     @NonNull
-    private Transition createShellTransition(int transitionType, long transitionDelayMs) {
+    private Transition createSearchBarTransition(int transitionType, long transitionDelayMs) {
         if (transitionType == FragmentTransaction.TRANSIT_FRAGMENT_FADE) {
             Fade fade = new Fade();
             fade.setStartDelay(transitionDelayMs);
-            fade.setDuration(DEFAULT_SHELL_TRANSITION_DURATION_MS);
+            fade.setDuration(DEFAULT_TRANSITION_DURATION_MS);
             return fade;
         }
         Slide slide = new Slide(Gravity.TOP);
-        slide.setDuration(DEFAULT_SHELL_TRANSITION_DURATION_MS);
+        slide.setDuration(DEFAULT_TRANSITION_DURATION_MS);
         slide.setStartDelay(transitionDelayMs);
         return slide;
     }
 
-    private void updateFloaterShellLayout() {
-        if (floaterShellView == null) {
+    private void updateSearchBarLayout() {
+        if (searchBarView == null) {
             return;
         }
 
-        if (!floaterShellVisible || floaterStationListFragment == null) {
+        if (!searchBarVisible || searchResultsFragment == null) {
             setTopContentFilterHeightPx(0);
             return;
         }
 
-        int desiredTopPaddingPx = floaterShellView.getBottom() + UiDimensions.px(rootView.getContext(), R.dimen.search_list_gap);
-        floaterStationListFragment.setSearchTopPaddingPx(desiredTopPaddingPx);
-        floaterStationListFragment.setBottomRecyclerGapPx(UiDimensions.px(rootView.getContext(), R.dimen.search_list_bottom_gap));
+        int desiredTopPaddingPx = searchBarView.getBottom() + UiDimensions.px(rootView.getContext(), R.dimen.search_list_gap);
+        searchResultsFragment.setSearchTopPaddingPx(desiredTopPaddingPx);
+        searchResultsFragment.setBottomRecyclerGapPx(UiDimensions.px(rootView.getContext(), R.dimen.search_list_bottom_gap));
         setTopContentFilterHeightPx(desiredTopPaddingPx);
     }
 
-    private void applyFloaterShellTopMargin() {
-        if (floaterShellView == null) {
-            return;
-        }
-
-        ViewGroup.LayoutParams layoutParams = floaterShellView.getLayoutParams();
-        if (!(layoutParams instanceof ViewGroup.MarginLayoutParams)) {
-            return;
-        }
-
-        ViewGroup.MarginLayoutParams marginLayoutParams = (ViewGroup.MarginLayoutParams) layoutParams;
-        int desiredTopMarginPx = statusBarInsetPx + UiDimensions.px(rootView.getContext(), R.dimen.search_top_gap);
-        if (marginLayoutParams.topMargin != desiredTopMarginPx) {
-            marginLayoutParams.topMargin = desiredTopMarginPx;
-            floaterShellView.setLayoutParams(marginLayoutParams);
-        }
+    private void applySearchBarTopMargin() {
+        setSearchBarTopMargin(statusBarInsetPx + searchBarBaseTopMarginPx);
     }
 
     public void setTopContentFilterHeightPx(int heightPx) {
@@ -248,14 +234,14 @@ public final class ShellChromeController {
     }
 
     private void updateBottomContentFilter() {
-        if (bottomContentFilterView == null || playerShellContainerView == null) {
+        if (bottomContentFilterView == null || bottomControlsContainerView == null) {
             bottomContentFilterHeightPx = 0;
             updateContentPadding();
             return;
         }
 
-        int desiredHeight = playerShellContainerView.getHeight()
-                + getPlayerShellBottomMarginPx()
+        int desiredHeight = bottomControlsContainerView.getHeight()
+                + getBottomControlsBottomMarginPx()
                 + UiDimensions.px(rootView.getContext(), R.dimen.bottom_content_gap);
         bottomContentFilterHeightPx = Math.max(0, desiredHeight);
         animateFilterHeight(bottomContentFilterView, desiredHeight);
@@ -275,12 +261,12 @@ public final class ShellChromeController {
         );
     }
 
-    private int getPlayerShellBottomMarginPx() {
-        if (playerShellContainerView == null) {
+    private int getBottomControlsBottomMarginPx() {
+        if (bottomControlsContainerView == null) {
             return 0;
         }
 
-        ViewGroup.LayoutParams layoutParams = playerShellContainerView.getLayoutParams();
+        ViewGroup.LayoutParams layoutParams = bottomControlsContainerView.getLayoutParams();
         if (layoutParams instanceof ViewGroup.MarginLayoutParams) {
             return ((ViewGroup.MarginLayoutParams) layoutParams).bottomMargin;
         }
@@ -310,22 +296,22 @@ public final class ShellChromeController {
             filterView.setVisibility(View.VISIBLE);
         }
         Transition transition = new ChangeBounds();
-        transition.setDuration(DEFAULT_SHELL_TRANSITION_DURATION_MS);
+        transition.setDuration(DEFAULT_TRANSITION_DURATION_MS);
         TransitionManager.beginDelayedTransition((ViewGroup) rootView, transition);
         layoutParams.height = desiredHeight;
         filterView.setLayoutParams(layoutParams);
         filterView.setVisibility(desiredHeight > 0 ? View.VISIBLE : View.GONE);
     }
 
-    private void attachPlayerShellListener() {
-        if (playerShellContainerView != null) {
-            playerShellContainerView.addOnLayoutChangeListener(playerShellLayoutChangeListener);
+    private void attachBottomControlsListener() {
+        if (bottomControlsContainerView != null) {
+            bottomControlsContainerView.addOnLayoutChangeListener(bottomControlsLayoutChangeListener);
         }
     }
 
-    private void detachPlayerShellListener() {
-        if (playerShellContainerView != null) {
-            playerShellContainerView.removeOnLayoutChangeListener(playerShellLayoutChangeListener);
+    private void detachBottomControlsListener() {
+        if (bottomControlsContainerView != null) {
+            bottomControlsContainerView.removeOnLayoutChangeListener(bottomControlsLayoutChangeListener);
         }
     }
 
@@ -335,32 +321,57 @@ public final class ShellChromeController {
             statusBarInsetPx = systemBars.top;
             updateTopContentFilter();
             updateContentPadding();
-            applyFloaterShellTopMargin();
+            applySearchBarTopMargin();
             return insets;
         });
         ViewCompat.requestApplyInsets(rootView);
     }
 
-    private void removeFloaterShellView() {
-        if (floaterShellView == null) {
+    private void unbindSearchBar() {
+        if (searchBarView == null) {
             return;
         }
-        floaterShellView.removeOnLayoutChangeListener(floaterShellLayoutChangeListener);
-        if (floaterShellOverlayContainer != null) {
-            floaterShellOverlayContainer.removeView(floaterShellView);
-        }
+        searchBarView.removeOnLayoutChangeListener(searchBarLayoutChangeListener);
+        setSearchBarTopMargin(searchBarBaseTopMarginPx);
     }
 
     private void clearAttachedReferences() {
-        floaterShellView = null;
+        searchBarView = null;
         searchInput = null;
         searchButton = null;
-        floaterStationListFragment = null;
+        searchResultsFragment = null;
         contentPaddingView = null;
+        searchBarBaseTopMarginPx = 0;
     }
 
     private int resolveTopContentPaddingPx() {
         return contentPaddingBaseTopPx + statusBarInsetPx + contentPaddingTopGapPx;
+    }
+
+    private int getTopMargin(@NonNull View view) {
+        ViewGroup.LayoutParams layoutParams = view.getLayoutParams();
+        return layoutParams instanceof ViewGroup.MarginLayoutParams
+                ? ((ViewGroup.MarginLayoutParams) layoutParams).topMargin
+                : 0;
+    }
+
+    private void setSearchBarTopMargin(int topMarginPx) {
+        if (searchBarView == null) {
+            return;
+        }
+
+        ViewGroup.LayoutParams layoutParams = searchBarView.getLayoutParams();
+        if (!(layoutParams instanceof ViewGroup.MarginLayoutParams)) {
+            return;
+        }
+
+        ViewGroup.MarginLayoutParams marginLayoutParams = (ViewGroup.MarginLayoutParams) layoutParams;
+        if (marginLayoutParams.topMargin == topMarginPx) {
+            return;
+        }
+
+        marginLayoutParams.topMargin = topMarginPx;
+        searchBarView.setLayoutParams(marginLayoutParams);
     }
 
     private int resolveBottomContentPaddingPx() {
@@ -379,4 +390,5 @@ public final class ShellChromeController {
         }
         contentPaddingView.setPadding(left, top, right, bottom);
     }
+
 }

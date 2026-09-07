@@ -31,13 +31,13 @@ import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
 import com.matijakljajic.freeairradio.data.repository.StationRepository;
 import com.matijakljajic.freeairradio.playback.AudioInterruptionSettings;
 import com.matijakljajic.freeairradio.ui.homepage.HomePageSource;
-import com.matijakljajic.freeairradio.ui.shell.ShellChromeAwareFragment;
+import com.matijakljajic.freeairradio.ui.shell.AppShellAwareFragment;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
 import java.util.List;
 
 @SuppressWarnings("unused")
-public class SettingsFragment extends ShellChromeAwareFragment {
+public class SettingsFragment extends AppShellAwareFragment {
 
     private static final String SETTINGS_RESET_DIALOG_TAG = "settings_reset_dialog";
     private static final String PROJECT_GITHUB_URL = "https://github.com/matijakljajic/freeair-radio";
@@ -131,7 +131,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
     private void bindRootPadding(@NonNull View view) {
         settingsRootView = view.findViewById(R.id.settings_root);
         if (settingsRootView != null) {
-            attachShellContentPadding(
+            attachAppShellContentPadding(
                     settingsRootView,
                     UiDimensions.px(requireContext(), R.dimen.top_content_gap)
             );
@@ -140,7 +140,7 @@ public class SettingsFragment extends ShellChromeAwareFragment {
 
     private void detachRootPadding() {
         if (settingsRootView != null) {
-            detachShellContentPadding(settingsRootView);
+            detachAppShellContentPadding(settingsRootView);
         }
     }
 
