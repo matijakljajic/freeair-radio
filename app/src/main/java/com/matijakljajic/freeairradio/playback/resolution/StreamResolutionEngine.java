@@ -11,7 +11,6 @@ import com.matijakljajic.freeairradio.playback.resolution.ResolvedStreamCandidat
 import com.matijakljajic.freeairradio.util.AppLog;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.net.URI;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -25,19 +24,10 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
 
 @SuppressWarnings({"unused", "GrazieInspectionRunner"})
 public final class StreamResolutionEngine {
@@ -45,8 +35,6 @@ public final class StreamResolutionEngine {
     private static final String TAG = "StreamResolutionEngine";
     private static final int MAX_DEPTH = 10;
     private static final int MAX_PREVIEW_BYTES = 64 * 1024;
-    private static final int MAX_PLAYLIST_ENTRIES = 32;
-    private static final int MAX_LINE_LENGTH = 4096;
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
             .callTimeout(8, TimeUnit.SECONDS)
             .connectTimeout(4, TimeUnit.SECONDS)
@@ -54,6 +42,8 @@ public final class StreamResolutionEngine {
             .followRedirects(true)
             .followSslRedirects(true)
             .build();
+    @NonNull
+    private final PlaylistParser playlistParser = new PlaylistParser();
 
     @NonNull
     public ResolutionResult resolveUrls(@NonNull String originalUrl) {
@@ -85,68 +75,6 @@ public final class StreamResolutionEngine {
         return new ArrayList<>(candidates);
     }
 
-    static boolean isPlaylistUrl(@NonNull String url) {
-        String lowerCaseUrl = url.toLowerCase(Locale.ROOT);
-        return lowerCaseUrl.endsWith(".m3u")
-                || lowerCaseUrl.endsWith(".m3u8")
-                || lowerCaseUrl.endsWith(".pls")
-                || lowerCaseUrl.endsWith(".xspf")
-                || lowerCaseUrl.endsWith(".asx");
-    }
-
-    static boolean isHlsManifest(@NonNull String url,
-                                 @Nullable String contentType,
-                                 @NonNull String body) {
-        String normalizedContentType = normalizeNullable(contentType);
-        if (normalizedContentType != null) {
-            if (normalizedContentType.contains("mpegurl")
-                    || normalizedContentType.contains("vnd.apple.mpegurl")
-                    || normalizedContentType.contains("x-mpegurl")) {
-                return true;
-            }
-        }
-
-        String normalizedBody = body.toUpperCase(Locale.ROOT);
-        return normalizedBody.contains("#EXT-X-STREAM-INF")
-                || normalizedBody.contains("#EXT-X-TARGETDURATION")
-                || normalizedBody.contains("#EXT-X-MEDIA-SEQUENCE")
-                || normalizedBody.contains("#EXT-X-VERSION")
-                || url.toLowerCase(Locale.ROOT).endsWith(".m3u8");
-    }
-
-    static boolean isPlaylistResponse(@NonNull String url,
-                                      @Nullable String contentType,
-                                      @NonNull String body) {
-        if (isHlsManifest(url, contentType, body)) {
-            return false;
-        }
-
-        if (isPlaylistUrl(url)) {
-            return true;
-        }
-
-        String normalizedContentType = normalizeNullable(contentType);
-        if (normalizedContentType != null) {
-            if (normalizedContentType.contains("scpls")
-                    || normalizedContentType.contains("mpegurl")
-                    || normalizedContentType.contains("xspf")
-                    || normalizedContentType.contains("playlist")
-                    || normalizedContentType.contains("xml")) {
-                return true;
-            }
-        }
-
-        String normalizedBody = body.toUpperCase(Locale.ROOT);
-        return normalizedBody.contains("#EXTM3U")
-                || normalizedBody.contains("[PLAYLIST]")
-                || normalizedBody.contains("<ASX")
-                || normalizedBody.contains("<XSPF")
-                || normalizedBody.contains("<LOCATION")
-                || normalizedBody.contains("<REF ")
-                || normalizedBody.contains("FILE1=")
-                || normalizedBody.contains("URL1=");
-    }
-
     @Nullable
     static String selectBestPlaylistTarget(@NonNull List<String> targets) {
         String bestTarget = null;
@@ -159,46 +87,6 @@ public final class StreamResolutionEngine {
             }
         }
         return bestTarget;
-    }
-
-    @NonNull
-    static List<String> extractPlaylistTargets(@NonNull String body, @NonNull String baseUrl) {
-        List<String> targets = new ArrayList<>();
-        String trimmedBody = body.trim();
-        if (trimmedBody.isEmpty()) {
-            return targets;
-        }
-
-        if (looksLikeXmlPlaylist(trimmedBody)) {
-            targets.addAll(extractXmlPlaylistTargets(trimmedBody, baseUrl));
-            return dedupeUrls(targets);
-        }
-
-        String[] lines = trimmedBody.split("\\r?\\n");
-        for (String line : lines) {
-            if (targets.size() >= MAX_PLAYLIST_ENTRIES) {
-                break;
-            }
-            String trimmedLine = line.trim();
-            if (trimmedLine.isEmpty() || trimmedLine.length() > MAX_LINE_LENGTH || trimmedLine.startsWith("#")) {
-                continue;
-            }
-
-            if (trimmedLine.regionMatches(true, 0, "File", 0, 4) && trimmedLine.contains("=")) {
-                String value = trimmedLine.substring(trimmedLine.indexOf('=') + 1).trim();
-                addResolvedUrl(targets, baseUrl, value);
-                continue;
-            }
-
-            if (looksLikeUrl(trimmedLine)) {
-                addResolvedUrl(targets, baseUrl, trimmedLine);
-            }
-        }
-
-        if (targets.isEmpty() && looksLikeUrl(trimmedBody)) {
-            addResolvedUrl(targets, baseUrl, trimmedBody);
-        }
-        return dedupeUrls(targets);
     }
 
     @NonNull
@@ -371,7 +259,7 @@ public final class StreamResolutionEngine {
                 return null;
             }
 
-            if (isHlsManifest(finalUrl, contentType, body)) {
+            if (PlaylistParser.isHlsManifest(finalUrl, contentType, body)) {
                 ResolvedStreamCandidate candidate = createCandidate(
                         finalUrl,
                         contentType,
@@ -385,7 +273,7 @@ public final class StreamResolutionEngine {
                 return new ProbeOutcome(candidate, chain, new ArrayList<>());
             }
 
-            if (isPlaylistResponse(finalUrl, contentType, body)) {
+            if (PlaylistParser.isPlaylistResponse(finalUrl, contentType, body)) {
                 List<String> nextUrls = buildPlaylistNextUrls(body, finalUrl);
                 if (nextUrls.isEmpty()) {
                     return new ProbeOutcome(null, chain, new ArrayList<>());
@@ -414,8 +302,8 @@ public final class StreamResolutionEngine {
     }
 
     @NonNull
-    private static List<String> buildPlaylistNextUrls(@NonNull String body, @NonNull String finalUrl) {
-        List<String> targets = extractPlaylistTargets(body, finalUrl);
+    private List<String> buildPlaylistNextUrls(@NonNull String body, @NonNull String finalUrl) {
+        List<String> targets = playlistParser.parse(body, finalUrl);
         String preferredTarget = selectBestPlaylistTarget(targets);
         List<String> nextUrls = new ArrayList<>();
         if (preferredTarget != null) {
@@ -566,89 +454,6 @@ public final class StreamResolutionEngine {
     }
 
     @NonNull
-    static List<String> extractPlaylistTargetsFromXml(@NonNull String body, @NonNull String baseUrl) {
-        return dedupeUrls(extractXmlPlaylistTargets(body, baseUrl));
-    }
-
-    @NonNull
-    private static List<String> extractXmlPlaylistTargets(@NonNull String body, @NonNull String baseUrl) {
-        List<String> targets = new ArrayList<>();
-        try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-            factory.setXIncludeAware(false);
-            factory.setExpandEntityReferences(false);
-            factory.setNamespaceAware(true);
-
-            Document document = factory.newDocumentBuilder().parse(new InputSource(new StringReader(body)));
-            collectXmlTargets(document.getDocumentElement(), baseUrl, targets);
-        } catch (ParserConfigurationException | IOException | org.xml.sax.SAXException ignored) {
-            return targets;
-        }
-        return targets;
-    }
-
-    private static void collectXmlTargets(@Nullable Node node,
-                                         @NonNull String baseUrl,
-                                         @NonNull List<String> targets) {
-        if (node == null || targets.size() >= MAX_PLAYLIST_ENTRIES) {
-            return;
-        }
-
-        if (node.getNodeType() == Node.ELEMENT_NODE) {
-            Element element = (Element) node;
-            String nodeName = element.getNodeName().toLowerCase(Locale.ROOT);
-            if ("location".equals(nodeName) || "ref".equals(nodeName)) {
-                String value;
-                if (element.hasAttribute("href")) {
-                    value = element.getAttribute("href");
-                } else {
-                    value = element.getTextContent();
-                }
-                addResolvedUrl(targets, baseUrl, value);
-            }
-        }
-
-        NodeList childNodes = node.getChildNodes();
-        for (int i = 0; i < childNodes.getLength(); i++) {
-            collectXmlTargets(childNodes.item(i), baseUrl, targets);
-        }
-    }
-
-    private static void addResolvedUrl(@NonNull List<String> targets, @NonNull String baseUrl, @Nullable String value) {
-        String normalizedValue = normalizeCandidateUrl(value);
-        if (normalizedValue == null) {
-            return;
-        }
-
-        String resolved = resolveAgainstBase(baseUrl, normalizedValue);
-        if (resolved != null) {
-            targets.add(resolved);
-        }
-    }
-
-    @Nullable
-    private static String resolveAgainstBase(@NonNull String baseUrl, @NonNull String value) {
-        try {
-            URI uri = URI.create(value);
-            if (uri.isAbsolute()) {
-                return uri.toString();
-            }
-            return URI.create(baseUrl).resolve(uri).toString();
-        } catch (IllegalArgumentException ignored) {
-            return null;
-        }
-    }
-
-    @NonNull
-    private static List<String> dedupeUrls(@NonNull List<String> urls) {
-        return new ArrayList<>(new LinkedHashSet<>(urls));
-    }
-
-    @NonNull
     private static MetadataCapability determineMetadataCapability(@Nullable String contentType,
                                                                   @NonNull Response response) {
         if (response.header("icy-metaint") != null) {
@@ -683,18 +488,6 @@ public final class StreamResolutionEngine {
         return response.header("icy-name") != null
                 || response.header("icy-description") != null
                 || response.header("icy-genre") != null;
-    }
-
-    private static boolean looksLikeXmlPlaylist(@NonNull String body) {
-        String normalizedBody = body.toUpperCase(Locale.ROOT);
-        return normalizedBody.contains("<XSPF")
-                || normalizedBody.contains("<ASX")
-                || normalizedBody.contains("<LOCATION")
-                || normalizedBody.contains("<REF ");
-    }
-
-    private static boolean looksLikeUrl(@NonNull String value) {
-        return value.startsWith("http://") || value.startsWith("https://");
     }
 
     @Nullable
