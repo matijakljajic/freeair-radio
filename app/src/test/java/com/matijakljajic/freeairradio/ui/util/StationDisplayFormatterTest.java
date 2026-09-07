@@ -17,7 +17,7 @@ public class StationDisplayFormatterTest {
                         "Test Station",
                         "https://example.com/stream",
                         StationOrigin.RADIO_BROWSER)
-                .setCountry("Norway")
+                .setCountryName("Norway")
                 .setLanguage("norwegian")
                 .setTags(" jazz, smooth jazz , pop ")
                 .build();
@@ -32,7 +32,7 @@ public class StationDisplayFormatterTest {
                         "Test Station",
                         "https://example.com/stream",
                         StationOrigin.RADIO_BROWSER)
-                .setCountry("Norway")
+                .setCountryName("Norway")
                 .setLanguage("norwegian")
                 .setTags("unknown")
                 .build();
@@ -47,7 +47,7 @@ public class StationDisplayFormatterTest {
                         "Test Station",
                         "https://example.com/stream",
                         StationOrigin.RADIO_BROWSER)
-                .setCountry("Norway")
+                .setCountryName("Norway")
                 .setLanguage("norwegian")
                 .setTags(Station.UNKNOWN)
                 .build();
@@ -62,7 +62,7 @@ public class StationDisplayFormatterTest {
                         "Test Station",
                         "https://example.com/stream",
                         StationOrigin.RADIO_BROWSER)
-                .setCountry("Norway")
+                .setCountryName("Norway")
                 .setLanguage("norwegian")
                 .setTags("jazz,smooth jazz")
                 .build();

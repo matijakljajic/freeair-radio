@@ -17,7 +17,7 @@ public final class StationSeedData {
                         "1-NRK Jazz",
                         "http://cdn0-47115-liveicecast0.dna.contentdelivery.net/jazz_mp3_h",
                         StationOrigin.RADIO_BROWSER)
-                .setCountry("Norway")
+                .setCountryName("Norway")
                 .setLanguage("norwegian")
                 .setTags("jazz,smooth jazz")
                 .setCodec("MP3")
@@ -27,7 +27,7 @@ public final class StationSeedData {
                         "Hrvatski radio - Klasik (HRT)",
                         "http://playerservices.streamtheworld.com/m3u/HR_CLASSICSAAC.m3u",
                         StationOrigin.RADIO_BROWSER)
-                .setCountry("Croatia")
+                .setCountryName("Croatia")
                 .setLanguage("")
                 .setTags("baroque,classic,classical,classical baroque,classical music")
                 .setCodec("AAC+")
@@ -37,7 +37,7 @@ public final class StationSeedData {
                         "Radio 021",
                         "https://radio.dukahosting.com/8006/stream",
                         StationOrigin.RADIO_BROWSER)
-                .setCountry("Serbia")
+                .setCountryName("Serbia")
                 .setLanguage("serbian")
                 .setTags("")
                 .setCodec("AAC+")
@@ -47,7 +47,7 @@ public final class StationSeedData {
                         "Radio Beograd 202",
                         "https://rtsradio-live.morescreens.com/RTS_2_004/playlist.m3u8",
                         StationOrigin.RADIO_BROWSER)
-                .setCountry("Serbia")
+                .setCountryName("Serbia")
                 .setLanguage("serbian")
                 .setTags("")
                 .setCodec(Station.UNKNOWN)
@@ -57,7 +57,7 @@ public final class StationSeedData {
                         "Radio Caroline",
                         "http://78.129.202.200:8040/",
                         StationOrigin.RADIO_BROWSER)
-                .setCountry("The United Kingdom Of Great Britain And Northern Ireland")
+                .setCountryName("The United Kingdom Of Great Britain And Northern Ireland")
                 .setLanguage("english")
                 .setTags("country,pop,rock")
                 .setCodec("MP3")
@@ -67,7 +67,7 @@ public final class StationSeedData {
                         "Radio Nova Vintage",
                         "http://nova-vnt.ice.infomaniak.ch/nova-vnt-128.mp3",
                         StationOrigin.RADIO_BROWSER)
-                .setCountry("France")
+                .setCountryName("France")
                 .setLanguage("french")
                 .setTags("1980s,1990s,80s,90s,groove,oldies,rare groove,vintage,vintage music")
                 .setCodec("MP3")
