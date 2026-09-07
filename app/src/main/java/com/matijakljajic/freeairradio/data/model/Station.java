@@ -92,11 +92,6 @@ public class Station implements Serializable {
         return countryName;
     }
 
-    @NonNull
-    public String getCountry() {
-        return getCountryName();
-    }
-
     public String getCountryCode() {
         return countryCode;
     }
@@ -161,10 +156,6 @@ public class Station implements Serializable {
     public String toString() {
         return "Station{" + "id='" + id + '\'' +
                 ", name='" + name + '\'' +
-                ", streamUrl='" + streamUrl + '\'' +
-                ", resolvedStreamUrl='" + resolvedStreamUrl + '\'' +
-                ", homepage='" + homepage + '\'' +
-                ", favicon='" + favicon + '\'' +
                 ", countryName='" + countryName + '\'' +
                 ", countryCode='" + countryCode + '\'' +
                 ", language='" + language + '\'' +
@@ -257,11 +248,6 @@ public class Station implements Serializable {
         public Builder setCountryName(@Nullable String countryName) {
             this.countryName = countryName;
             return this;
-        }
-
-        @NonNull
-        public Builder setCountry(@Nullable String countryName) {
-            return setCountryName(countryName);
         }
 
         @NonNull

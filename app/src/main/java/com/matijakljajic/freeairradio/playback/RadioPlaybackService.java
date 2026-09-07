@@ -150,7 +150,9 @@ public class RadioPlaybackService extends MediaLibraryService {
     @NonNull
     private final LibraryRepository.FavoritesListener favoritesListener = this::refreshFavoritePresentation;
     @NonNull
-    private final MediaLibrarySession.Callback mediaSessionCallback = new MediaLibrarySession.Callback() {
+    private final MediaLibrarySession.Callback mediaSessionCallback = new LibrarySessionCallback();
+
+    private final class LibrarySessionCallback implements MediaLibrarySession.Callback {
         @NonNull
         @Override
         public MediaSession.ConnectionResult onConnect(@NonNull MediaSession session,
@@ -491,7 +493,7 @@ public class RadioPlaybackService extends MediaLibraryService {
                     )
             );
         }
-    };
+    }
     @NonNull
     private final CurrentPlaybackState.Listener servicePlaybackStateListener =
             (station, nowPlaying, playbackStatus) -> {

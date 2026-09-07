@@ -46,7 +46,7 @@ public class RadioBrowserRepositoryTest {
         assertEquals("https://example.com/resolved", station.getResolvedStreamUrl());
         assertEquals("https://example.com", station.getHomepage());
         assertEquals("https://example.com/favicon.png", station.getFavicon());
-        assertEquals(Station.UNKNOWN, station.getCountry());
+        assertEquals(Station.UNKNOWN, station.getCountryName());
         assertEquals(Station.UNKNOWN, station.getCountryCode());
         assertEquals("Serbian", station.getLanguage());
         assertEquals("jazz,rock", station.getTags());

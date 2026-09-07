@@ -23,7 +23,7 @@ public class StationMapperTest {
                 .setResolvedStreamUrl("https://cdn.example.com/live")
                 .setHomepage("https://example.com")
                 .setFavicon("https://example.com/icon.png")
-                .setCountry("Croatia")
+                .setCountryName("Croatia")
                 .setCountryCode("HR")
                 .setLanguage("Croatian")
                 .setTags("news, talk")
@@ -39,7 +39,7 @@ public class StationMapperTest {
                         station.getResolvedStreamUrl(),
                         station.getHomepage(),
                         station.getFavicon(),
-                        station.getCountry(),
+                        station.getCountryName(),
                         station.getCountryCode(),
                         station.getLanguage(),
                         station.getTags(),
@@ -103,7 +103,7 @@ public class StationMapperTest {
 
         assertEquals("LOCAL:test-station", station.getId());
         assertEquals(StationOrigin.LOCAL_USER, station.getOrigin());
-        assertEquals("Serbia", station.getCountry());
+        assertEquals("Serbia", station.getCountryName());
         assertEquals("RS", station.getCountryCode());
         assertEquals("Serbian", station.getLanguage());
         assertEquals(Station.UNKNOWN, station.getTags());
