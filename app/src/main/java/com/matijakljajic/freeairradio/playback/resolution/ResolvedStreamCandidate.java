@@ -23,8 +23,6 @@ public final class ResolvedStreamCandidate {
     @Nullable
     private final String contentType;
     private final StreamProtocol protocol;
-    private final boolean playable;
-    private final boolean hls;
     private final MetadataCapability metadataCapability;
     @Nullable
     private final Integer icyMetaInterval;
@@ -43,8 +41,6 @@ public final class ResolvedStreamCandidate {
     public ResolvedStreamCandidate(@NonNull String url,
                                    @Nullable String contentType,
                                    @NonNull StreamProtocol protocol,
-                                   boolean playable,
-                                   boolean hls,
                                    @NonNull MetadataCapability metadataCapability,
                                    @Nullable Integer icyMetaInterval,
                                    @Nullable String icyName,
@@ -56,8 +52,6 @@ public final class ResolvedStreamCandidate {
         this.url = url;
         this.contentType = contentType;
         this.protocol = protocol;
-        this.playable = playable;
-        this.hls = hls;
         this.metadataCapability = metadataCapability;
         this.icyMetaInterval = icyMetaInterval;
         this.icyName = icyName;
@@ -81,14 +75,6 @@ public final class ResolvedStreamCandidate {
     @NonNull
     public StreamProtocol getProtocol() {
         return protocol;
-    }
-
-    public boolean isPlayable() {
-        return playable;
-    }
-
-    public boolean isHls() {
-        return hls;
     }
 
     @NonNull
@@ -139,9 +125,7 @@ public final class ResolvedStreamCandidate {
             return false;
         }
         ResolvedStreamCandidate that = (ResolvedStreamCandidate) o;
-        return playable == that.playable
-                && hls == that.hls
-                && preferenceScore == that.preferenceScore
+        return preferenceScore == that.preferenceScore
                 && url.equals(that.url)
                 && Objects.equals(contentType, that.contentType)
                 && protocol == that.protocol
@@ -156,7 +140,7 @@ public final class ResolvedStreamCandidate {
 
     @Override
     public int hashCode() {
-        return Objects.hash(url, contentType, protocol, playable, hls, metadataCapability, icyMetaInterval, icyName, icyDescription, icyGenre, bitrateKbps, preferenceScore, selectionReason);
+        return Objects.hash(url, contentType, protocol, metadataCapability, icyMetaInterval, icyName, icyDescription, icyGenre, bitrateKbps, preferenceScore, selectionReason);
     }
 
     @NonNull
@@ -166,8 +150,6 @@ public final class ResolvedStreamCandidate {
                 + "url='" + url + '\''
                 + ", contentType='" + contentType + '\''
                 + ", protocol=" + protocol
-                + ", playable=" + playable
-                + ", hls=" + hls
                 + ", metadataCapability=" + metadataCapability
                 + ", icyMetaInterval=" + icyMetaInterval
                 + ", icyName='" + icyName + '\''

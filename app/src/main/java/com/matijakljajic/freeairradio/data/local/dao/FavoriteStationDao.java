@@ -28,6 +28,9 @@ public interface FavoriteStationDao {
     @Query("DELETE FROM favorite_stations WHERE id = :stationId")
     void deleteById(@NonNull String stationId);
 
+    @Query("DELETE FROM favorite_stations WHERE id LIKE 'LOCAL:%'")
+    void deleteLocalStations();
+
     @Query("SELECT COALESCE(MAX(display_order), -1) + 1 FROM favorite_stations")
     long getNextDisplayOrder();
 

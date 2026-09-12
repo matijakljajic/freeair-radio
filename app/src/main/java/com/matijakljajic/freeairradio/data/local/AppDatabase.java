@@ -11,21 +11,21 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import com.matijakljajic.freeairradio.data.local.dao.FavoriteStationDao;
 import com.matijakljajic.freeairradio.data.local.dao.LocalStationDao;
-import com.matijakljajic.freeairradio.data.local.dao.RecentlyListenedSongDao;
-import com.matijakljajic.freeairradio.data.local.dao.RecentlyPlayedDao;
+import com.matijakljajic.freeairradio.data.local.dao.ListeningHistoryTrackDao;
+import com.matijakljajic.freeairradio.data.local.dao.ListeningHistoryStationDao;
 import com.matijakljajic.freeairradio.data.local.entity.FavoriteStationEntity;
 import com.matijakljajic.freeairradio.data.local.entity.LocalStationEntity;
-import com.matijakljajic.freeairradio.data.local.entity.RecentlyListenedSongEntity;
-import com.matijakljajic.freeairradio.data.local.entity.RecentlyPlayedStationEntity;
+import com.matijakljajic.freeairradio.data.local.entity.ListeningHistoryTrackEntity;
+import com.matijakljajic.freeairradio.data.local.entity.ListeningHistoryStationEntity;
 
 @Database(
         entities = {
                 FavoriteStationEntity.class,
                 LocalStationEntity.class,
-                RecentlyPlayedStationEntity.class,
-                RecentlyListenedSongEntity.class
+                ListeningHistoryStationEntity.class,
+                ListeningHistoryTrackEntity.class
         },
-        version = 3,
+        version = 4,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -45,6 +45,24 @@ public abstract class AppDatabase extends RoomDatabase {
             database.execSQL("CREATE INDEX IF NOT EXISTS `index_recently_listened_songs_station_id_heard_at` ON `recently_listened_songs` (`station_id`, `heard_at`)");
         }
     };
+    private static final Migration MIGRATION_3_4 = new Migration(3, 4) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL(
+                    "ALTER TABLE recently_played_stations RENAME TO listening_history_stations"
+            );
+            database.execSQL(
+                    "ALTER TABLE recently_listened_songs RENAME TO listening_history_tracks"
+            );
+            database.execSQL(
+                    "DROP INDEX IF EXISTS index_recently_listened_songs_station_id_heard_at"
+            );
+            database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_listening_history_tracks_station_id_heard_at "
+                            + "ON listening_history_tracks (station_id, heard_at)"
+            );
+        }
+    };
 
     private static volatile AppDatabase instance;
 
@@ -58,8 +76,7 @@ public abstract class AppDatabase extends RoomDatabase {
                                     AppDatabase.class,
                                     DATABASE_NAME
                             )
-                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
-                            .fallbackToDestructiveMigration(false)
+                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                             .build();
                 }
             }
@@ -74,8 +91,8 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract LocalStationDao localStationDao();
 
     @NonNull
-    public abstract RecentlyPlayedDao recentlyPlayedDao();
+    public abstract ListeningHistoryStationDao listeningHistoryStationDao();
 
     @NonNull
-    public abstract RecentlyListenedSongDao recentlyListenedSongDao();
+    public abstract ListeningHistoryTrackDao listeningHistoryTrackDao();
 }

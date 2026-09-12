@@ -14,13 +14,13 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.matijakljajic.freeairradio.R;
-import com.matijakljajic.freeairradio.data.model.RecentlyListenedStation;
+import com.matijakljajic.freeairradio.data.model.ListeningHistoryEntry;
 import com.matijakljajic.freeairradio.data.repository.LibraryRepository;
 
 import java.util.List;
 
 @SuppressWarnings("unused")
-public final class RecentlyListenedFragment extends Fragment {
+public final class ListeningHistoryFragment extends Fragment {
 
     @Nullable
     private LibraryRepository libraryRepository;
@@ -31,44 +31,44 @@ public final class RecentlyListenedFragment extends Fragment {
     @Nullable
     private View bottomFadeView;
     @Nullable
-    private RecentlyListenedAdapter adapter;
+    private ListeningHistoryAdapter adapter;
     @NonNull
     private final FirstItemTopSpacingDecoration topSpacingDecoration = new FirstItemTopSpacingDecoration();
     private int contentTopInsetPx;
     @NonNull
-    private final LibraryRepository.RecentlyListenedListener listener = this::refreshFromRepository;
+    private final LibraryRepository.ListeningHistoryListener listener = this::refreshFromRepository;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_recently_listened, container, false);
+        return inflater.inflate(R.layout.fragment_listening_history, container, false);
     }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         libraryRepository = LibraryRepository.getInstance(requireContext());
-        recyclerView = view.findViewById(R.id.recently_listened_recycler_view);
-        emptyView = view.findViewById(R.id.recently_listened_empty_view);
-        adapter = new RecentlyListenedAdapter();
+        recyclerView = view.findViewById(R.id.listening_history_recycler_view);
+        emptyView = view.findViewById(R.id.listening_history_empty_view);
+        adapter = new ListeningHistoryAdapter();
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         recyclerView.addItemDecoration(topSpacingDecoration);
         recyclerView.setAdapter(adapter);
         applyContentTopInset();
-        libraryRepository.addRecentlyListenedListener(listener);
+        libraryRepository.addListeningHistoryListener(listener);
         refreshFromRepository();
-        if (!libraryRepository.hasLoadedRecentlyListened()) {
-            libraryRepository.loadRecentlyListenedStations(new LibraryRepository.RecentlyListenedCallback() {
+        if (!libraryRepository.hasLoadedListeningHistory()) {
+            libraryRepository.loadListeningHistoryEntries(new LibraryRepository.ListeningHistoryCallback() {
                 @Override
-                public void onRecentlyListenedLoaded(@NonNull List<RecentlyListenedStation> stations) {
-                    renderStations(stations);
+                public void onListeningHistoryLoaded(@NonNull List<ListeningHistoryEntry> entries) {
+                    renderEntries(entries);
                 }
 
                 @Override
                 public void onError(@NonNull Throwable throwable) {
-                    renderStations(libraryRepository.getRecentlyListenedSnapshot());
+                    renderEntries(libraryRepository.getListeningHistorySnapshot());
                 }
             });
         }
@@ -77,7 +77,7 @@ public final class RecentlyListenedFragment extends Fragment {
     @Override
     public void onDestroyView() {
         if (libraryRepository != null) {
-            libraryRepository.removeRecentlyListenedListener(listener);
+            libraryRepository.removeListeningHistoryListener(listener);
         }
         libraryRepository = null;
         recyclerView = null;
@@ -114,19 +114,19 @@ public final class RecentlyListenedFragment extends Fragment {
         if (libraryRepository == null) {
             return;
         }
-        renderStations(libraryRepository.getRecentlyListenedSnapshot());
+        renderEntries(libraryRepository.getListeningHistorySnapshot());
     }
 
-    private void renderStations(@NonNull List<RecentlyListenedStation> stations) {
-        boolean hasStations = !stations.isEmpty();
+    private void renderEntries(@NonNull List<ListeningHistoryEntry> entries) {
+        boolean hasEntries = !entries.isEmpty();
         if (adapter != null) {
-            adapter.submitList(stations);
+            adapter.submitList(entries);
         }
         if (emptyView != null) {
-            emptyView.setVisibility(hasStations ? View.GONE : View.VISIBLE);
+            emptyView.setVisibility(hasEntries ? View.GONE : View.VISIBLE);
         }
         if (bottomFadeView != null) {
-            bottomFadeView.setVisibility(hasStations ? View.VISIBLE : View.GONE);
+            bottomFadeView.setVisibility(hasEntries ? View.VISIBLE : View.GONE);
         }
     }
 

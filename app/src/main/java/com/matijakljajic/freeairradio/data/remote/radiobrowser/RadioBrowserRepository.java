@@ -11,6 +11,7 @@ import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.dto.RadioBrowserCountryCodeDto;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.dto.RadioBrowserStationDto;
+import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerDirectory;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerSelector;
 import com.matijakljajic.freeairradio.data.repository.StationRepository;
 
@@ -28,12 +29,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import retrofit2.Response;
 
 public final class RadioBrowserRepository implements StationRepository {
 
     private static final int DEFAULT_LIMIT = 50;
+    private static final int NETWORK_WORKER_COUNT = 3;
     private static final int MAX_PARALLEL_COUNTRY_REQUESTS = 4;
     private static final int MAX_SERVER_ATTEMPTS = 3;
     private static final String RADIO_BROWSER_ID_PREFIX = "RADIO_BROWSER:";
@@ -41,14 +44,19 @@ public final class RadioBrowserRepository implements StationRepository {
     private static final String ORDER_NAME = "name";
     @NonNull
     private static final Object COUNTRY_CODES_CACHE_LOCK = new Object();
+    @NonNull
+    private static final AtomicBoolean SERVER_DIRECTORY_REFRESH_IN_FLIGHT = new AtomicBoolean();
     @Nullable
     private static List<String> cachedCountryCodes;
     @NonNull
-    private static final ExecutorService WORKER_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
-        Thread thread = new Thread(runnable, "RadioBrowserRepository");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private static final ExecutorService NETWORK_EXECUTOR = Executors.newFixedThreadPool(
+            NETWORK_WORKER_COUNT,
+            runnable -> {
+                Thread thread = new Thread(runnable, "RadioBrowserNetwork");
+                thread.setDaemon(true);
+                return thread;
+            }
+    );
 
     @NonNull
     private final RadioBrowserClient client;
@@ -71,6 +79,20 @@ public final class RadioBrowserRepository implements StationRepository {
         this.client = client;
         this.serverSelector = serverSelector;
         this.mainHandler = mainHandler;
+    }
+
+    public static void refreshServerDirectoryAsync() {
+        if (!SERVER_DIRECTORY_REFRESH_IN_FLIGHT.compareAndSet(false, true)) {
+            return;
+        }
+
+        NETWORK_EXECUTOR.execute(() -> {
+            try {
+                RadioBrowserServerDirectory.refresh();
+            } finally {
+                SERVER_DIRECTORY_REFRESH_IN_FLIGHT.set(false);
+            }
+        });
     }
 
     @Override
@@ -315,7 +337,7 @@ public final class RadioBrowserRepository implements StationRepository {
     }
 
     private void startWorker(@NonNull Runnable work) {
-        WORKER_EXECUTOR.execute(work);
+        NETWORK_EXECUTOR.execute(work);
     }
 
     private void postStationsLoaded(@NonNull LoadCallback callback,

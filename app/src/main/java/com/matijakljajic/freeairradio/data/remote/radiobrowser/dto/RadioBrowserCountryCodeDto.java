@@ -10,16 +10,8 @@ public final class RadioBrowserCountryCodeDto {
     @SerializedName("name")
     private String countryCode;
 
-    @SerializedName("stationcount")
-    private String stationCount;
-
     @Nullable
     public String getCountryCode() {
         return countryCode;
-    }
-
-    @Nullable
-    public String getStationCount() {
-        return stationCount;
     }
 }

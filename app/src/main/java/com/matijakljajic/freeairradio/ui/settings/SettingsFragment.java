@@ -92,7 +92,7 @@ public class SettingsFragment extends AppShellAwareFragment {
     @Nullable
     private Button clearLocalStationsButton;
     @Nullable
-    private Button clearRecentlyPlayedButton;
+    private Button clearListeningHistoryButton;
     @Nullable
     private List<String> availableTopStationsCountryCodes;
     private boolean topStationsCountryCodesLoading;
@@ -112,8 +112,8 @@ public class SettingsFragment extends AppShellAwareFragment {
         bindViews(view);
         bindResetDialogResults();
         bindSupportSection();
-        bindThemeSection();
-        bindPlaybackSection();
+        bindThemeSelection();
+        bindAudioInterruptionSelection();
         bindHomePageSection();
         bindServerSection();
         bindResetSection();
@@ -170,7 +170,7 @@ public class SettingsFragment extends AppShellAwareFragment {
         resetButton = view.findViewById(R.id.server_reset_button);
         clearFavoritesButton = view.findViewById(R.id.settings_clear_favorites_button);
         clearLocalStationsButton = view.findViewById(R.id.settings_clear_local_stations_button);
-        clearRecentlyPlayedButton = view.findViewById(R.id.settings_clear_recently_played_button);
+        clearListeningHistoryButton = view.findViewById(R.id.settings_clear_listening_history_button);
         if (versionText != null) {
             versionText.setText(BuildConfig.VERSION_NAME);
         }
@@ -221,8 +221,8 @@ public class SettingsFragment extends AppShellAwareFragment {
         if (clearLocalStationsButton != null) {
             clearLocalStationsButton.setOnClickListener(null);
         }
-        if (clearRecentlyPlayedButton != null) {
-            clearRecentlyPlayedButton.setOnClickListener(null);
+        if (clearListeningHistoryButton != null) {
+            clearListeningHistoryButton.setOnClickListener(null);
         }
     }
 
@@ -249,7 +249,7 @@ public class SettingsFragment extends AppShellAwareFragment {
         resetButton = null;
         clearFavoritesButton = null;
         clearLocalStationsButton = null;
-        clearRecentlyPlayedButton = null;
+        clearListeningHistoryButton = null;
         availableTopStationsCountryCodes = null;
         topStationsCountryCodesLoading = false;
         settingsRootView = null;
@@ -265,14 +265,6 @@ public class SettingsFragment extends AppShellAwareFragment {
         if (supportIssueButton != null) {
             supportIssueButton.setOnClickListener(v -> openExternalUrl(PROJECT_GITHUB_ISSUES_URL));
         }
-    }
-
-    private void bindThemeSection() {
-        bindThemeSelection();
-    }
-
-    private void bindPlaybackSection() {
-        bindAudioInterruptionSelection();
     }
 
     private void bindHomePageSection() {
@@ -300,10 +292,10 @@ public class SettingsFragment extends AppShellAwareFragment {
                 R.string.settings_clear_local_stations_message
         );
         bindLibraryResetButton(
-                clearRecentlyPlayedButton,
-                SettingsResetDialogFragment.ACTION_CLEAR_RECENTLY_PLAYED,
-                R.string.settings_clear_recently_played_title,
-                R.string.settings_clear_recently_played_message
+                clearListeningHistoryButton,
+                SettingsResetDialogFragment.ACTION_CLEAR_LISTENING_HISTORY,
+                R.string.settings_clear_listening_history_title,
+                R.string.settings_clear_listening_history_message
         );
     }
 
@@ -643,11 +635,11 @@ public class SettingsFragment extends AppShellAwareFragment {
                         R.string.settings_clear_local_stations_failure
                 );
                 return;
-            case SettingsResetDialogFragment.ACTION_CLEAR_RECENTLY_PLAYED:
+            case SettingsResetDialogFragment.ACTION_CLEAR_LISTENING_HISTORY:
                 runLibraryReset(
-                        callback -> libraryRepository.clearRecentlyPlayedStations(callback),
-                        R.string.settings_clear_recently_played_success,
-                        R.string.settings_clear_recently_played_failure
+                        callback -> libraryRepository.clearListeningHistory(callback),
+                        R.string.settings_clear_listening_history_success,
+                        R.string.settings_clear_listening_history_failure
                 );
                 return;
             default:

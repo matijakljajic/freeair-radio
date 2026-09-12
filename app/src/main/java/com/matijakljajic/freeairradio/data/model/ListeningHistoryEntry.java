@@ -6,20 +6,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public final class RecentlyListenedStation {
+public final class ListeningHistoryEntry {
 
     @NonNull
     private final Station station;
     private final long listenedAt;
     @NonNull
-    private final List<RecentlyListenedSong> songs;
+    private final List<ListeningHistoryTrack> tracks;
 
-    public RecentlyListenedStation(@NonNull Station station,
+    public ListeningHistoryEntry(@NonNull Station station,
                                    long listenedAt,
-                                   @NonNull List<RecentlyListenedSong> songs) {
+                                   @NonNull List<ListeningHistoryTrack> tracks) {
         this.station = Objects.requireNonNull(station, "station");
         this.listenedAt = listenedAt;
-        this.songs = List.copyOf(new ArrayList<>(songs));
+        this.tracks = List.copyOf(new ArrayList<>(tracks));
     }
 
     @NonNull
@@ -32,8 +32,8 @@ public final class RecentlyListenedStation {
     }
 
     @NonNull
-    public List<RecentlyListenedSong> getSongs() {
-        return songs;
+    public List<ListeningHistoryTrack> getTracks() {
+        return tracks;
     }
 
     @Override
@@ -41,27 +41,27 @@ public final class RecentlyListenedStation {
         if (this == object) {
             return true;
         }
-        if (!(object instanceof RecentlyListenedStation)) {
+        if (!(object instanceof ListeningHistoryEntry)) {
             return false;
         }
-        RecentlyListenedStation that = (RecentlyListenedStation) object;
+        ListeningHistoryEntry that = (ListeningHistoryEntry) object;
         return listenedAt == that.listenedAt
                 && station.equals(that.station)
-                && songs.equals(that.songs);
+                && tracks.equals(that.tracks);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(station, listenedAt, songs);
+        return Objects.hash(station, listenedAt, tracks);
     }
 
     @NonNull
     @Override
     public String toString() {
-        return "RecentlyListenedStation{"
+        return "ListeningHistoryEntry{"
                 + "station=" + station
                 + ", listenedAt=" + listenedAt
-                + ", songs=" + songs
+                + ", tracks=" + tracks
                 + '}';
     }
 }

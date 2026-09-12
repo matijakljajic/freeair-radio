@@ -372,21 +372,22 @@ public class PlayerFragment extends Fragment {
         }
 
         playerView.setOnClickListener(v -> handlePlayerSurfaceClick());
-        playerView.setOnTouchListener((v, event) -> handlePlayerSurfaceTouch(event));
+        playerView.setOnTouchListener(this::handlePlayerSurfaceTouch);
     }
 
-    private boolean handlePlayerSurfaceTouch(@NonNull MotionEvent event) {
+    private boolean handlePlayerSurfaceTouch(@NonNull View view, @NonNull MotionEvent event) {
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 touchDownX = event.getX();
                 touchDownY = event.getY();
                 ignoreNextSurfaceClick = false;
-                return false;
+                return true;
             case MotionEvent.ACTION_UP:
                 float deltaX = event.getX() - touchDownX;
                 float deltaY = event.getY() - touchDownY;
                 if (Math.abs(deltaY) <= Math.abs(deltaX) || Math.abs(deltaY) < swipeThresholdPx) {
-                    return false;
+                    view.performClick();
+                    return true;
                 }
                 ignoreNextSurfaceClick = true;
                 if (playerSurfaceHost != null) {
@@ -395,7 +396,7 @@ public class PlayerFragment extends Fragment {
                 return true;
             case MotionEvent.ACTION_CANCEL:
                 ignoreNextSurfaceClick = false;
-                return false;
+                return true;
             default:
                 return false;
         }

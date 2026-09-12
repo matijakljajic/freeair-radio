@@ -3,7 +3,6 @@ package com.matijakljajic.freeairradio.playback.resolution;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -35,8 +34,8 @@ public final class ResolutionResult {
                             @Nullable String failureReason) {
         this.originalUrl = originalUrl;
         this.selectedCandidate = selectedCandidate;
-        this.candidates = Collections.unmodifiableList(candidates);
-        this.resolutionChain = Collections.unmodifiableList(resolutionChain);
+        this.candidates = List.copyOf(candidates);
+        this.resolutionChain = List.copyOf(resolutionChain);
         this.status = status;
         this.failureReason = failureReason;
     }

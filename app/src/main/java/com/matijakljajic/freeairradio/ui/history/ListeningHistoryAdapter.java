@@ -15,8 +15,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
 
 import com.matijakljajic.freeairradio.R;
-import com.matijakljajic.freeairradio.data.model.RecentlyListenedSong;
-import com.matijakljajic.freeairradio.data.model.RecentlyListenedStation;
+import com.matijakljajic.freeairradio.data.model.ListeningHistoryTrack;
+import com.matijakljajic.freeairradio.data.model.ListeningHistoryEntry;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -26,17 +26,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-final class RecentlyListenedAdapter extends RecyclerView.Adapter<RecentlyListenedAdapter.StationViewHolder> {
+final class ListeningHistoryAdapter extends RecyclerView.Adapter<ListeningHistoryAdapter.StationViewHolder> {
 
     private static final long DETAILS_REVEAL_DURATION_MS = 260L;
     @NonNull
     private static final Interpolator DETAILS_REVEAL_INTERPOLATOR = new FastOutSlowInInterpolator();
     @NonNull
-    private final List<RecentlyListenedStation> stations = new ArrayList<>();
+    private final List<ListeningHistoryEntry> stations = new ArrayList<>();
     @NonNull
     private final Set<String> expandedStationIds = new HashSet<>();
 
-    RecentlyListenedAdapter() {
+    ListeningHistoryAdapter() {
         setHasStableIds(true);
     }
 
@@ -49,9 +49,9 @@ final class RecentlyListenedAdapter extends RecyclerView.Adapter<RecentlyListene
         notifyDataSetChanged();
     }
 
-    void submitList(@NonNull List<RecentlyListenedStation> newStations) {
-        List<RecentlyListenedStation> updatedStations = new ArrayList<>(newStations);
-        List<RecentlyListenedStation> previousStations = new ArrayList<>(stations);
+    void submitList(@NonNull List<ListeningHistoryEntry> newStations) {
+        List<ListeningHistoryEntry> updatedStations = new ArrayList<>(newStations);
+        List<ListeningHistoryEntry> previousStations = new ArrayList<>(stations);
         if (previousStations.equals(updatedStations)) {
             return;
         }
@@ -72,13 +72,13 @@ final class RecentlyListenedAdapter extends RecyclerView.Adapter<RecentlyListene
     @Override
     public StationViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_recently_listened_station, parent, false);
+                .inflate(R.layout.item_listening_history_entry, parent, false);
         return new StationViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull StationViewHolder holder, int position) {
-        RecentlyListenedStation station = stations.get(position);
+        ListeningHistoryEntry station = stations.get(position);
         String stationId = station.getStation().getId();
         holder.bind(
                 station,
@@ -107,7 +107,7 @@ final class RecentlyListenedAdapter extends RecyclerView.Adapter<RecentlyListene
 
     private void retainOnlyExpandedStationsStillPresent() {
         HashSet<String> currentStationIds = new HashSet<>();
-        for (RecentlyListenedStation station : stations) {
+        for (ListeningHistoryEntry station : stations) {
             currentStationIds.add(station.getStation().getId());
         }
         expandedStationIds.retainAll(currentStationIds);
@@ -127,7 +127,7 @@ final class RecentlyListenedAdapter extends RecyclerView.Adapter<RecentlyListene
         @NonNull
         private final ImageView chevronView;
         @NonNull
-        private final LinearLayout songsContainer;
+        private final LinearLayout tracksContainer;
         @NonNull
         private final LayoutInflater inflater;
         @NonNull
@@ -137,60 +137,62 @@ final class RecentlyListenedAdapter extends RecyclerView.Adapter<RecentlyListene
 
         StationViewHolder(@NonNull View itemView) {
             super(itemView);
-            titleView = itemView.findViewById(R.id.recently_listened_station_title);
-            listenedAtView = itemView.findViewById(R.id.recently_listened_station_time);
-            chevronView = itemView.findViewById(R.id.recently_listened_station_chevron);
-            songsContainer = itemView.findViewById(R.id.recently_listened_song_container);
+            titleView = itemView.findViewById(R.id.listening_history_station_title);
+            listenedAtView = itemView.findViewById(R.id.listening_history_station_time);
+            chevronView = itemView.findViewById(R.id.listening_history_station_chevron);
+            tracksContainer = itemView.findViewById(R.id.listening_history_track_container);
             inflater = LayoutInflater.from(itemView.getContext());
         }
 
-        void bind(@NonNull RecentlyListenedStation station,
+        void bind(@NonNull ListeningHistoryEntry station,
                   boolean expanded,
                   @NonNull Runnable toggleAction) {
             titleView.setText(station.getStation().getName());
             listenedAtView.setText(timeFormatter.format(new Date(station.getListenedAt())));
-            bindSongs(station.getSongs());
-            boolean hasSongs = songsContainer.getChildCount() > 0;
-            itemView.setOnClickListener(hasSongs ? v -> toggleAction.run() : null);
-            itemView.setClickable(hasSongs);
-            chevronView.setVisibility(hasSongs ? View.VISIBLE : View.INVISIBLE);
-            setExpanded(hasSongs && expanded);
+            bindTracks(station.getTracks());
+            boolean hasTracks = tracksContainer.getChildCount() > 0;
+            itemView.setOnClickListener(hasTracks ? v -> toggleAction.run() : null);
+            itemView.setClickable(hasTracks);
+            chevronView.setVisibility(hasTracks ? View.VISIBLE : View.INVISIBLE);
+            setExpanded(hasTracks && expanded);
         }
 
-        private void bindSongs(@NonNull List<RecentlyListenedSong> songs) {
-            songsContainer.removeAllViews();
-            if (songs.isEmpty()) {
-                songsContainer.setVisibility(View.GONE);
+        private void bindTracks(@NonNull List<ListeningHistoryTrack> tracks) {
+            tracksContainer.removeAllViews();
+            if (tracks.isEmpty()) {
+                tracksContainer.setVisibility(View.GONE);
                 return;
             }
 
-            songsContainer.setVisibility(View.VISIBLE);
-            for (RecentlyListenedSong song : songs) {
-                String displayText = song.buildDisplayText();
+            tracksContainer.setVisibility(View.VISIBLE);
+            for (ListeningHistoryTrack track : tracks) {
+                String displayText = track.buildDisplayText();
                 if (displayText == null) {
                     continue;
                 }
 
-                View songView = inflater.inflate(
-                        R.layout.item_recently_listened_song,
-                        songsContainer,
+                View trackView = inflater.inflate(
+                        R.layout.item_listening_history_track,
+                        tracksContainer,
                         false
                 );
-                TextView songTextView = songView.findViewById(R.id.recently_listened_song_text);
-                songTextView.setText(displayText);
-                songsContainer.addView(songView);
+                TextView trackTextView = trackView.findViewById(R.id.listening_history_track_text);
+                trackTextView.setText(displayText);
+                tracksContainer.addView(trackView);
             }
-            songsContainer.setVisibility(songsContainer.getChildCount() > 0 ? View.VISIBLE : View.GONE);
+            tracksContainer.setVisibility(
+                    tracksContainer.getChildCount() > 0 ? View.VISIBLE : View.GONE
+            );
         }
 
         void setExpanded(boolean expanded) {
-            boolean hasSongs = songsContainer.getChildCount() > 0;
+            boolean hasTracks = tracksContainer.getChildCount() > 0;
             cancelAnimations();
-            applyExpandedState(hasSongs && expanded);
+            applyExpandedState(hasTracks && expanded);
         }
 
         void setExpandedAnimated(boolean expanded) {
-            if (songsContainer.getChildCount() == 0) {
+            if (tracksContainer.getChildCount() == 0) {
                 applyExpandedState(false);
                 return;
             }
@@ -204,11 +206,11 @@ final class RecentlyListenedAdapter extends RecyclerView.Adapter<RecentlyListene
 
             int startHeight = expanded
                     ? 0
-                    : Math.max(songsContainer.getHeight(), expandedHeight);
+                    : Math.max(tracksContainer.getHeight(), expandedHeight);
             int endHeight = expanded ? expandedHeight : 0;
 
             if (expanded) {
-                songsContainer.setVisibility(View.VISIBLE);
+                tracksContainer.setVisibility(View.VISIBLE);
             }
 
             setSongsContainerHeight(startHeight);
@@ -242,58 +244,58 @@ final class RecentlyListenedAdapter extends RecyclerView.Adapter<RecentlyListene
                 detailsAnimator.cancel();
                 detailsAnimator = null;
             }
-            songsContainer.animate().cancel();
+            tracksContainer.animate().cancel();
             chevronView.animate().cancel();
         }
 
         private void applyExpandedState(boolean expanded) {
-            boolean hasSongs = songsContainer.getChildCount() > 0;
-            if (!hasSongs || !expanded) {
-                songsContainer.setVisibility(View.GONE);
+            boolean hasTracks = tracksContainer.getChildCount() > 0;
+            if (!hasTracks || !expanded) {
+                tracksContainer.setVisibility(View.GONE);
                 setSongsContainerHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
                 chevronView.setRotation(0f);
                 return;
             }
 
-            songsContainer.setVisibility(View.VISIBLE);
+            tracksContainer.setVisibility(View.VISIBLE);
             setSongsContainerHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
             chevronView.setRotation(180f);
         }
 
         private int measureExpandedHeight() {
-            int width = songsContainer.getWidth();
+            int width = tracksContainer.getWidth();
             if (width <= 0) {
-                int parentWidth = ((View) songsContainer.getParent()).getWidth();
-                width = Math.max(0, parentWidth - songsContainer.getPaddingLeft() - songsContainer.getPaddingRight());
+                int parentWidth = ((View) tracksContainer.getParent()).getWidth();
+                width = Math.max(0, parentWidth - tracksContainer.getPaddingLeft() - tracksContainer.getPaddingRight());
             }
             if (width <= 0) {
-                return songsContainer.getHeight();
+                return tracksContainer.getHeight();
             }
 
             int widthSpec = View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY);
             int heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
-            songsContainer.measure(widthSpec, heightSpec);
-            return songsContainer.getMeasuredHeight();
+            tracksContainer.measure(widthSpec, heightSpec);
+            return tracksContainer.getMeasuredHeight();
         }
 
         private void setSongsContainerHeight(int height) {
-            ViewGroup.LayoutParams layoutParams = songsContainer.getLayoutParams();
+            ViewGroup.LayoutParams layoutParams = tracksContainer.getLayoutParams();
             if (layoutParams.height == height) {
                 return;
             }
             layoutParams.height = height;
-            songsContainer.setLayoutParams(layoutParams);
+            tracksContainer.setLayoutParams(layoutParams);
         }
     }
 
     private static final class StationDiffCallback extends DiffUtil.Callback {
         @NonNull
-        private final List<RecentlyListenedStation> oldStations;
+        private final List<ListeningHistoryEntry> oldStations;
         @NonNull
-        private final List<RecentlyListenedStation> newStations;
+        private final List<ListeningHistoryEntry> newStations;
 
-        private StationDiffCallback(@NonNull List<RecentlyListenedStation> oldStations,
-                                    @NonNull List<RecentlyListenedStation> newStations) {
+        private StationDiffCallback(@NonNull List<ListeningHistoryEntry> oldStations,
+                                    @NonNull List<ListeningHistoryEntry> newStations) {
             this.oldStations = oldStations;
             this.newStations = newStations;
         }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/station_feed_content_root"
     android:layout_width="match_parent"
@@ -22,11 +23,15 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <ProgressBar
+        <com.google.android.material.progressindicator.CircularProgressIndicator
             android:id="@+id/station_feed_loading_view"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="gone" />
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:visibility="gone"
+            app:indicatorColor="?attr/colorPrimary"
+            app:indicatorSize="48dp"
+            app:trackColor="?attr/colorSurfaceContainerHighest"
+            app:trackThickness="4dp" />
 
         <LinearLayout
             android:id="@+id/station_feed_error_container"
@@ -43,8 +48,9 @@
                 android:text="@string/station_list_error"
                 android:textAlignment="center" />
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/station_feed_retry_button"
+                style="@style/Widget.FreeAirRadio.DialogPrimaryButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"

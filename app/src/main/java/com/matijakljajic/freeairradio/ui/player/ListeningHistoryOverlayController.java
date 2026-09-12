@@ -16,11 +16,11 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 
-import com.matijakljajic.freeairradio.ui.history.RecentlyListenedFragment;
+import com.matijakljajic.freeairradio.ui.history.ListeningHistoryFragment;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
-public final class PlayerHistoryOverlayController {
+public final class ListeningHistoryOverlayController {
 
     private static final long OVERLAY_FADE_DURATION_MS = 220L;
     private static final long PLAYER_MOVE_DURATION_MS = 260L;
@@ -29,16 +29,16 @@ public final class PlayerHistoryOverlayController {
     private final AppCompatActivity activity;
     @NonNull
     private final View rootView;
-    @Nullable
+    @NonNull
     private final View overlayContainerView;
-    @Nullable
+    @NonNull
     private final View overlayScrimView;
-    @Nullable
+    @NonNull
     private final View collapsedPlayerContainerView;
-    @Nullable
+    @NonNull
     private final View expandedPlayerContainerView;
-    @Nullable
-    private final View recentHistoryContainerView;
+    @NonNull
+    private final View listeningHistoryContainerView;
     private final int expandedPlayerBaseTopMarginPx;
     @NonNull
     private final OnBackPressedCallback backPressedCallback;
@@ -49,25 +49,25 @@ public final class PlayerHistoryOverlayController {
     @NonNull
     private final View.OnLayoutChangeListener rootLayoutChangeListener;
     @NonNull
-    private final Rect recentHistoryClipBounds = new Rect();
+    private final Rect listeningHistoryClipBounds = new Rect();
     @Nullable
     private ValueAnimator playerRevealAnimator;
     private boolean overlayVisible;
 
-    public PlayerHistoryOverlayController(@NonNull AppCompatActivity activity,
+    public ListeningHistoryOverlayController(@NonNull AppCompatActivity activity,
                                           @NonNull View rootView,
-                                          @Nullable View overlayContainerView,
-                                          @Nullable View overlayScrimView,
-                                          @Nullable View collapsedPlayerContainerView,
-                                          @Nullable View expandedPlayerContainerView,
-                                          @Nullable View recentHistoryContainerView) {
+                                          @NonNull View overlayContainerView,
+                                          @NonNull View overlayScrimView,
+                                          @NonNull View collapsedPlayerContainerView,
+                                          @NonNull View expandedPlayerContainerView,
+                                          @NonNull View listeningHistoryContainerView) {
         this.activity = activity;
         this.rootView = rootView;
         this.overlayContainerView = overlayContainerView;
         this.overlayScrimView = overlayScrimView;
         this.collapsedPlayerContainerView = collapsedPlayerContainerView;
         this.expandedPlayerContainerView = expandedPlayerContainerView;
-        this.recentHistoryContainerView = recentHistoryContainerView;
+        this.listeningHistoryContainerView = listeningHistoryContainerView;
         this.expandedPlayerBaseTopMarginPx = getTopMargin(expandedPlayerContainerView);
         this.backPressedCallback = new OnBackPressedCallback(false) {
             @Override
@@ -77,45 +77,31 @@ public final class PlayerHistoryOverlayController {
         };
         this.expandedPlayerLayoutChangeListener =
                 (view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
-                        updateRecentHistoryBounds();
+                        updateListeningHistoryBounds();
         this.collapsedPlayerLayoutChangeListener =
                 (view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
-                        updateRecentHistoryBounds();
+                        updateListeningHistoryBounds();
         this.rootLayoutChangeListener =
                 (view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
-                        updateRecentHistoryBounds();
+                        updateListeningHistoryBounds();
     }
 
     public void attach() {
         activity.getOnBackPressedDispatcher().addCallback(activity, backPressedCallback);
         rootView.addOnLayoutChangeListener(rootLayoutChangeListener);
-        if (expandedPlayerContainerView != null) {
-            expandedPlayerContainerView.addOnLayoutChangeListener(expandedPlayerLayoutChangeListener);
-        }
-        if (collapsedPlayerContainerView != null) {
-            collapsedPlayerContainerView.addOnLayoutChangeListener(collapsedPlayerLayoutChangeListener);
-        }
-        if (overlayScrimView != null) {
-            overlayScrimView.setOnClickListener(v -> close());
-        }
-        if (overlayContainerView != null) {
-            overlayContainerView.setVisibility(View.INVISIBLE);
-        }
-        scheduleRecentHistoryBoundsUpdate();
+        expandedPlayerContainerView.addOnLayoutChangeListener(expandedPlayerLayoutChangeListener);
+        collapsedPlayerContainerView.addOnLayoutChangeListener(collapsedPlayerLayoutChangeListener);
+        overlayScrimView.setOnClickListener(v -> close());
+        overlayContainerView.setVisibility(View.INVISIBLE);
+        scheduleListeningHistoryBoundsUpdate();
     }
 
     public void detach() {
         backPressedCallback.remove();
         rootView.removeOnLayoutChangeListener(rootLayoutChangeListener);
-        if (expandedPlayerContainerView != null) {
-            expandedPlayerContainerView.removeOnLayoutChangeListener(expandedPlayerLayoutChangeListener);
-        }
-        if (collapsedPlayerContainerView != null) {
-            collapsedPlayerContainerView.removeOnLayoutChangeListener(collapsedPlayerLayoutChangeListener);
-        }
-        if (overlayScrimView != null) {
-            overlayScrimView.setOnClickListener(null);
-        }
+        expandedPlayerContainerView.removeOnLayoutChangeListener(expandedPlayerLayoutChangeListener);
+        collapsedPlayerContainerView.removeOnLayoutChangeListener(collapsedPlayerLayoutChangeListener);
+        overlayScrimView.setOnClickListener(null);
         restoreCollapsedPlayer();
         hideOverlayImmediately();
     }
@@ -125,14 +111,14 @@ public final class PlayerHistoryOverlayController {
     }
 
     public void open() {
-        if (overlayVisible || !hasRequiredViews()) {
+        if (overlayVisible) {
             return;
         }
 
-        resetRecentHistoryState();
+        resetListeningHistoryState();
         configureExpandedPlayerPosition();
-        updateRecentHistoryBounds();
-        scheduleRecentHistoryBoundsUpdate();
+        updateListeningHistoryBounds();
+        scheduleListeningHistoryBoundsUpdate();
         int startTranslationY = calculateStartTranslationY();
         overlayVisible = true;
         backPressedCallback.setEnabled(true);
@@ -153,7 +139,7 @@ public final class PlayerHistoryOverlayController {
     }
 
     public void close() {
-        if (!overlayVisible || !hasRequiredViews()) {
+        if (!overlayVisible) {
             return;
         }
 
@@ -171,19 +157,7 @@ public final class PlayerHistoryOverlayController {
         animatePlayerReveal(0f, endTranslationY, false);
     }
 
-    private boolean hasRequiredViews() {
-        return overlayContainerView != null
-                && overlayScrimView != null
-                && collapsedPlayerContainerView != null
-                && expandedPlayerContainerView != null
-                && recentHistoryContainerView != null;
-    }
-
     private void configureExpandedPlayerPosition() {
-        if (expandedPlayerContainerView == null) {
-            return;
-        }
-
         ViewGroup.LayoutParams layoutParams = expandedPlayerContainerView.getLayoutParams();
         if (!(layoutParams instanceof ViewGroup.MarginLayoutParams)) {
             return;
@@ -199,38 +173,28 @@ public final class PlayerHistoryOverlayController {
         expandedPlayerContainerView.setLayoutParams(marginLayoutParams);
     }
 
-    private void updateRecentHistoryBounds() {
-        if (expandedPlayerContainerView == null
-                || collapsedPlayerContainerView == null
-                || recentHistoryContainerView == null) {
-            return;
-        }
-
-        ViewGroup.LayoutParams layoutParams = recentHistoryContainerView.getLayoutParams();
+    private void updateListeningHistoryBounds() {
+        ViewGroup.LayoutParams layoutParams = listeningHistoryContainerView.getLayoutParams();
         if (!(layoutParams instanceof ViewGroup.MarginLayoutParams)) {
             return;
         }
 
         ViewGroup.MarginLayoutParams marginLayoutParams = (ViewGroup.MarginLayoutParams) layoutParams;
-        int desiredTopInset = getRecentHistoryTopInset();
+        int desiredTopInset = getListeningHistoryTopInset();
         int desiredBottomMargin = Math.max(0, rootView.getHeight() - getCollapsedPlayerBottomInRoot());
         if (marginLayoutParams.topMargin == 0
                 && marginLayoutParams.bottomMargin == desiredBottomMargin) {
-            applyRecentHistoryContentInsets(desiredTopInset);
+            applyListeningHistoryContentInsets(desiredTopInset);
             return;
         }
 
         marginLayoutParams.topMargin = 0;
         marginLayoutParams.bottomMargin = desiredBottomMargin;
-        recentHistoryContainerView.setLayoutParams(marginLayoutParams);
-        applyRecentHistoryContentInsets(desiredTopInset);
+        listeningHistoryContainerView.setLayoutParams(marginLayoutParams);
+        applyListeningHistoryContentInsets(desiredTopInset);
     }
 
     private int calculateStartTranslationY() {
-        if (collapsedPlayerContainerView == null || expandedPlayerContainerView == null) {
-            return 0;
-        }
-
         int[] collapsedLocation = new int[2];
         int[] expandedLocation = new int[2];
         collapsedPlayerContainerView.getLocationOnScreen(collapsedLocation);
@@ -242,11 +206,7 @@ public final class PlayerHistoryOverlayController {
         return getTopMargin(expandedPlayerContainerView);
     }
 
-    private int getTopMargin(@Nullable View view) {
-        if (view == null) {
-            return 0;
-        }
-
+    private int getTopMargin(@NonNull View view) {
         ViewGroup.LayoutParams layoutParams = view.getLayoutParams();
         return layoutParams instanceof ViewGroup.MarginLayoutParams
                 ? ((ViewGroup.MarginLayoutParams) layoutParams).topMargin
@@ -254,10 +214,6 @@ public final class PlayerHistoryOverlayController {
     }
 
     private int getCollapsedPlayerBottomInRoot() {
-        if (collapsedPlayerContainerView == null) {
-            return rootView.getHeight();
-        }
-
         int[] rootLocation = new int[2];
         int[] collapsedLocation = new int[2];
         rootView.getLocationOnScreen(rootLocation);
@@ -275,9 +231,6 @@ public final class PlayerHistoryOverlayController {
     }
 
     private void restoreCollapsedPlayer() {
-        if (collapsedPlayerContainerView == null) {
-            return;
-        }
         collapsedPlayerContainerView.animate().cancel();
         collapsedPlayerContainerView.setAlpha(1f);
     }
@@ -302,7 +255,7 @@ public final class PlayerHistoryOverlayController {
                 }
                 restoreCollapsedPlayer();
                 hideOverlayImmediately();
-                resetRecentHistoryState();
+                resetListeningHistoryState();
             }
         });
         playerRevealAnimator = animator;
@@ -317,21 +270,13 @@ public final class PlayerHistoryOverlayController {
     }
 
     private void applyPlayerReveal(float translationY) {
-        if (expandedPlayerContainerView == null || recentHistoryContainerView == null) {
-            return;
-        }
-
         expandedPlayerContainerView.setTranslationY(translationY);
-        applyRecentHistoryClip(translationY);
+        applyListeningHistoryClip(translationY);
     }
 
-    private void applyRecentHistoryClip(float translationY) {
-        if (recentHistoryContainerView == null || expandedPlayerContainerView == null) {
-            return;
-        }
-
-        int width = recentHistoryContainerView.getWidth();
-        int height = recentHistoryContainerView.getHeight();
+    private void applyListeningHistoryClip(float translationY) {
+        int width = listeningHistoryContainerView.getWidth();
+        int height = listeningHistoryContainerView.getHeight();
         if (width <= 0 || height <= 0) {
             return;
         }
@@ -340,75 +285,57 @@ public final class PlayerHistoryOverlayController {
                 height,
                 Math.max(
                         0,
-                        Math.round(getRecentHistoryClipTop() + translationY)
+                        Math.round(getListeningHistoryClipTop() + translationY)
                 )
         );
         if (clipTop == 0) {
-            recentHistoryContainerView.setClipBounds(null);
+            listeningHistoryContainerView.setClipBounds(null);
             return;
         }
 
-        recentHistoryClipBounds.set(0, clipTop, width, height);
-        recentHistoryContainerView.setClipBounds(recentHistoryClipBounds);
+        listeningHistoryClipBounds.set(0, clipTop, width, height);
+        listeningHistoryContainerView.setClipBounds(listeningHistoryClipBounds);
     }
 
     private void hideOverlayImmediately() {
-        if (overlayContainerView == null
-                || overlayScrimView == null
-                || recentHistoryContainerView == null
-                || expandedPlayerContainerView == null) {
-            return;
-        }
-
         overlayContainerView.setVisibility(View.INVISIBLE);
         overlayScrimView.setAlpha(1f);
-        recentHistoryContainerView.setClipBounds(null);
+        listeningHistoryContainerView.setClipBounds(null);
         expandedPlayerContainerView.setTranslationY(0f);
     }
 
-    private int getRecentHistoryTopInset() {
-        if (expandedPlayerContainerView == null) {
-            return 0;
-        }
-
+    private int getListeningHistoryTopInset() {
         return getExpandedPlayerTop()
                 + expandedPlayerContainerView.getHeight()
                 + UiDimensions.px(rootView.getContext(), R.dimen.player_history_overlay_gap);
     }
 
-    private int getRecentHistoryClipTop() {
-        if (expandedPlayerContainerView == null) {
-            return 0;
-        }
-
+    private int getListeningHistoryClipTop() {
         return getExpandedPlayerTop() + (expandedPlayerContainerView.getHeight() / 2);
     }
 
-    private void applyRecentHistoryContentInsets(int topInset) {
-        RecentlyListenedFragment fragment = findRecentlyListenedFragment();
+    private void applyListeningHistoryContentInsets(int topInset) {
+        ListeningHistoryFragment fragment = findListeningHistoryFragment();
         if (fragment != null) {
             fragment.setContentTopInsetPx(topInset);
         }
     }
 
-    private void scheduleRecentHistoryBoundsUpdate() {
-        if (recentHistoryContainerView == null) {
-            return;
-        }
-        recentHistoryContainerView.post(this::updateRecentHistoryBounds);
+    private void scheduleListeningHistoryBoundsUpdate() {
+        listeningHistoryContainerView.post(this::updateListeningHistoryBounds);
     }
 
     @Nullable
-    private RecentlyListenedFragment findRecentlyListenedFragment() {
+    private ListeningHistoryFragment findListeningHistoryFragment() {
         Fragment fragment = activity.getSupportFragmentManager()
-                .findFragmentById(R.id.recently_listened_fragment_container);
-        return fragment instanceof RecentlyListenedFragment
-                ? (RecentlyListenedFragment) fragment
+                .findFragmentById(R.id.listening_history_fragment_container);
+        return fragment instanceof ListeningHistoryFragment
+                ? (ListeningHistoryFragment) fragment
                 : null;
     }
 
-    private void resetRecentHistoryState() {
-        RecentlyListenedFragment fragment = findRecentlyListenedFragment();
+    private void resetListeningHistoryState() {
+        ListeningHistoryFragment fragment = findListeningHistoryFragment();
         if (fragment != null) {
             fragment.resetToInitialState();
         }

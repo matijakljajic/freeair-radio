@@ -21,7 +21,7 @@ public class SettingsResetDialogFragment extends DialogFragment {
 
     public static final String ACTION_CLEAR_FAVORITES = "clear_favorites";
     public static final String ACTION_CLEAR_LOCAL_STATIONS = "clear_local_stations";
-    public static final String ACTION_CLEAR_RECENTLY_PLAYED = "clear_recently_played";
+    public static final String ACTION_CLEAR_LISTENING_HISTORY = "clear_listening_history";
 
     private static final String ARG_ACTION = "arg_action";
     private static final String ARG_TITLE_RES_ID = "arg_title_res_id";

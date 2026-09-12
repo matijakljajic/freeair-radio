@@ -50,7 +50,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.matijakljajic.freeairradio.artwork.StationArtworkBitmapLoader;
 import com.matijakljajic.freeairradio.artwork.StationArtworkResolver;
 import com.matijakljajic.freeairradio.R;
-import com.matijakljajic.freeairradio.data.model.RecentlyListenedSong;
+import com.matijakljajic.freeairradio.data.model.ListeningHistoryTrack;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
 import com.matijakljajic.freeairradio.data.remote.radiobrowser.RadioBrowserRepository;
@@ -83,7 +83,7 @@ public class RadioPlaybackService extends MediaLibraryService {
     private static final String TAG = "RadioPlaybackService";
     private static final String PLAYBACK_NOTIFICATION_CHANNEL_ID = "radio_playback";
     private static final int PLAYBACK_NOTIFICATION_ID = 1001;
-    private static final long MIN_RECENTLY_LISTENED_TRACK_DURATION_MS = 20_000L;
+    private static final long MIN_LISTENING_HISTORY_TRACK_DURATION_MS = 20_000L;
     private static final float DEFAULT_PLAYER_VOLUME = 1f;
     private static final float DUCKED_PLAYER_VOLUME = 0.25f;
     @NonNull
@@ -309,7 +309,7 @@ public class RadioPlaybackService extends MediaLibraryService {
                 return loadBrowseStations("browse favorite stations", page, pageSize, params, repository::loadFavoriteStations);
             }
 
-            if (RadioPlaybackLibraryCatalog.BROWSE_RECENT_ID.equals(parentId)) {
+            if (RadioPlaybackLibraryCatalog.BROWSE_HISTORY_ID.equals(parentId)) {
                 if (libraryRepository == null) {
                     return Futures.immediateFuture(
                             LibraryResult.ofError(LibraryResult.RESULT_ERROR_INVALID_STATE)
@@ -317,11 +317,11 @@ public class RadioPlaybackService extends MediaLibraryService {
                 }
                 LibraryRepository repository = libraryRepository;
                 return loadBrowseStations(
-                        "browse recently played stations",
+                        "browse listening history stations",
                         page,
                         pageSize,
                         playbackLibraryCatalog.buildRecentLibraryParams(params),
-                        repository::loadRecentlyPlayedStations);
+                        repository::loadListeningHistoryStations);
             }
 
             if (RadioPlaybackLibraryCatalog.BROWSE_LOCAL_ID.equals(parentId)) {
@@ -1393,7 +1393,7 @@ public class RadioPlaybackService extends MediaLibraryService {
             stationRepository.reportStationUsage(currentStation);
         }
         if (libraryRepository != null) {
-            libraryRepository.recordRecentlyPlayed(currentStation);
+            libraryRepository.recordListeningHistoryStation(currentStation);
         }
         if (playbackResumptionStore != null) {
             playbackResumptionStore.saveLastPlayedStation(currentStation);
@@ -1473,9 +1473,9 @@ public class RadioPlaybackService extends MediaLibraryService {
             return;
         }
 
-        libraryRepository.recordRecentlyListenedSong(
+        libraryRepository.recordListeningHistoryTrack(
                 station,
-                new RecentlyListenedSong(
+                new ListeningHistoryTrack(
                         previousNowPlaying.getArtist(),
                         previousNowPlaying.getTitle(),
                         System.currentTimeMillis()
@@ -1489,7 +1489,7 @@ public class RadioPlaybackService extends MediaLibraryService {
         }
 
         return changedAtElapsedMs - currentNowPlayingStartedAtElapsedMs
-                >= MIN_RECENTLY_LISTENED_TRACK_DURATION_MS;
+                >= MIN_LISTENING_HISTORY_TRACK_DURATION_MS;
     }
 
     private void updateCurrentNowPlayingTiming(@Nullable NowPlaying currentNowPlaying,

@@ -8,10 +8,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.matijakljajic.freeairradio.BuildConfig;
+import com.matijakljajic.freeairradio.util.AppLog;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -23,9 +27,12 @@ import java.util.concurrent.ThreadLocalRandom;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 public final class RadioBrowserServerDirectory {
 
+    private static final String TAG = "RadioBrowserDirectory";
+    private static final int MAX_DIRECTORY_RESPONSE_BYTES = 128 * 1024;
     private static volatile List<String> cachedServers = Collections.emptyList();
     private static final String BOOTSTRAP_BASE_URL = "https://all.api.radio-browser.info/";
     private static final String SERVER_DIRECTORY_URL = "https://all.api.radio-browser.info/json/servers";
@@ -40,7 +47,7 @@ public final class RadioBrowserServerDirectory {
 
     @NonNull
     public static List<String> getCachedServers() {
-        return cachedServers;
+        return new ArrayList<>(cachedServers);
     }
 
     @NonNull
@@ -50,15 +57,24 @@ public final class RadioBrowserServerDirectory {
 
     @NonNull
     public static List<String> loadServers(boolean forceRefresh) {
-        if (!forceRefresh && !cachedServers.isEmpty()) {
-            return cachedServers;
+        synchronized (RadioBrowserServerDirectory.class) {
+            if (!forceRefresh && !cachedServers.isEmpty()) {
+                return cachedServers;
+            }
+            return refreshLocked();
         }
-        return refresh();
     }
 
     @NonNull
     public static List<String> refresh() {
-        cachedServers = discoverFreshBaseUrls();
+        synchronized (RadioBrowserServerDirectory.class) {
+            return refreshLocked();
+        }
+    }
+
+    @NonNull
+    private static List<String> refreshLocked() {
+        cachedServers = Collections.unmodifiableList(discoverFreshBaseUrls());
         return cachedServers;
     }
 
@@ -106,9 +122,38 @@ public final class RadioBrowserServerDirectory {
                 return Collections.emptyList();
             }
 
-            return parseBaseUrls(response.body().string());
-        } catch (IOException ignored) {
+            String responseBody = readBoundedBody(response.body());
+            if (responseBody == null) {
+                AppLog.w(TAG, "Radio Browser server directory response exceeded size limit");
+                return Collections.emptyList();
+            }
+            return parseBaseUrls(responseBody);
+        } catch (IOException | RuntimeException exception) {
+            AppLog.w(TAG, "Could not read Radio Browser server directory", exception);
             return Collections.emptyList();
+        }
+    }
+
+    @Nullable
+    private static String readBoundedBody(@NonNull ResponseBody responseBody) throws IOException {
+        long contentLength = responseBody.contentLength();
+        if (contentLength > MAX_DIRECTORY_RESPONSE_BYTES) {
+            return null;
+        }
+
+        try (InputStream inputStream = responseBody.byteStream();
+             ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[4096];
+            int totalBytes = 0;
+            int readBytes;
+            while ((readBytes = inputStream.read(buffer)) != -1) {
+                totalBytes += readBytes;
+                if (totalBytes > MAX_DIRECTORY_RESPONSE_BYTES) {
+                    return null;
+                }
+                outputStream.write(buffer, 0, readBytes);
+            }
+            return new String(outputStream.toByteArray(), StandardCharsets.UTF_8);
         }
     }
 
@@ -121,6 +166,15 @@ public final class RadioBrowserServerDirectory {
 
     @NonNull
     static List<String> parseBaseUrls(@NonNull String json) {
+        try {
+            return parseBaseUrlsOrThrow(json);
+        } catch (RuntimeException exception) {
+            return Collections.emptyList();
+        }
+    }
+
+    @NonNull
+    private static List<String> parseBaseUrlsOrThrow(@NonNull String json) {
         JsonElement parsedJson = JsonParser.parseString(json);
         JsonArray serverArray = extractServerArray(parsedJson);
         if (serverArray == null || serverArray.isEmpty()) {

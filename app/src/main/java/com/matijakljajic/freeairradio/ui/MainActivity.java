@@ -5,8 +5,10 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -15,16 +17,17 @@ import androidx.core.content.ContextCompat;
 import androidx.core.os.BundleCompat;
 import androidx.core.view.WindowCompat;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.matijakljajic.freeairradio.R;
 import com.matijakljajic.freeairradio.data.model.Station;
-import com.matijakljajic.freeairradio.data.remote.radiobrowser.serverselection.RadioBrowserServerDirectory;
+import com.matijakljajic.freeairradio.data.remote.radiobrowser.RadioBrowserRepository;
 import com.matijakljajic.freeairradio.playback.RadioPlayer;
 import com.matijakljajic.freeairradio.ui.settings.AppThemeSettings;
 import com.matijakljajic.freeairradio.ui.homepage.HomePageFragment;
 import com.matijakljajic.freeairradio.ui.player.PlayerFragment;
-import com.matijakljajic.freeairradio.ui.player.PlayerHistoryOverlayController;
+import com.matijakljajic.freeairradio.ui.player.ListeningHistoryOverlayController;
 import com.matijakljajic.freeairradio.ui.settings.SettingsFragment;
 import com.matijakljajic.freeairradio.ui.shell.AppShellController;
 import com.matijakljajic.freeairradio.ui.shell.AppShellHost;
@@ -38,6 +41,7 @@ public class MainActivity extends AppCompatActivity implements
         PlayerFragment.PlayerSurfaceHost {
 
     private static final int REQUEST_CODE_POST_NOTIFICATIONS = 1001;
+    private static final int TAB_CHANGE_TRANSITION = FragmentTransaction.TRANSIT_FRAGMENT_CLOSE;
     private static final String STATE_SELECTED_STATION = "state_selected_station";
     private static final String STATE_CURRENT_TAB = "state_current_tab";
 
@@ -52,7 +56,7 @@ public class MainActivity extends AppCompatActivity implements
     @Nullable
     private RadioPlayer radioPlayer;
     @Nullable
-    private PlayerHistoryOverlayController playerHistoryOverlayController;
+    private ListeningHistoryOverlayController listeningHistoryOverlayController;
     private boolean suppressNavCallbacks;
 
     @Override
@@ -104,27 +108,39 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void bindViews() {
-        navToggleGroup = findViewById(R.id.main_nav_toggle_group);
+        ViewGroup rootView = findRequiredView(R.id.main);
+        navToggleGroup = findRequiredView(R.id.main_nav_toggle_group);
         radioPlayer = new RadioPlayer(this);
         appShellController = new AppShellController(
-                findViewById(R.id.main),
-                findViewById(R.id.status_bar_filter),
-                findViewById(R.id.bottom_content_filter),
-                findViewById(R.id.bottom_controls_container),
-                findViewById(R.id.search_overlay_container)
+                rootView,
+                findRequiredView(R.id.status_bar_filter),
+                findRequiredView(R.id.bottom_content_filter),
+                findRequiredView(R.id.bottom_controls_container),
+                findRequiredView(R.id.search_overlay_container)
         );
         View playerHistoryOverlay = findViewById(R.id.player_history_overlay_container);
         if (playerHistoryOverlay != null) {
-            playerHistoryOverlayController = new PlayerHistoryOverlayController(
+            listeningHistoryOverlayController = new ListeningHistoryOverlayController(
                     this,
-                    findViewById(R.id.main),
+                    rootView,
                     playerHistoryOverlay,
-                    findViewById(R.id.player_history_overlay_scrim),
-                    findViewById(R.id.player_fragment_container),
-                    findViewById(R.id.expanded_player_container),
-                    findViewById(R.id.recently_listened_fragment_container)
+                    findRequiredView(R.id.player_history_overlay_scrim),
+                    findRequiredView(R.id.player_fragment_container),
+                    findRequiredView(R.id.expanded_player_container),
+                    findRequiredView(R.id.listening_history_fragment_container)
             );
         }
+    }
+
+    @NonNull
+    private <T extends View> T findRequiredView(@IdRes int viewId) {
+        T view = findViewById(viewId);
+        if (view == null) {
+            throw new IllegalStateException(
+                    "Missing required activity view: " + getResources().getResourceName(viewId)
+            );
+        }
+        return view;
     }
 
     private void bindNavigation() {
@@ -151,16 +167,13 @@ public class MainActivity extends AppCompatActivity implements
         if (appShellController != null) {
             appShellController.attach();
         }
-        if (playerHistoryOverlayController != null) {
-            playerHistoryOverlayController.attach();
+        if (listeningHistoryOverlayController != null) {
+            listeningHistoryOverlayController.attach();
         }
     }
 
     private void refreshRadioBrowserServers() {
-        new Thread(
-                RadioBrowserServerDirectory::refresh,
-                "RadioBrowserServerRefresh"
-        ).start();
+        RadioBrowserRepository.refreshServerDirectoryAsync();
     }
 
     private void showSelectedStation() {
@@ -183,8 +196,8 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void detachAppShell() {
-        if (playerHistoryOverlayController != null) {
-            playerHistoryOverlayController.detach();
+        if (listeningHistoryOverlayController != null) {
+            listeningHistoryOverlayController.detach();
         }
         if (appShellController != null) {
             appShellController.detach();
@@ -193,27 +206,27 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onPlayerSurfaceTap(boolean expanded) {
-        if (playerHistoryOverlayController == null) {
+        if (listeningHistoryOverlayController == null) {
             return;
         }
 
         if (expanded) {
-            playerHistoryOverlayController.close();
+            listeningHistoryOverlayController.close();
         } else {
-            playerHistoryOverlayController.open();
+            listeningHistoryOverlayController.open();
         }
     }
 
     @Override
     public void onPlayerSurfaceSwipe(boolean expanded, boolean upward) {
-        if (playerHistoryOverlayController == null) {
+        if (listeningHistoryOverlayController == null) {
             return;
         }
 
         if (!expanded && upward) {
-            playerHistoryOverlayController.open();
+            listeningHistoryOverlayController.open();
         } else if (expanded && !upward) {
-            playerHistoryOverlayController.close();
+            listeningHistoryOverlayController.close();
         }
     }
 
@@ -243,18 +256,14 @@ public class MainActivity extends AppCompatActivity implements
     private void replaceMainFragment(@NonNull Tab tab) {
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.main_content_fragment_container, tab.createFragment())
-                .setTransition(AppShellController.DEFAULT_TRANSITION_TYPE)
+                .setTransition(TAB_CHANGE_TRANSITION)
                 .runOnCommit(() -> applyTabShellState(tab))
                 .commit();
     }
 
     private void applyTabShellState(@NonNull Tab tab) {
         if (appShellController != null) {
-            appShellController.setSearchBarVisible(
-                    tab.showsSearchBar,
-                    AppShellController.DEFAULT_TRANSITION_TYPE,
-                    0L
-            );
+            appShellController.setSearchBarVisible(tab.showsSearchBar);
         }
     }
 

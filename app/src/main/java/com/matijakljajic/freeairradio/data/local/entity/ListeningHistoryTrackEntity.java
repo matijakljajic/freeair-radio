@@ -8,12 +8,12 @@ import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
 @Entity(
-        tableName = "recently_listened_songs",
+        tableName = "listening_history_tracks",
         indices = {
                 @Index(value = {"station_id", "heard_at"})
         }
 )
-public class RecentlyListenedSongEntity {
+public class ListeningHistoryTrackEntity {
 
     @PrimaryKey(autoGenerate = true)
     public final long id;
@@ -27,7 +27,7 @@ public class RecentlyListenedSongEntity {
     @ColumnInfo(name = "heard_at")
     public final long heardAt;
 
-    public RecentlyListenedSongEntity(long id,
+    public ListeningHistoryTrackEntity(long id,
                                       @NonNull String stationId,
                                       @Nullable String artist,
                                       @Nullable String title,

@@ -27,7 +27,7 @@ The project started as a university Android course app. It's influenced partly b
 
 ### Listening history
 
-- View recently played stations by clicking on the in-app miniplayer.
+- View listening history by clicking on the in-app miniplayer.
 - View songs you listened to on stations which provided that metadata.
 
 ### Surprise yourself
@@ -41,7 +41,6 @@ FreeAir Radio is currently in beta. Core browsing, playback, persistence, metada
 
 ### What's planned
 
-- tablet layouts
 - recording-related features
 
 ## Notes

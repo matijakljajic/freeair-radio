@@ -4,7 +4,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.transition.ChangeBounds;
-import android.transition.Fade;
 import android.transition.Slide;
 import android.transition.Transition;
 import android.transition.TransitionManager;
@@ -15,7 +14,6 @@ import androidx.annotation.Nullable;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.card.MaterialCardView;
 import com.matijakljajic.freeairradio.R;
@@ -24,18 +22,17 @@ import com.matijakljajic.freeairradio.ui.util.UiDimensions;
 
 public final class AppShellController {
 
-    public static final int DEFAULT_TRANSITION_TYPE = FragmentTransaction.TRANSIT_FRAGMENT_CLOSE;
-    public static final long DEFAULT_TRANSITION_DURATION_MS = 300L;
+    private static final long TRANSITION_DURATION_MS = 300L;
 
     @NonNull
-    private final View rootView;
-    @Nullable
+    private final ViewGroup rootView;
+    @NonNull
     private final View statusBarFilterView;
-    @Nullable
+    @NonNull
     private final View bottomContentFilterView;
-    @Nullable
+    @NonNull
     private final View bottomControlsContainerView;
-    @Nullable
+    @NonNull
     private final ViewGroup searchOverlayContainer;
     private final View.OnLayoutChangeListener bottomControlsLayoutChangeListener;
     private final View.OnLayoutChangeListener searchBarLayoutChangeListener;
@@ -60,11 +57,11 @@ public final class AppShellController {
     private int searchBarBaseTopMarginPx;
     private boolean searchBarVisible;
 
-    public AppShellController(@NonNull View rootView,
-                              @Nullable View statusBarFilterView,
-                              @Nullable View bottomContentFilterView,
-                              @Nullable View bottomControlsContainerView,
-                              @Nullable ViewGroup searchOverlayContainer) {
+    public AppShellController(@NonNull ViewGroup rootView,
+                              @NonNull View statusBarFilterView,
+                              @NonNull View bottomContentFilterView,
+                              @NonNull View bottomControlsContainerView,
+                              @NonNull ViewGroup searchOverlayContainer) {
         this.rootView = rootView;
         this.statusBarFilterView = statusBarFilterView;
         this.bottomContentFilterView = bottomContentFilterView;
@@ -80,7 +77,7 @@ public final class AppShellController {
         installWindowInsetsListener();
         updateTopContentFilter();
         updateBottomContentFilter();
-        applySearchBarVisibility(false, DEFAULT_TRANSITION_TYPE, 0L);
+        applySearchBarVisibility(false);
         updateSearchBarLayout();
     }
 
@@ -91,12 +88,12 @@ public final class AppShellController {
         clearAttachedReferences();
     }
 
-    public void setSearchBarVisible(boolean visible, int transitionType, long transitionDelayMs) {
+    public void setSearchBarVisible(boolean visible) {
         if (searchBarVisible == visible) {
             return;
         }
         searchBarVisible = visible;
-        applySearchBarVisibility(true, transitionType, transitionDelayMs);
+        applySearchBarVisibility(true);
         updateSearchBarLayout();
         if (!visible) {
             setTopContentFilterHeightPx(0);
@@ -136,7 +133,7 @@ public final class AppShellController {
     }
 
     private void bindSearchBar() {
-        if (searchBarView != null || searchOverlayContainer == null) {
+        if (searchBarView != null) {
             return;
         }
 
@@ -150,9 +147,7 @@ public final class AppShellController {
         searchBarView.addOnLayoutChangeListener(searchBarLayoutChangeListener);
     }
 
-    private void applySearchBarVisibility(boolean animate,
-                                          int transitionType,
-                                          long transitionDelayMs) {
+    private void applySearchBarVisibility(boolean animate) {
         if (searchBarView == null) {
             return;
         }
@@ -160,34 +155,18 @@ public final class AppShellController {
             searchBarView.setVisibility(searchBarVisible ? View.VISIBLE : View.GONE);
             return;
         }
-        setSearchBarVisibilityWithTransition(searchBarView, searchOverlayContainer, searchBarVisible, transitionType, transitionDelayMs);
+        setSearchBarVisibilityWithTransition(searchBarView, searchBarVisible);
     }
 
-    private void setSearchBarVisibilityWithTransition(@Nullable View searchBar,
-                                                       @Nullable ViewGroup transitionContainer,
-                                                       boolean visible,
-                                                       int transitionType,
-                                                       long transitionDelayMs) {
-        if (searchBar == null) {
-            return;
-        }
-        if (transitionContainer != null) {
-            TransitionManager.beginDelayedTransition(transitionContainer, createSearchBarTransition(transitionType, transitionDelayMs));
-        }
+    private void setSearchBarVisibilityWithTransition(@NonNull View searchBar, boolean visible) {
+        TransitionManager.beginDelayedTransition(searchOverlayContainer, createSearchBarTransition());
         searchBar.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
 
     @NonNull
-    private Transition createSearchBarTransition(int transitionType, long transitionDelayMs) {
-        if (transitionType == FragmentTransaction.TRANSIT_FRAGMENT_FADE) {
-            Fade fade = new Fade();
-            fade.setStartDelay(transitionDelayMs);
-            fade.setDuration(DEFAULT_TRANSITION_DURATION_MS);
-            return fade;
-        }
+    private Transition createSearchBarTransition() {
         Slide slide = new Slide(Gravity.TOP);
-        slide.setDuration(DEFAULT_TRANSITION_DURATION_MS);
-        slide.setStartDelay(transitionDelayMs);
+        slide.setDuration(TRANSITION_DURATION_MS);
         return slide;
     }
 
@@ -222,10 +201,6 @@ public final class AppShellController {
     }
 
     private void updateTopContentFilter() {
-        if (statusBarFilterView == null) {
-            return;
-        }
-
         int desiredHeight = Math.max(
                 Math.round(statusBarInsetPx * 1.5f),
                 topContentFilterHeightPx
@@ -234,12 +209,6 @@ public final class AppShellController {
     }
 
     private void updateBottomContentFilter() {
-        if (bottomContentFilterView == null || bottomControlsContainerView == null) {
-            bottomContentFilterHeightPx = 0;
-            updateContentPadding();
-            return;
-        }
-
         int desiredHeight = bottomControlsContainerView.getHeight()
                 + getBottomControlsBottomMarginPx()
                 + UiDimensions.px(rootView.getContext(), R.dimen.bottom_content_gap);
@@ -262,10 +231,6 @@ public final class AppShellController {
     }
 
     private int getBottomControlsBottomMarginPx() {
-        if (bottomControlsContainerView == null) {
-            return 0;
-        }
-
         ViewGroup.LayoutParams layoutParams = bottomControlsContainerView.getLayoutParams();
         if (layoutParams instanceof ViewGroup.MarginLayoutParams) {
             return ((ViewGroup.MarginLayoutParams) layoutParams).bottomMargin;
@@ -296,23 +261,19 @@ public final class AppShellController {
             filterView.setVisibility(View.VISIBLE);
         }
         Transition transition = new ChangeBounds();
-        transition.setDuration(DEFAULT_TRANSITION_DURATION_MS);
-        TransitionManager.beginDelayedTransition((ViewGroup) rootView, transition);
+        transition.setDuration(TRANSITION_DURATION_MS);
+        TransitionManager.beginDelayedTransition(rootView, transition);
         layoutParams.height = desiredHeight;
         filterView.setLayoutParams(layoutParams);
         filterView.setVisibility(desiredHeight > 0 ? View.VISIBLE : View.GONE);
     }
 
     private void attachBottomControlsListener() {
-        if (bottomControlsContainerView != null) {
-            bottomControlsContainerView.addOnLayoutChangeListener(bottomControlsLayoutChangeListener);
-        }
+        bottomControlsContainerView.addOnLayoutChangeListener(bottomControlsLayoutChangeListener);
     }
 
     private void detachBottomControlsListener() {
-        if (bottomControlsContainerView != null) {
-            bottomControlsContainerView.removeOnLayoutChangeListener(bottomControlsLayoutChangeListener);
-        }
+        bottomControlsContainerView.removeOnLayoutChangeListener(bottomControlsLayoutChangeListener);
     }
 
     private void installWindowInsetsListener() {

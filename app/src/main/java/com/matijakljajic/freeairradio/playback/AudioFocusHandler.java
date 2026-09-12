@@ -4,16 +4,13 @@ import android.content.Context;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
-import android.os.Build;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import com.matijakljajic.freeairradio.util.AppLog;
 
 import java.util.Objects;
 
-@SuppressWarnings("deprecation")
 public final class AudioFocusHandler {
 
     private static final String TAG = "AudioFocusHandler";
@@ -35,7 +32,6 @@ public final class AudioFocusHandler {
     @NonNull
     private final AudioManager.OnAudioFocusChangeListener focusChangeListener =
             this::handleAudioFocusChange;
-    @Nullable
     private final AudioFocusRequest audioFocusRequest;
 
     public AudioFocusHandler(@NonNull Context context, @NonNull Listener listener) {
@@ -43,42 +39,25 @@ public final class AudioFocusHandler {
         audioManager = Objects.requireNonNull(
                 (AudioManager) context.getApplicationContext().getSystemService(Context.AUDIO_SERVICE)
         );
-        audioFocusRequest = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                ? new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+        audioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setOnAudioFocusChangeListener(focusChangeListener)
                 .setWillPauseWhenDucked(false)
                 .setAudioAttributes(new AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                         .build())
-                .build()
-                : null;
+                .build();
     }
 
     public boolean requestFocus() {
-        int result = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                ? audioManager.requestAudioFocus(audioFocusRequest)
-                : requestLegacyFocus();
+        int result = audioManager.requestAudioFocus(audioFocusRequest);
         AppLog.d(TAG, "requestFocus -> " + requestResultToString(result));
         return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
     }
 
     public void abandonFocus() {
         AppLog.d(TAG, "abandonFocus");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            audioManager.abandonAudioFocusRequest(audioFocusRequest);
-            return;
-        }
-        audioManager.abandonAudioFocus(focusChangeListener);
-    }
-
-    @SuppressWarnings("deprecation")
-    private int requestLegacyFocus() {
-        return audioManager.requestAudioFocus(
-                focusChangeListener,
-                AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN
-        );
+        audioManager.abandonAudioFocusRequest(audioFocusRequest);
     }
 
     private void handleAudioFocusChange(int focusChange) {

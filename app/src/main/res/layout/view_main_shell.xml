@@ -69,14 +69,10 @@
                 tools:layout="@layout/fragment_player" />
 
             <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.FreeAirRadio.FloatingSurfaceCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                app:cardBackgroundColor="?attr/colorSurface"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="2dp"
-                app:strokeColor="?attr/colorOutline"
-                app:strokeWidth="1dp">
+                android:layout_marginTop="8dp">
 
                 <com.google.android.material.button.MaterialButtonToggleGroup
                     android:id="@+id/main_nav_toggle_group"

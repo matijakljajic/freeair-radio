@@ -13,7 +13,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-@SuppressWarnings("unused")
 public final class RadioBrowserServerSelector {
 
     private static final String TAG = "RadioBrowserServerSelector";
@@ -35,18 +34,16 @@ public final class RadioBrowserServerSelector {
     public RadioBrowserServerSelector(@NonNull Context context) {
         this(
                 new RadioBrowserServerSettings(context).getPreferredBaseUrl(),
-                true,
                 RadioBrowserServerDirectory.getCachedServers(),
                 RadioBrowserServerDirectory::refresh
         );
     }
 
     RadioBrowserServerSelector(@NonNull List<String> baseUrls) {
-        this(null, false, baseUrls, () -> baseUrls);
+        this(null, baseUrls, () -> baseUrls);
     }
 
     RadioBrowserServerSelector(@Nullable String preferredBaseUrl,
-                               boolean refreshAsync,
                                @NonNull List<String> cachedBaseUrls,
                                @NonNull ServerDiscovery serverDiscovery) {
         this.preferredBaseUrl = normalizeBaseUrl(preferredBaseUrl);
@@ -58,9 +55,6 @@ public final class RadioBrowserServerSelector {
                 + " startupSource=" + (cachedBaseUrls.isEmpty() ? "bootstrap" : "cache")
                 + " serverCount=" + this.baseUrls.size()
                 + " selected=" + AppLog.value(getSelectedBaseUrl()));
-        if (refreshAsync) {
-            refreshAsync();
-        }
     }
 
     @Nullable
@@ -134,27 +128,6 @@ public final class RadioBrowserServerSelector {
                     + " selected=" + baseUrls.get(selectedIndex));
             return true;
         }
-    }
-
-    private void refreshAsync() {
-        AppLog.d(TAG, "Refreshing Radio Browser servers in background");
-        Thread refreshThread = new Thread(() -> {
-            List<String> discoveredBaseUrls = serverDiscovery.refresh();
-            synchronized (lock) {
-                List<String> refreshedBaseUrls = buildInitialBaseUrls(discoveredBaseUrls, preferredBaseUrl);
-                if (!refreshedBaseUrls.isEmpty()) {
-                    baseUrls = refreshedBaseUrls;
-                    selectedIndex = 0;
-                    AppLog.d(TAG, "Refreshed Radio Browser servers"
-                            + " serverCount=" + baseUrls.size()
-                            + " selected=" + baseUrls.get(selectedIndex));
-                } else {
-                    AppLog.w(TAG, "Server refresh returned no base urls");
-                }
-            }
-        }, "RadioBrowserServerRefresh");
-        refreshThread.setDaemon(true);
-        refreshThread.start();
     }
 
     @NonNull

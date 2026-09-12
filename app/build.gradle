@@ -57,7 +57,6 @@ android {
         versionCode = 4
         versionName = "v0.9.3-beta1"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -92,9 +91,4 @@ dependencies {
     implementation libs.androidsvg
     implementation libs.room.runtime
     annotationProcessor libs.room.compiler
-    testImplementation libs.junit
-    debugImplementation libs.fragment.testing
-    androidTestImplementation libs.fragment.testing
-    androidTestImplementation libs.espresso.core
-    androidTestImplementation libs.ext.junit
 }

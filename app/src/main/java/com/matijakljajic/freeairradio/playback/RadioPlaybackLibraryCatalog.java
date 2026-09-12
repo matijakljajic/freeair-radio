@@ -28,7 +28,7 @@ final class RadioPlaybackLibraryCatalog {
     static final String BROWSE_ROOT_ID = "browse_root";
     static final String BROWSE_TOP_ID = "browse_top";
     static final String BROWSE_FAVORITES_ID = "browse_favorites";
-    static final String BROWSE_RECENT_ID = "browse_recent";
+    static final String BROWSE_HISTORY_ID = "browse_history";
     static final String BROWSE_LOCAL_ID = "browse_local";
     private static final String BROWSE_STATION_ID_PREFIX = "browse_station:";
 
@@ -58,10 +58,10 @@ final class RadioPlaybackLibraryCatalog {
                     MediaMetadata.MEDIA_TYPE_FOLDER_RADIO_STATIONS
             );
         }
-        if (BROWSE_RECENT_ID.equals(mediaId)) {
+        if (BROWSE_HISTORY_ID.equals(mediaId)) {
             return buildBrowsableMediaItem(
-                    BROWSE_RECENT_ID,
-                    context.getString(R.string.station_list_title_recently_played),
+                    BROWSE_HISTORY_ID,
+                    context.getString(R.string.station_list_title_listening_history),
                     MediaMetadata.MEDIA_TYPE_FOLDER_RADIO_STATIONS
             );
         }
@@ -80,7 +80,7 @@ final class RadioPlaybackLibraryCatalog {
         List<MediaItem> items = new ArrayList<>(3);
         items.add(requireBrowseNodeItem(context, BROWSE_TOP_ID));
         items.add(requireBrowseNodeItem(context, BROWSE_FAVORITES_ID));
-        items.add(requireBrowseNodeItem(context, BROWSE_RECENT_ID));
+        items.add(requireBrowseNodeItem(context, BROWSE_HISTORY_ID));
         return items;
     }
 
@@ -134,7 +134,7 @@ final class RadioPlaybackLibraryCatalog {
             return BROWSE_ROOT_ID;
         }
         if (params.isRecent) {
-            return BROWSE_RECENT_ID;
+            return BROWSE_HISTORY_ID;
         }
         if (params.isSuggested) {
             return BROWSE_TOP_ID;

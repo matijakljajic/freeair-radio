@@ -19,7 +19,7 @@ public final class ShakeRandomSettings {
     }
 
     public boolean isEnabled() {
-        return sharedPreferences.getBoolean(KEY_ENABLED, true);
+        return sharedPreferences.getBoolean(KEY_ENABLED, false);
     }
 
     public void setEnabled(boolean enabled) {

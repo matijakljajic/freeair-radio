@@ -5,7 +5,7 @@ import androidx.annotation.Nullable;
 
 import java.util.Objects;
 
-public final class RecentlyListenedSong {
+public final class ListeningHistoryTrack {
 
     @Nullable
     private final String artist;
@@ -13,7 +13,7 @@ public final class RecentlyListenedSong {
     private final String title;
     private final long heardAt;
 
-    public RecentlyListenedSong(@Nullable String artist,
+    public ListeningHistoryTrack(@Nullable String artist,
                                 @Nullable String title,
                                 long heardAt) {
         this.artist = normalize(artist);
@@ -43,7 +43,7 @@ public final class RecentlyListenedSong {
         return artist == null ? title : title + " – " + artist;
     }
 
-    public boolean hasSameTrackInfo(@Nullable RecentlyListenedSong other) {
+    public boolean hasSameTrackInfo(@Nullable ListeningHistoryTrack other) {
         return other != null
                 && Objects.equals(artist, other.artist)
                 && Objects.equals(title, other.title);
@@ -63,13 +63,13 @@ public final class RecentlyListenedSong {
         if (this == object) {
             return true;
         }
-        if (!(object instanceof RecentlyListenedSong)) {
+        if (!(object instanceof ListeningHistoryTrack)) {
             return false;
         }
-        RecentlyListenedSong song = (RecentlyListenedSong) object;
-        return heardAt == song.heardAt
-                && Objects.equals(artist, song.artist)
-                && Objects.equals(title, song.title);
+        ListeningHistoryTrack track = (ListeningHistoryTrack) object;
+        return heardAt == track.heardAt
+                && Objects.equals(artist, track.artist)
+                && Objects.equals(title, track.title);
     }
 
     @Override
@@ -80,7 +80,7 @@ public final class RecentlyListenedSong {
     @NonNull
     @Override
     public String toString() {
-        return "RecentlyListenedSong{"
+        return "ListeningHistoryTrack{"
                 + "artist='" + artist + '\''
                 + ", title='" + title + '\''
                 + ", heardAt=" + heardAt

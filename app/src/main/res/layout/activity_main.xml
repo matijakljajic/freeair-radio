@@ -28,11 +28,11 @@
             android:background="#CC000000" />
 
         <androidx.fragment.app.FragmentContainerView
-            android:id="@+id/recently_listened_fragment_container"
-            android:name="com.matijakljajic.freeairradio.ui.history.RecentlyListenedFragment"
+            android:id="@+id/listening_history_fragment_container"
+            android:name="com.matijakljajic.freeairradio.ui.history.ListeningHistoryFragment"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            tools:layout="@layout/fragment_recently_listened" />
+            tools:layout="@layout/fragment_listening_history" />
 
         <com.matijakljajic.freeairradio.ui.util.ContentWidthFrameLayout
             android:layout_width="match_parent"

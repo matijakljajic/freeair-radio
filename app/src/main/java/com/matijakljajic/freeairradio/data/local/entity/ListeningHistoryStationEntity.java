@@ -6,8 +6,8 @@ import androidx.room.Embedded;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
-@Entity(tableName = "recently_played_stations")
-public class RecentlyPlayedStationEntity {
+@Entity(tableName = "listening_history_stations")
+public class ListeningHistoryStationEntity {
 
     @PrimaryKey
     @NonNull
@@ -18,7 +18,7 @@ public class RecentlyPlayedStationEntity {
     @ColumnInfo(name = "last_played_at")
     public final long lastPlayedAt;
 
-    public RecentlyPlayedStationEntity(@NonNull String id,
+    public ListeningHistoryStationEntity(@NonNull String id,
                                        @NonNull StationSnapshotFields station,
                                        long lastPlayedAt) {
         this.id = id;

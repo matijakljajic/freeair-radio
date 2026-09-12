@@ -5,10 +5,10 @@ import androidx.annotation.Nullable;
 
 import com.matijakljajic.freeairradio.data.local.entity.FavoriteStationEntity;
 import com.matijakljajic.freeairradio.data.local.entity.LocalStationEntity;
-import com.matijakljajic.freeairradio.data.local.entity.RecentlyListenedSongEntity;
-import com.matijakljajic.freeairradio.data.local.entity.RecentlyPlayedStationEntity;
+import com.matijakljajic.freeairradio.data.local.entity.ListeningHistoryTrackEntity;
+import com.matijakljajic.freeairradio.data.local.entity.ListeningHistoryStationEntity;
 import com.matijakljajic.freeairradio.data.local.entity.StationSnapshotFields;
-import com.matijakljajic.freeairradio.data.model.RecentlyListenedSong;
+import com.matijakljajic.freeairradio.data.model.ListeningHistoryTrack;
 import com.matijakljajic.freeairradio.data.model.Station;
 import com.matijakljajic.freeairradio.data.model.StationOrigin;
 
@@ -50,24 +50,24 @@ public final class StationMapper {
     }
 
     @NonNull
-    public static RecentlyPlayedStationEntity toRecentlyPlayedStationEntity(@NonNull Station station,
-                                                                            long now) {
-        return new RecentlyPlayedStationEntity(
+    public static ListeningHistoryStationEntity toListeningHistoryStationEntity(@NonNull Station station,
+                                                                            long lastPlayedAt) {
+        return new ListeningHistoryStationEntity(
                 station.getId(),
                 toStationSnapshotFields(station),
-                now
+                lastPlayedAt
         );
     }
 
     @NonNull
-    public static RecentlyListenedSongEntity toRecentlyListenedSongEntity(@NonNull String stationId,
-                                                                          @NonNull RecentlyListenedSong song) {
-        return new RecentlyListenedSongEntity(
+    public static ListeningHistoryTrackEntity toListeningHistoryTrackEntity(@NonNull String stationId,
+                                                                          @NonNull ListeningHistoryTrack track) {
+        return new ListeningHistoryTrackEntity(
                 0L,
                 stationId,
-                song.getArtist(),
-                song.getTitle(),
-                song.getHeardAt()
+                track.getArtist(),
+                track.getTitle(),
+                track.getHeardAt()
         );
     }
 
@@ -88,7 +88,7 @@ public final class StationMapper {
     }
 
     @NonNull
-    public static Station toStation(@NonNull RecentlyPlayedStationEntity entity) {
+    public static Station toStation(@NonNull ListeningHistoryStationEntity entity) {
         return buildStation(
                 entity.id,
                 entity.station
@@ -96,31 +96,33 @@ public final class StationMapper {
     }
 
     @NonNull
-    public static RecentlyListenedSong toRecentlyListenedSong(@NonNull RecentlyListenedSongEntity entity) {
-        return new RecentlyListenedSong(entity.artist, entity.title, entity.heardAt);
+    public static ListeningHistoryTrack toListeningHistoryTrack(@NonNull ListeningHistoryTrackEntity entity) {
+        return new ListeningHistoryTrack(entity.artist, entity.title, entity.heardAt);
     }
 
     @NonNull
     public static List<Station> toFavoriteStations(@NonNull List<FavoriteStationEntity> entities) {
-        return toStations(entities, StationMapper::toStation);
+        List<Station> stations = new ArrayList<>(entities.size());
+        for (FavoriteStationEntity entity : entities) {
+            stations.add(toStation(entity));
+        }
+        return stations;
     }
 
     @NonNull
     public static List<Station> toLocalStations(@NonNull List<LocalStationEntity> entities) {
-        return toStations(entities, StationMapper::toStation);
-    }
-
-    @NonNull
-    public static List<Station> toRecentlyPlayedStations(@NonNull List<RecentlyPlayedStationEntity> entities) {
-        return toStations(entities, StationMapper::toStation);
-    }
-
-    @NonNull
-    private static <T> List<Station> toStations(@NonNull List<T> entities,
-                                                @NonNull EntityStationMapper<T> mapper) {
         List<Station> stations = new ArrayList<>(entities.size());
-        for (T entity : entities) {
-            stations.add(mapper.map(entity));
+        for (LocalStationEntity entity : entities) {
+            stations.add(toStation(entity));
+        }
+        return stations;
+    }
+
+    @NonNull
+    public static List<Station> toListeningHistoryStations(@NonNull List<ListeningHistoryStationEntity> entities) {
+        List<Station> stations = new ArrayList<>(entities.size());
+        for (ListeningHistoryStationEntity entity : entities) {
+            stations.add(toStation(entity));
         }
         return stations;
     }
@@ -175,10 +177,5 @@ public final class StationMapper {
         return stationId.startsWith("LOCAL:")
                 ? StationOrigin.LOCAL_USER
                 : StationOrigin.RADIO_BROWSER;
-    }
-
-    private interface EntityStationMapper<T> {
-        @NonNull
-        Station map(@NonNull T entity);
     }
 }

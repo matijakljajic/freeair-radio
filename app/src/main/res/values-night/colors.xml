@@ -27,4 +27,12 @@
     <color name="theme_surface_variant">#54413B</color>
     <color name="theme_on_surface_variant">#DAC1B9</color>
     <color name="theme_outline">#A58A82</color>
+    <color name="theme_outline_variant">#5B443E</color>
+    <color name="theme_surface_dim">#17100E</color>
+    <color name="theme_surface_bright">#3E2B26</color>
+    <color name="theme_surface_container_lowest">#160E0C</color>
+    <color name="theme_surface_container_low">#281A17</color>
+    <color name="theme_surface_container">#2D1F1B</color>
+    <color name="theme_surface_container_high">#382722</color>
+    <color name="theme_surface_container_highest">#43302B</color>
 </resources>

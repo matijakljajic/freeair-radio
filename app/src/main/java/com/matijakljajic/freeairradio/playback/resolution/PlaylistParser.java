@@ -90,6 +90,7 @@ final class PlaylistParser {
         }
 
         List<String> targets = new ArrayList<>();
+        boolean m3uPlaylist = isM3uPlaylist(baseUrl, trimmedBody);
         String[] lines = trimmedBody.split("\\r?\\n");
         for (String line : lines) {
             if (targets.size() >= MAX_PLAYLIST_ENTRIES) {
@@ -103,9 +104,9 @@ final class PlaylistParser {
                 continue;
             }
 
-            if (trimmedLine.regionMatches(true, 0, "File", 0, 4) && trimmedLine.contains("=")) {
+            if (isPlaylistEntry(trimmedLine)) {
                 addResolvedUrl(targets, baseUrl, trimmedLine.substring(trimmedLine.indexOf('=') + 1));
-            } else if (looksLikeUrl(trimmedLine)) {
+            } else if (looksLikeUrl(trimmedLine) || m3uPlaylist) {
                 addResolvedUrl(targets, baseUrl, trimmedLine);
             }
         }
@@ -123,6 +124,22 @@ final class PlaylistParser {
                 || lowerCaseUrl.endsWith(".pls")
                 || lowerCaseUrl.endsWith(".xspf")
                 || lowerCaseUrl.endsWith(".asx");
+    }
+
+    private static boolean isM3uPlaylist(@NonNull String baseUrl, @NonNull String body) {
+        return baseUrl.toLowerCase(Locale.ROOT).endsWith(".m3u")
+                || body.toUpperCase(Locale.ROOT).contains("#EXTM3U");
+    }
+
+    private static boolean isPlaylistEntry(@NonNull String line) {
+        int equalsIndex = line.indexOf('=');
+        if (equalsIndex <= 0) {
+            return false;
+        }
+
+        String key = line.substring(0, equalsIndex).trim();
+        return key.regionMatches(true, 0, "File", 0, 4)
+                || key.regionMatches(true, 0, "Url", 0, 3);
     }
 
     @NonNull

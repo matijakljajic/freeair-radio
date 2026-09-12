@@ -20,6 +20,7 @@ import com.matijakljajic.freeairradio.artwork.StationArtworkResolver;
 import com.matijakljajic.freeairradio.data.model.Station;
 
 import java.util.List;
+import java.util.Locale;
 
 public final class StationFaviconLoader {
 
@@ -577,7 +578,7 @@ public final class StationFaviconLoader {
         if (favicon == null) {
             return false;
         }
-        String trimmed = favicon.trim().toLowerCase();
+        String trimmed = favicon.trim().toLowerCase(Locale.ROOT);
         return trimmed.startsWith("https://") || trimmed.startsWith("http://");
     }
 }
