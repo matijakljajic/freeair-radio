@@ -83,7 +83,7 @@ final class TopStationsLocationDialog {
         });
 
         dialog.show();
-        DialogWindowHelper.applyWideCenteredLayout(dialog);
+        DialogWindowHelper.applyResponsiveLayout(dialog);
     }
 
     @NonNull

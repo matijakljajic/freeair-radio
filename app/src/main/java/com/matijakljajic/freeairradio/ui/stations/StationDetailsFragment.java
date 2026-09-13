@@ -51,7 +51,7 @@ public class StationDetailsFragment extends DialogFragment {
     @Override
     public void onStart() {
         super.onStart();
-        DialogWindowHelper.applyWideCenteredLayout(getDialog());
+        DialogWindowHelper.applyResponsiveLayout(getDialog());
     }
 
     @NonNull

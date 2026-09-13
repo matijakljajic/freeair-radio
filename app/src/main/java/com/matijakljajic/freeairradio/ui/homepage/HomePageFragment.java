@@ -353,7 +353,11 @@ public class HomePageFragment extends StationFeedFragment {
                 false
         );
         ViewGroup popupContent = popupRootView.findViewById(R.id.homepage_source_dropdown_options);
-        popupRootView.setMinimumWidth(measureDropdownMinWidth(inflater, popupContent));
+        int menuWidth = measureDropdownMinWidth(inflater, popupContent);
+        popupRootView.setMinimumWidth(menuWidth);
+        popupContent.setMinimumWidth(
+                menuWidth - popupContent.getPaddingLeft() - popupContent.getPaddingRight()
+        );
 
         PopupWindow popupWindow = new PopupWindow(
                 popupRootView,
@@ -376,7 +380,10 @@ public class HomePageFragment extends StationFeedFragment {
                 popupWindow.dismiss();
                 switchSource(source);
             });
-            popupContent.addView(optionView);
+            popupContent.addView(optionView, new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            ));
         }
 
         sourcePopupWindow = popupWindow;
@@ -388,7 +395,7 @@ public class HomePageFragment extends StationFeedFragment {
         });
         popupWindow.showAsDropDown(
                 anchorView,
-                -UiDimensions.px(requireContext(), R.dimen.homepage_source_dropdown_horizontal_padding),
+                0,
                 0
         );
     }

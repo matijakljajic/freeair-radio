@@ -53,7 +53,7 @@ public class SettingsResetDialogFragment extends DialogFragment {
     @Override
     public void onStart() {
         super.onStart();
-        DialogWindowHelper.applyWideCenteredLayout(getDialog());
+        DialogWindowHelper.applyResponsiveLayout(getDialog());
     }
 
     private void bindContent(@NonNull View contentView) {

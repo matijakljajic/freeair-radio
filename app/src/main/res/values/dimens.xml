@@ -5,8 +5,9 @@
     <dimen name="station_feed_horizontal_padding">16dp</dimen>
     <dimen name="player_horizontal_margin">10dp</dimen>
     <dimen name="search_bar_horizontal_margin">16dp</dimen>
-    <dimen name="dialog_max_width">10000dp</dimen>
+    <dimen name="dialog_max_width">560dp</dimen>
     <dimen name="dialog_horizontal_margin">16dp</dimen>
+    <dimen name="dialog_vertical_margin">20dp</dimen>
     <dimen name="top_content_gap">10dp</dimen>
     <dimen name="list_bottom_padding">16dp</dimen>
     <dimen name="search_top_gap">10dp</dimen>
@@ -21,12 +22,11 @@
     <dimen name="detail_row_label_value_spacing">12dp</dimen>
     <dimen name="detail_row_tall_value_spacing">4dp</dimen>
     <dimen name="mini_player_metadata_shift">8dp</dimen>
-    <dimen name="homepage_source_dropdown_horizontal_padding">16dp</dimen>
     <dimen name="station_favicon_size">72dp</dimen>
+    <dimen name="player_artwork_size">80dp</dimen>
     <dimen name="station_feed_state_vertical_offset">24dp</dimen>
     <dimen name="dialog_section_corner_radius">16dp</dimen>
     <dimen name="dialog_content_padding">20dp</dimen>
-    <dimen name="dialog_title_horizontal_margin">8dp</dimen>
     <dimen name="dialog_section_margin_top">14dp</dimen>
     <dimen name="dialog_section_padding">16dp</dimen>
     <dimen name="dialog_primary_button_margin_top">18dp</dimen>

@@ -74,41 +74,83 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp">
 
-                <com.google.android.material.button.MaterialButtonToggleGroup
-                    android:id="@+id/main_nav_toggle_group"
+                <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@android:color/transparent"
-                    android:padding="0dp"
-                    app:checkedButton="@id/nav_home_button"
-                    app:selectionRequired="true"
-                    app:singleSelection="true">
+                    android:clipChildren="false"
+                    android:clipToPadding="false">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/nav_home_button"
-                        style="@style/Widget.FreeAirRadio.NavPillButton"
-                        android:layout_width="0dp"
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/main_nav_toggle_group"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/nav_home" />
+                        android:background="@android:color/transparent"
+                        android:padding="0dp"
+                        app:checkedButton="@id/nav_home_button"
+                        app:selectionRequired="true"
+                        app:singleSelection="true">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/nav_search_button"
-                        style="@style/Widget.FreeAirRadio.NavPillButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/nav_search" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/nav_home_button"
+                            style="@style/Widget.FreeAirRadio.NavPillButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/nav_home" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/nav_settings_button"
-                        style="@style/Widget.FreeAirRadio.NavPillButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/nav_settings" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/nav_search_button"
+                            style="@style/Widget.FreeAirRadio.NavPillButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/nav_search" />
 
-                </com.google.android.material.button.MaterialButtonToggleGroup>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/nav_settings_button"
+                            style="@style/Widget.FreeAirRadio.NavPillButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/nav_settings" />
+
+                    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center_vertical"
+                        android:importantForAccessibility="no"
+                        android:orientation="horizontal">
+
+                        <Space
+                            android:layout_width="0dp"
+                            android:layout_height="1dp"
+                            android:layout_weight="1" />
+
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="24dp"
+                            android:background="?attr/colorOutlineVariant" />
+
+                        <Space
+                            android:layout_width="0dp"
+                            android:layout_height="1dp"
+                            android:layout_weight="1" />
+
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="24dp"
+                            android:background="?attr/colorOutlineVariant" />
+
+                        <Space
+                            android:layout_width="0dp"
+                            android:layout_height="1dp"
+                            android:layout_weight="1" />
+
+                    </LinearLayout>
+
+                </FrameLayout>
 
             </com.google.android.material.card.MaterialCardView>
 

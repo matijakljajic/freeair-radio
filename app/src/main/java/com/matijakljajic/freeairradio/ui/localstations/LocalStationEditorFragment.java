@@ -110,7 +110,7 @@ public class LocalStationEditorFragment extends DialogFragment {
     @Override
     public void onStart() {
         super.onStart();
-        DialogWindowHelper.applyWideCenteredLayout(getDialog());
+        DialogWindowHelper.applyResponsiveLayout(getDialog());
     }
 
     @Override

@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    style="@style/Widget.FreeAirRadio.DialogCard"
+    android:id="@+id/dialog_scroll_container"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:fillViewport="false">
+
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.FreeAirRadio.DialogCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,10 +21,9 @@
             android:id="@+id/settings_reset_dialog_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="@dimen/dialog_title_horizontal_margin"
             android:breakStrategy="balanced"
-            android:gravity="center"
-            android:textAlignment="center"
+            android:gravity="start"
+            android:textAlignment="viewStart"
             android:textAppearance="@style/TextAppearance.FreeAirRadio.DialogTitle" />
 
         <com.google.android.material.card.MaterialCardView
@@ -38,22 +43,33 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/settings_reset_dialog_confirm_button"
-            style="@style/Widget.FreeAirRadio.DialogPrimaryButton"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/dialog_primary_button_margin_top"
-            android:text="@string/settings_reset_confirm" />
+            android:orientation="horizontal">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/settings_reset_dialog_close_button"
-            style="@style/Widget.FreeAirRadio.DialogSecondaryButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/dialog_secondary_button_margin_top"
-            android:text="@string/station_details_close" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/settings_reset_dialog_close_button"
+                style="@style/Widget.FreeAirRadio.DialogSecondaryButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/station_details_close" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/settings_reset_dialog_confirm_button"
+                style="@style/Widget.FreeAirRadio.DialogPrimaryButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:text="@string/settings_reset_confirm" />
+
+        </LinearLayout>
 
     </LinearLayout>
 
-</com.google.android.material.card.MaterialCardView>
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.core.widget.NestedScrollView>

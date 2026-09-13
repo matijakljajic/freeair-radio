@@ -9,38 +9,49 @@
     android:gravity="center_vertical"
     android:orientation="horizontal">
 
-    <LinearLayout
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/homepage_source_button"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="48dp"
         android:clickable="true"
         android:focusable="true"
-        android:foreground="?attr/selectableItemBackgroundBorderless"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        app:cardBackgroundColor="?attr/colorSurfaceContainer"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="0dp"
+        app:rippleColor="?attr/colorPrimaryContainer"
+        app:strokeWidth="0dp">
 
-        <TextView
-            android:id="@+id/homepage_title"
+        <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/station_list_title_now_popular"
-            android:textAppearance="?attr/textAppearanceHeadlineSmall"
-            android:textColor="?attr/colorOnSurface"
-            android:textStyle="bold"
-            tools:text="Now Popular" />
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="14dp"
+            android:paddingEnd="10dp">
 
-        <ImageView
-            android:id="@+id/homepage_title_chevron"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_marginStart="6dp"
-            android:layout_marginTop="0dp"
-            android:contentDescription="@null"
-            android:importantForAccessibility="no"
-            android:src="@drawable/ic_chevron_down"
-            app:tint="?attr/colorOnSurface" />
+            <TextView
+                android:id="@+id/homepage_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/station_list_title_now_popular"
+                android:textAppearance="?attr/textAppearanceTitleLarge"
+                android:textColor="?attr/colorOnSurface"
+                android:textStyle="bold"
+                tools:text="Now Popular" />
 
-    </LinearLayout>
+            <ImageView
+                android:id="@+id/homepage_title_chevron"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginStart="6dp"
+                android:contentDescription="@null"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_chevron_down"
+                app:tint="?attr/colorOnSurface" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
 
     <Space
         android:layout_width="0dp"

@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    style="@style/Widget.FreeAirRadio.DialogCard"
+    android:id="@+id/dialog_scroll_container"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:fillViewport="false">
+
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.FreeAirRadio.DialogCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -16,13 +22,12 @@
             android:id="@+id/station_details_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="@dimen/dialog_title_horizontal_margin"
             android:breakStrategy="balanced"
             android:ellipsize="end"
-            android:gravity="center"
+            android:gravity="start"
             android:hyphenationFrequency="normal"
             android:maxLines="3"
-            android:textAlignment="center"
+            android:textAlignment="viewStart"
             android:textAppearance="@style/TextAppearance.FreeAirRadio.DialogTitle"
             tools:ignore="VisualLintSystemUi" />
 
@@ -97,4 +102,6 @@
 
     </LinearLayout>
 
-</com.google.android.material.card.MaterialCardView>
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.core.widget.NestedScrollView>
