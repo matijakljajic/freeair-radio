@@ -37,8 +37,10 @@ public final class RadioBrowserRepository implements StationRepository {
 
     private static final int DEFAULT_LIMIT = 50;
     private static final int NETWORK_WORKER_COUNT = 3;
-    private static final int MAX_PARALLEL_COUNTRY_REQUESTS = 4;
+    private static final int MAX_PARALLEL_COUNTRY_REQUESTS = 2;
+    private static final int MAX_COUNTRY_REQUEST_ATTEMPTS = 2;
     private static final int MAX_SERVER_ATTEMPTS = 3;
+    private static final long COUNTRY_REQUEST_RETRY_DELAY_MS = 300L;
     private static final String RADIO_BROWSER_ID_PREFIX = "RADIO_BROWSER:";
     private static final String ORDER_CLICK_COUNT = "clickcount";
     private static final String ORDER_NAME = "name";
@@ -174,6 +176,8 @@ public final class RadioBrowserRepository implements StationRepository {
             postStationsLoaded(callback, mapStations(stations));
         } catch (IOException exception) {
             retryStationsOrError(request, callback, attempt, baseUrl, exception);
+        } catch (RuntimeException exception) {
+            postError(callback, exception);
         }
     }
 
@@ -203,6 +207,8 @@ public final class RadioBrowserRepository implements StationRepository {
             postCountryCodesLoaded(callback, countryCodes);
         } catch (IOException exception) {
             retryCountryCodesOrError(callback, attempt, baseUrl, exception);
+        } catch (RuntimeException exception) {
+            postCountryCodesError(callback, exception);
         }
     }
 
@@ -253,16 +259,9 @@ public final class RadioBrowserRepository implements StationRepository {
 
         try {
             for (String countryCode : countryCodes) {
-                countryRequests.add(countryRequestExecutor.submit(() -> fetchStations(
-                        api.loadTopStationsByCountryCode(
-                                countryCode,
-                                DEFAULT_LIMIT,
-                                true,
-                                ORDER_CLICK_COUNT,
-                                true
-                        ),
-                        "load top stations for " + countryCode
-                )));
+                countryRequests.add(countryRequestExecutor.submit(
+                        () -> fetchTopStationsByCountryCode(api, countryCode)
+                ));
             }
 
             for (Future<List<RadioBrowserStationDto>> countryRequest : countryRequests) {
@@ -298,6 +297,45 @@ public final class RadioBrowserRepository implements StationRepository {
             return new ArrayList<>(sortedStations.subList(0, DEFAULT_LIMIT));
         }
         return sortedStations;
+    }
+
+    @NonNull
+    private List<RadioBrowserStationDto> fetchTopStationsByCountryCode(
+            @NonNull RadioBrowserApi api,
+            @NonNull String countryCode
+    ) throws IOException {
+        IOException lastError = null;
+        for (int attempt = 0; attempt < MAX_COUNTRY_REQUEST_ATTEMPTS; attempt++) {
+            try {
+                return fetchStations(
+                        api.loadTopStationsByCountryCode(
+                                countryCode,
+                                DEFAULT_LIMIT,
+                                true,
+                                ORDER_CLICK_COUNT,
+                                true
+                        ),
+                        "load top stations for " + countryCode
+                );
+            } catch (IOException exception) {
+                lastError = exception;
+                if (attempt + 1 < MAX_COUNTRY_REQUEST_ATTEMPTS) {
+                    waitBeforeCountryRetry();
+                }
+            }
+        }
+        throw lastError != null
+                ? lastError
+                : new IOException("Country station request failed without an error");
+    }
+
+    private void waitBeforeCountryRetry() throws IOException {
+        try {
+            Thread.sleep(COUNTRY_REQUEST_RETRY_DELAY_MS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Country station load was interrupted", exception);
+        }
     }
 
     @NonNull

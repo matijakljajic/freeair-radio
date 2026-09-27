@@ -96,6 +96,7 @@ public class SettingsFragment extends AppShellAwareFragment {
     @Nullable
     private List<String> availableTopStationsCountryCodes;
     private boolean topStationsCountryCodesLoading;
+    private int topStationsCountryCodesRequestId;
     private int serverLoadRequestId;
 
     @Override
@@ -122,6 +123,7 @@ public class SettingsFragment extends AppShellAwareFragment {
     @Override
     public void onDestroyView() {
         serverLoadRequestId++;
+        topStationsCountryCodesRequestId++;
         detachRootPadding();
         clearListeners();
         clearReferences();
@@ -327,7 +329,6 @@ public class SettingsFragment extends AppShellAwareFragment {
 
         syncSelectedTopStationsLocation();
         topStationsLocationButton.setOnClickListener(v -> onTopStationsLocationClicked());
-        loadTopStationsCountryCodesIfNeeded();
     }
 
     private void bindAudioInterruptionSelection() {
@@ -545,15 +546,20 @@ public class SettingsFragment extends AppShellAwareFragment {
     }
 
     private void onTopStationsLocationClicked() {
-        if (availableTopStationsCountryCodes == null) {
-            if (!topStationsCountryCodesLoading) {
-                loadTopStationsCountryCodesIfNeeded();
-            }
+        if (availableTopStationsCountryCodes != null) {
+            showTopStationsLocationDialog(availableTopStationsCountryCodes);
+            return;
+        }
+
+        if (topStationsCountryCodesLoading) {
             showToast(R.string.settings_top_stations_location_loading);
             return;
         }
 
-        showTopStationsLocationDialog(availableTopStationsCountryCodes);
+        loadTopStationsCountryCodesIfNeeded();
+        if (topStationsCountryCodesLoading) {
+            showToast(R.string.settings_top_stations_location_loading);
+        }
     }
 
     private void loadTopStationsCountryCodesIfNeeded() {
@@ -563,24 +569,35 @@ public class SettingsFragment extends AppShellAwareFragment {
             return;
         }
 
+        int requestId = ++topStationsCountryCodesRequestId;
         topStationsCountryCodesLoading = true;
         stationRepository.loadAvailableCountryCodes(new StationRepository.CountryCodesCallback() {
             @Override
             public void onCountryCodesLoaded(@NonNull List<String> countryCodes) {
+                if (!isCurrentCountryCodesRequest(requestId)) {
+                    return;
+                }
                 topStationsCountryCodesLoading = false;
                 availableTopStationsCountryCodes = countryCodes;
+                showTopStationsLocationDialog(countryCodes);
             }
 
             @Override
             public void onError(@NonNull Throwable throwable) {
-                topStationsCountryCodesLoading = false;
-                availableTopStationsCountryCodes = null;
-                if (!isAdded()) {
+                if (!isCurrentCountryCodesRequest(requestId)) {
                     return;
                 }
+                topStationsCountryCodesLoading = false;
+                availableTopStationsCountryCodes = null;
                 showToast(R.string.settings_top_stations_location_load_failed);
             }
         });
+    }
+
+    private boolean isCurrentCountryCodesRequest(int requestId) {
+        return requestId == topStationsCountryCodesRequestId
+                && isAdded()
+                && getView() != null;
     }
 
     private void showTopStationsLocationDialog(@NonNull List<String> availableCountryCodes) {

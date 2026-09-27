@@ -29,9 +29,9 @@ public final class RadioBrowserClient {
 
     private RadioBrowserClient() {
         okHttpClient = new OkHttpClient.Builder()
-                .callTimeout(8, TimeUnit.SECONDS)
+                .callTimeout(20, TimeUnit.SECONDS)
                 .connectTimeout(5, TimeUnit.SECONDS)
-                .readTimeout(8, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
                 .addInterceptor(createHeaderInterceptor())
                 .build();
     }

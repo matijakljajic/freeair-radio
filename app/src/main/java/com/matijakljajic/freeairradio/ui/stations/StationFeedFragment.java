@@ -62,6 +62,7 @@ public abstract class StationFeedFragment extends AppShellAwareFragment implemen
     }
 
     protected final void clearStationFeed() {
+        requestSequence++;
         stationRepository = null;
         loadingView = null;
         stateContainerView = null;
